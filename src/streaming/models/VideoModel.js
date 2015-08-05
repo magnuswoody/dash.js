@@ -43,7 +43,7 @@ MediaPlayer.models.VideoModel = function () {
         },
 
         addStalledStream = function (type) {
-            if (element.seeking || stalledStreams.indexOf(type) !== -1) {
+            if (type === null || element.seeking || stalledStreams.indexOf(type) !== -1) {
                 return;
             }
 
