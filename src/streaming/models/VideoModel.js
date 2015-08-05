@@ -55,9 +55,15 @@ MediaPlayer.models.VideoModel = function () {
                 this.setPlaybackRate(0);
                 element.dispatchEvent(new CustomEvent("waiting"));
             }
+
+            stalledStreams.push(type);
         },
 
         removeStalledStream = function (type) {
+            if (type === null) {
+                return;
+            }
+
             var index = stalledStreams.indexOf(type);
             if (index !== -1) {
                 stalledStreams.splice(index, 1);
