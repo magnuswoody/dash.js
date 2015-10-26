@@ -55,8 +55,6 @@ MediaPlayer.models.VideoModel = function () {
                 this.setPlaybackRate(0);
                 element.dispatchEvent(new CustomEvent("waiting"));
             }
-
-            stalledStreams.push(type);
         },
 
         removeStalledStream = function (type) {
