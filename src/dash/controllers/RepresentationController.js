@@ -147,6 +147,10 @@ Dash.dependencies.RepresentationController = function () {
                 };
 
             updating = false;
+            self.eventBus.dispatchEvent({
+                type: MediaPlayer.events.AST_IN_FUTURE,
+                data: {delay: delay}
+            });
             setTimeout(update.bind(this), delay);
         },
 
@@ -260,6 +264,7 @@ Dash.dependencies.RepresentationController = function () {
         unsubscribe: undefined,
         DOMStorage:undefined,
         liveDelayFragmentCount:undefined,
+        eventBus: undefined,
 
         setup: function() {
             this[MediaPlayer.dependencies.AbrController.eventList.ENAME_QUALITY_CHANGED] = onQualityChanged;
