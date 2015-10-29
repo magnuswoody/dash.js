@@ -86,9 +86,11 @@ MediaPlayer = function (context) {
         scheduleWhilePaused = false,
         bufferMax = MediaPlayer.dependencies.BufferController.BUFFER_SIZE_REQUIRED,
         useManifestDateHeaderTimeSource = true,
+        dvbMetricsEndpointOptions,
         UTCTimingSources = [],
         liveDelayFragmentCount = 4,
         usePresentationDelay = false,
+        dvbReportingResponseCheckingDisabled = false,
 
         isReady = function () {
             return (!!element && !!source && !resetting);
@@ -121,6 +123,8 @@ MediaPlayer = function (context) {
 
             system.mapValue("liveDelayFragmentCount", liveDelayFragmentCount);
             system.mapOutlet("liveDelayFragmentCount", "trackController");
+            system.mapValue("dvbReportingResponseCheckingDisabled", dvbReportingResponseCheckingDisabled);
+            system.mapOutlet("dvbReportingResponseCheckingDisabled", "dvbReporting");
 
             streamController.initialize(autoPlay, protectionController, protectionData);
             DOMStorage.checkInitialBitrate();
@@ -129,7 +133,10 @@ MediaPlayer = function (context) {
             } else {
                 streamController.loadWithManifest(source);
             }
+
             streamController.setUTCTimingSources(UTCTimingSources, useManifestDateHeaderTimeSource);
+            streamController.setDefaultMetricsEndpoint(dvbMetricsEndpointOptions);
+
             system.mapValue("scheduleWhilePaused", scheduleWhilePaused);
             system.mapOutlet("scheduleWhilePaused", "stream");
             system.mapOutlet("scheduleWhilePaused", "scheduleController");
@@ -1091,6 +1098,17 @@ MediaPlayer = function (context) {
             this.addUTCTimingSource(MediaPlayer.UTCTimingSources.default.scheme, MediaPlayer.UTCTimingSources.default.value);
         },
 
+        setDefaultDVBMetricsEndpoint: function (options) {
+            dvbMetricsEndpointOptions = options;
+        },
+
+        clearDefaultDVBMetricsEndpoint: function () {
+            dvbMetricsEndpointOptions = undefined;
+        },
+
+        disableDVBReportingResponseChecking: function (disable) {
+            dvbReportingResponseCheckingDisabled = disable;
+        },
 
         /**
          * <p>Allows you to enable the use of the Date Header, if exposed with CORS, as a timing source for live edge detection. The

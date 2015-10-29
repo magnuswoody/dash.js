@@ -41,7 +41,7 @@ MediaPlayer.metrics.reporting.DVBReporting = function () {
         allowPendingRequestsToCompleteOnReset = true,
         pendingRequests = [],
 
-        doGetRequest = function (url, successCB, failureCB) {
+        doGetRequestXHR = function (url, successCB, failureCB) {
             var req = new XMLHttpRequest(),
                 oncomplete = function () {
                     var reqIndex = pendingRequests.indexOf(req);
@@ -75,8 +75,16 @@ MediaPlayer.metrics.reporting.DVBReporting = function () {
             }
         },
 
+        doGetRequestImage = function (url) {
+            var img = new Image();
+            img.src = url;
+        },
+
         report = function (type, vos) {
-            var self = this;
+            var self = this,
+                reportMethod = self.dvbReportingResponseCheckingDisabled ?
+                        doGetRequestImage :
+                        doGetRequestXHR;
 
             if (!Array.isArray(vos)) {
                 vos = [vos];
@@ -105,7 +113,7 @@ MediaPlayer.metrics.reporting.DVBReporting = function () {
 
                     // Make an HTTP GET request to the URL contained within the
                     // string created in the previous step.
-                    doGetRequest(url, null, function () {
+                    reportMethod(url, null, function () {
                         // If the Player is unable to make the report, for
                         // example because the @reportingUrl is invalid, the
                         // host cannot be reached, or an HTTP status code other
@@ -123,6 +131,7 @@ MediaPlayer.metrics.reporting.DVBReporting = function () {
         eventBus: undefined,
         metricSerialiser: undefined,
         randomNumberGenerator: undefined,
+        dvbReportingResponseCheckingDisabled: undefined,
 
         initialize: function (entry, rc) {
             var probability;

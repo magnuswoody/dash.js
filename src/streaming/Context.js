@@ -153,6 +153,7 @@ MediaPlayer.di.Context = function () {
 
             this.system.mapSingleton('metricSerialiser', MediaPlayer.metrics.utils.MetricSerialiser);
             this.system.mapSingleton('handlerHelpers', MediaPlayer.metrics.utils.HandlerHelpers);
+            this.system.mapSingleton('defaultMetricsManifestEntryFactory', MediaPlayer.metrics.utils.DefaultMetricsManifestEntryFactory);
 
             this.system.mapSingleton('notifier', MediaPlayer.dependencies.Notifier);
         }

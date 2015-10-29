@@ -50,6 +50,7 @@
         mediaSource,
         UTCTimingSources,
         useManifestDateHeaderTimeSource,
+        defaultDVBMetricsEndpointOptions,
         initialPlayback = true,
         isPaused = false,
         playListMetrics = null,
@@ -494,7 +495,9 @@
         },
 
         onManifestUpdated = function(e) {
-            var self = this;
+            var self = this,
+                manifestMetrics;
+
             if (!e.error) {
                 //Since streams are not composed yet , need to manually look up useCalculatedLiveEdgeTime to detect if stream
                 //is SegmentTimeline to avoid using time source
@@ -530,7 +533,11 @@
 
                 self.timeSyncController.initialize(allUTCTimingSources, useManifestDateHeaderTimeSource);
 
-                this.metricsCollectionController.initialize(this.manifestExt.getMetrics(manifest));
+                manifestMetrics = this.manifestExt.getMetrics(manifest);
+                if (!manifestMetrics.length && defaultDVBMetricsEndpointOptions) {
+                    manifestMetrics = this.manifestExt.getMetrics(self.defaultMetricsManifestEntryFactory.create(defaultDVBMetricsEndpointOptions));
+                }
+                this.metricsCollectionController.initialize(manifestMetrics);
             } else {
                 this.reset(true);
             }
@@ -563,6 +570,7 @@
         unsubscribe: undefined,
         uriQueryFragModel:undefined,
         metricsCollectionController: undefined,
+        defaultMetricsManifestEntryFactory: undefined,
 
         setup: function() {
             this[MediaPlayer.dependencies.ManifestUpdater.eventList.ENAME_MANIFEST_UPDATED] = onManifestUpdated;
@@ -597,6 +605,10 @@
         setUTCTimingSources: function(value, value2) {
             UTCTimingSources = value;
             useManifestDateHeaderTimeSource = value2;
+        },
+
+        setDefaultMetricsEndpoint: function (options) {
+            defaultDVBMetricsEndpointOptions = options;
         },
 
         /**
