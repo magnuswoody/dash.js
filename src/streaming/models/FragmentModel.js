@@ -180,7 +180,7 @@ MediaPlayer.dependencies.FragmentModel = function () {
         notify: undefined,
         subscribe: undefined,
         unsubscribe: undefined,
-        videoModelExt: undefined,
+        videoModel: undefined,
         sourceBufferExt: undefined,
         eventBus: undefined,
         manifestExt:undefined,
