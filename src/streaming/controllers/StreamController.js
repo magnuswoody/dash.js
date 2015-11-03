@@ -50,6 +50,48 @@
         mediaSource,
         UTCTimingSources,
         useManifestDateHeaderTimeSource,
+        defaultDVBMetricsEndpointOptions,
+        initialPlayback = true,
+        isPaused = false,
+        playListMetrics = null,
+
+        flushPlaylistMetrics = function (reason, time) {
+            time = time || new Date();
+
+            if (playListMetrics) {
+                if (activeStream) {
+                    activeStream.getProcessors().forEach(function (p) {
+                        var ctrlr = p.getScheduleController();
+                        if(ctrlr) {
+                            ctrlr.finalisePlayList(
+                                time,
+                                reason
+                            );
+                        }
+                    });
+                }
+
+                this.metricsModel.addPlayList(playListMetrics);
+
+                playListMetrics = null;
+            }
+        },
+
+        addPlaylistMetrics = function (startReason) {
+            playListMetrics = new MediaPlayer.vo.metrics.PlayList();
+            playListMetrics.start = new Date();
+            playListMetrics.mstart = this.playbackController.getTime() * 1000;
+            playListMetrics.starttype = startReason;
+
+            if (activeStream) {
+                activeStream.getProcessors().forEach(function (p) {
+                    var ctrlr = p.getScheduleController();
+                    if(ctrlr) {
+                        ctrlr.setPlayList(playListMetrics);
+                    }
+                });
+            }
+        },
 
         attachEvents = function (stream) {
             var mediaController = this.system.getObject("mediaController");
@@ -127,7 +169,8 @@
                 this.log(e.error);
             }
             this.errHandler.mediaSourceError(msg);
-            this.reset();
+
+            this.reset(true);
         },
 
         /*
@@ -154,7 +197,16 @@
         },
 
         onEnded = function(/*e*/) {
-            switchStream.call(this, activeStream, getNextStream());
+            var nextStream = getNextStream();
+
+            switchStream.call(this, activeStream, nextStream);
+
+            flushPlaylistMetrics.call(
+                this,
+                nextStream ?
+                    MediaPlayer.vo.metrics.PlayList.Trace.END_OF_PERIOD_STOP_REASON :
+                    MediaPlayer.vo.metrics.PlayList.Trace.END_OF_CONTENT_STOP_REASON
+            );
         },
 
         /*
@@ -165,7 +217,31 @@
             var seekingStream = getStreamForTime(e.data.seekTime);
 
             if (seekingStream && seekingStream !== activeStream) {
+                flushPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.Trace.END_OF_PERIOD_STOP_REASON);
                 switchStream.call(this, activeStream, seekingStream, e.data.seekTime);
+            } else {
+                flushPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.Trace.USER_REQUEST_STOP_REASON);
+            }
+
+            addPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.SEEK_START_REASON);
+        },
+
+        onStarted = function (/*e*/) {
+            if (initialPlayback) {
+                initialPlayback = false;
+                addPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.INITIAL_PLAYOUT_START_REASON);
+            } else {
+                if (isPaused) {
+                    isPaused = false;
+                    addPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.RESUME_FROM_PAUSE_START_REASON);
+                }
+            }
+        },
+
+        onPaused = function (e) {
+            if (!e.data.ended) {
+                isPaused = true;
+                flushPlaylistMetrics.call(this, MediaPlayer.vo.metrics.PlayList.Trace.USER_REQUEST_STOP_REASON);
             }
         },
 
@@ -387,7 +463,7 @@
                 checkIfUpdateCompleted.call(self);
             } catch(e) {
                 self.errHandler.manifestError(e.message, "nostreamscomposed", manifest);
-                self.reset();
+                self.reset(true);
             }
         },
 
@@ -416,13 +492,15 @@
         },
 
         onManifestUpdated = function(e) {
-            var self = this;
+            var self = this,
+                manifestMetrics;
+
             if (!e.error) {
-                if (e.data.manifest.type === "dynamic") {
+                var manifest = e.data.manifest;
+                if (manifest.type === "dynamic") {
                     //Since streams are not composed yet , need to manually look up useCalculatedLiveEdgeTime to detect if stream
                     //is SegmentTimeline to avoid using time source
-                    var manifest = e.data.manifest,
-                        streamInfo = self.adapter.getStreamsInfo(manifest)[0],
+                    var streamInfo = self.adapter.getStreamsInfo(manifest)[0],
                         mediaInfo = (
                             self.adapter.getMediaInfoForType(manifest, streamInfo, "video") ||
                             self.adapter.getMediaInfoForType(manifest, streamInfo, "audio")
@@ -450,13 +528,17 @@
                                 self.log("Matching default timing source protocol to manifest protocol: " , item.value);
                             }
                         });
-
                     self.timeSyncController.initialize(allUTCTimingSources, useManifestDateHeaderTimeSource);
                 } else {
                     composeStreams.call(this);
                 }
+                manifestMetrics = this.manifestExt.getMetrics(manifest);
+                if (!manifestMetrics.length && defaultDVBMetricsEndpointOptions) {
+                    manifestMetrics = this.manifestExt.getMetrics(self.defaultMetricsManifestEntryFactory.create(defaultDVBMetricsEndpointOptions));
+                }
+                this.metricsCollectionController.initialize(manifestMetrics);
             } else {
-                self.reset();
+                this.reset(true);
             }
         };
 
@@ -486,6 +568,8 @@
         subscribe: undefined,
         unsubscribe: undefined,
         uriQueryFragModel:undefined,
+        metricsCollectionController: undefined,
+        defaultMetricsManifestEntryFactory: undefined,
 
         setup: function() {
             this[MediaPlayer.dependencies.ManifestUpdater.eventList.ENAME_MANIFEST_UPDATED] = onManifestUpdated;
@@ -500,6 +584,8 @@
 
             this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_CAN_PLAY] = onCanPlay;
             this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_ERROR] = onError;
+            this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_STARTED] = onStarted;
+            this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_PAUSED] = onPaused;
 
         },
 
@@ -518,6 +604,10 @@
         setUTCTimingSources: function(value, value2) {
             UTCTimingSources = value;
             useManifestDateHeaderTimeSource = value2;
+        },
+
+        setDefaultMetricsEndpoint: function (options) {
+            defaultDVBMetricsEndpointOptions = options;
         },
 
         /**
@@ -555,11 +645,19 @@
             this.manifestUpdater.setManifest(manifest);
         },
 
-        reset: function () {
+        reset: function (fail) {
 
             if (!!activeStream) {
                 detachEvents.call(this, activeStream);
             }
+
+            flushPlaylistMetrics.call(
+                this,
+                fail ?
+                    MediaPlayer.vo.metrics.PlayList.Trace.FAILURE_STOP_REASON :
+                    MediaPlayer.vo.metrics.PlayList.Trace.USER_REQUEST_STOP_REASON
+            );
+
 
             var mediaController = this.system.getObject("mediaController"),
                 stream;
@@ -568,6 +666,8 @@
             this.timeSyncController.unsubscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCHRONIZATION_COMPLETED, this.liveEdgeFinder);
             this.timeSyncController.unsubscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCHRONIZATION_COMPLETED, this);
             this.timeSyncController.reset();
+
+            this.metricsCollectionController.reset();
 
             for (var i = 0, ln = streams.length; i < ln; i++) {
                 stream = streams[i];
@@ -598,6 +698,8 @@
             activeStream = null;
             canPlay = false;
             hasMediaError = false;
+            initialPlayback = true;
+            isPaused = false;
 
             if (mediaSource) {
                 this.mediaSourceExt.detachMediaSource(this.videoModel);

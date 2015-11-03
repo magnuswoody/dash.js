@@ -87,9 +87,11 @@ MediaPlayer = function (context) {
         limitBitrateByPortal = true,
         bufferMax = MediaPlayer.dependencies.BufferController.BUFFER_SIZE_REQUIRED,
         useManifestDateHeaderTimeSource = true,
+        dvbMetricsEndpointOptions,
         UTCTimingSources = [],
         liveDelayFragmentCount = 4,
         usePresentationDelay = false,
+        dvbReportingResponseCheckingDisabled = false,
 
         isReady = function () {
             return (!!element && !!source && !resetting);
@@ -116,10 +118,14 @@ MediaPlayer = function (context) {
             playbackController.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_TIME_UPDATED, streamController);
             playbackController.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_CAN_PLAY, streamController);
             playbackController.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_ERROR, streamController);
+            playbackController.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_STARTED, streamController);
+            playbackController.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_PAUSED, streamController);
             playbackController.setLiveDelayAttributes(liveDelayFragmentCount, usePresentationDelay);
 
             system.mapValue("liveDelayFragmentCount", liveDelayFragmentCount);
             system.mapOutlet("liveDelayFragmentCount", "trackController");
+            system.mapValue("dvbReportingResponseCheckingDisabled", dvbReportingResponseCheckingDisabled);
+            system.mapOutlet("dvbReportingResponseCheckingDisabled", "dvbReporting");
 
             streamController.initialize(autoPlay, protectionController, protectionData);
             DOMStorage.checkInitialBitrate();
@@ -128,10 +134,13 @@ MediaPlayer = function (context) {
             } else {
                 streamController.loadWithManifest(source);
             }
+
             streamController.setUTCTimingSources(UTCTimingSources, useManifestDateHeaderTimeSource);
 
             abrController = system.getObject('abrController');
             abrController.limitBitrateByPortal = limitBitrateByPortal;
+
+            streamController.setDefaultMetricsEndpoint(dvbMetricsEndpointOptions);
 
             system.mapValue("scheduleWhilePaused", scheduleWhilePaused);
             system.mapOutlet("scheduleWhilePaused", "stream");
@@ -268,6 +277,8 @@ MediaPlayer = function (context) {
                     playbackController.unsubscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_TIME_UPDATED, streamController);
                     playbackController.unsubscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_CAN_PLAY, streamController);
                     playbackController.unsubscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_ERROR, streamController);
+                    playbackController.unsubscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_STARTED, streamController);
+                    playbackController.unsubscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_PAUSED, streamController);
 
                     var teardownComplete = {},
                             self = this;
@@ -1153,6 +1164,17 @@ MediaPlayer = function (context) {
             this.addUTCTimingSource(MediaPlayer.UTCTimingSources.default.scheme, MediaPlayer.UTCTimingSources.default.value);
         },
 
+        setDefaultDVBMetricsEndpoint: function (options) {
+            dvbMetricsEndpointOptions = options;
+        },
+
+        clearDefaultDVBMetricsEndpoint: function () {
+            dvbMetricsEndpointOptions = undefined;
+        },
+
+        disableDVBReportingResponseChecking: function (disable) {
+            dvbReportingResponseCheckingDisabled = disable;
+        },
 
         /**
          * <p>Allows you to enable the use of the Date Header, if exposed with CORS, as a timing source for live edge detection. The
@@ -1450,6 +1472,15 @@ MediaPlayer.vo.protection = {};
  * @namespace
  */
 MediaPlayer.rules = {};
+
+/**
+ * Namespace for {@MediaPlayer} reporting classes
+ * @namespace
+ */
+MediaPlayer.metrics = {};
+MediaPlayer.metrics.reporting = {};
+MediaPlayer.metrics.handlers = {};
+MediaPlayer.metrics.utils = {};
 
 /**
  * Namespace for {@MediaPlayer} dependency-injection helper classes
