@@ -54,8 +54,7 @@ MediaPlayer.rules.BufferLevelRule = function () {
         },
 
         getRequiredBufferLength = function (isDynamic, duration, scheduleController) {
-            var self = this,
-                criticalBufferLevel = scheduleController.bufferController.getCriticalBufferLevel(),
+            var criticalBufferLevel = scheduleController.bufferController.getCriticalBufferLevel(),
                 vmetrics = self.metricsModel.getReadOnlyMetricsFor("video"),
                 ametrics = self.metricsModel.getReadOnlyMetricsFor("audio"),
                 minBufferTarget = decideBufferLength.call(this, scheduleController.bufferController.getMinBufferTime(), duration, isDynamic),
