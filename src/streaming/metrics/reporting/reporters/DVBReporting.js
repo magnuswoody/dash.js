@@ -103,13 +103,13 @@ MediaPlayer.metrics.reporting.DVBReporting = function () {
 
                     // this has been proposed for errata
                     if (USE_DRAFT_DVB_SPEC && (type !== "DVBErrors")) {
-                        url = "metricname=" + type + "&" + url;
+                        url = "metricname/" + type + "/" + url;
                     }
 
                     // Take the value of the @reportingUrl attribute, append a
                     // question mark ('?') character and then append the string
                     // created in the previous step.
-                    url = reportingUrl + "?" + url;
+                    url = reportingUrl + "/" + url;
 
                     // Make an HTTP GET request to the URL contained within the
                     // string created in the previous step.

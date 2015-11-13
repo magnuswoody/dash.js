@@ -36,11 +36,12 @@ MediaPlayer.metrics.utils.MetricSerialiser = function () {
     // For each entry in the top level list within the metric (in the case
     // of the DVBErrors metric each entry corresponds to an "error event"
     // described in clause 10.8.4) the Player shall:
-    var serialise = function (metric) {
+    var serialise = function (metric, separator) {
             var pairs = [],
                 key,
                 value,
-                obj = [];
+                obj = [],
+                sep = separator || '/';
 
             // Take each (key, value) pair from the metric entry and create a
             // string consisting of the name of the key, followed by an equals
@@ -69,25 +70,28 @@ MediaPlayer.metrics.utils.MetricSerialiser = function () {
                         value.forEach(function (v) {
                             var isBuiltIn = Object.prototype.toString.call(v).slice(8, -1) !== "Object";
 
-                            obj.push(isBuiltIn ? v : serialise(v));
+                            obj.push(isBuiltIn ? v : serialise(v, "="));
                         });
 
-                        value = encodeURIComponent(obj.join(","));
+                        value = obj.join(",");
                     } else if (typeof value === "string") {
-                        value = encodeURIComponent(value);
+                        if (value.indexOf('http') === 0) {
+                            //Escape URLs for rdot
+                            value = value.replace( /\W+/gim, "~" );
+                        }
                     } else if (value instanceof Date) {
                         value = value.toISOString();
                     } else if (typeof value === "number") {
                         value = Math.round(value);
                     }
 
-                    pairs.push(key + "=" + value);
+                    pairs.push(key + sep + (value || "-"));
                 }
             }
 
             // Concatenate the strings created in the previous step with an
             // ampersand ('&') character between each one.
-            return pairs.join("&");
+            return pairs.join("/");
         };
 
     return {
