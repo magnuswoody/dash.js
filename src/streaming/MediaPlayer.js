@@ -165,7 +165,11 @@ MediaPlayer = function (context) {
         },
 
         getDVRWindowSize = function() {
-            return getDVRInfoMetric.call(this).manifestInfo.DVRWindowSize;
+            var metric = getDVRInfoMetric.call(this);
+            if (!metric) {
+                return NaN;
+            }
+            return metric.manifestInfo.DVRWindowSize;
         },
 
         getDVRSeekOffset = function (value) {
@@ -903,11 +907,28 @@ MediaPlayer = function (context) {
         },
 
         /**
+         * @returns {object}
+         * @memberof MediaPlayer#
+         */
+        getAutoSwitchQuality : function () {
+            return this.getAutoSwitchQualityFor('video') || this.getAutoSwitchQualityFor('audio');
+        },
+
+        /**
+         * @param value
+         * @memberof MediaPlayer#
+         */
+        setAutoSwitchQuality : function (value) {
+            this.setAutoSwitchQualityFor('audio', value);
+            this.setAutoSwitchQualityFor('video', value);
+        },
+
+        /**
          * @param type {string}
          * @returns {object}
          * @memberof MediaPlayer#
          */
-        getAutoSwitchQuality : function (type) {
+        getAutoSwitchQualityFor : function (type) {
             return abrController.getAutoSwitchBitrate(type);
         },
 
@@ -916,7 +937,7 @@ MediaPlayer = function (context) {
          * @param value
          * @memberof MediaPlayer#
          */
-        setAutoSwitchQuality : function (type, value) {
+        setAutoSwitchQualityFor : function (type, value) {
             abrController.setAutoSwitchBitrate(type, value);
         },
 

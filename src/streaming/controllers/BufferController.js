@@ -34,7 +34,6 @@ MediaPlayer.dependencies.BufferController = function () {
         STALL_THRESHOLD = 0.5,
         requiredQuality = 0,
         currentQuality = -1,
-        isBufferingCompleted = false,
         bufferLevel = 0,
         bufferTarget= 0,
         criticalBufferLevel = Number.POSITIVE_INFINITY,
@@ -47,6 +46,7 @@ MediaPlayer.dependencies.BufferController = function () {
         hasSufficientBuffer = null,
         appendedBytesInfo,
         wallclockTicked = 0,
+        bufferCompletedSent = false,
 
         isAppendingInProgress = false,
         isPruningInProgress = false,
@@ -152,6 +152,7 @@ MediaPlayer.dependencies.BufferController = function () {
         appendToBuffer = function(chunk) {
             isAppendingInProgress = true;
             appendedBytesInfo = chunk;
+            bufferCompletedSent = false;
 
             var self = this,
                 quality = chunk.quality,
@@ -312,19 +313,16 @@ MediaPlayer.dependencies.BufferController = function () {
 
         /* prune buffer on our own in background to avoid browsers pruning buffer silently */
         pruneBuffer = function() {
-            var bufferToPrune = 0,
+            var start = buffer.buffered.length ? buffer.buffered.start(0) : 0,
                 currentTime = this.playbackController.getTime(),
-                currentRange = this.sourceBufferExt.getBufferRange(buffer, currentTime);
-                // we want to get rid off buffer that is more than x
-                // seconds behind current time, but no pruning once it's
-                // finished.
-            if (currentRange !== null && mediaSource.readyState !== "ended") {
-                bufferToPrune = currentTime - currentRange.start - MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP;
-                if (bufferToPrune > MINIMUM_BUFFER_TO_PRUNE) {
-                    this.log("need to prune:"+bufferToPrune);
-                    isPruningInProgress = true;
-                    this.sourceBufferExt.remove(buffer, 0, Math.round(currentRange.start + bufferToPrune), mediaSource);
-                }
+                bufferToPrune = currentTime - start - MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP;
+
+            // we want to get rid off buffer that is more than x
+            // seconds behind current time, but no pruning once it's
+            // finished.
+            if (!isPruningInProgress && mediaSource.readyState !== "ended" && bufferToPrune > MINIMUM_BUFFER_TO_PRUNE) {
+                isPruningInProgress = true;
+                this.sourceBufferExt.remove(buffer, 0, Math.round(start + bufferToPrune), mediaSource);
             }
         },
 
@@ -382,16 +380,46 @@ MediaPlayer.dependencies.BufferController = function () {
         },
 
         checkIfBufferingCompleted = function() {
-            var isLastIdxAppended = maxAppendedIndex === (lastIndex - 1);
+            var TOLERANCE = 0.15,
+                currentTime = this.playbackController.getTime(),
+                isDynamic = this.playbackController.getIsDynamic(),
+                lastRange,
+                i,
+                pruneStart;
 
-            if (!isLastIdxAppended || isBufferingCompleted) return;
+            if (!buffer || !buffer.buffered || buffer.buffered.length === 0) {
+                return false;
+            } else {
+                lastRange = buffer.buffered.length - 1;
+            }
 
-            isBufferingCompleted = true;
-            this.notify(MediaPlayer.dependencies.BufferController.eventList.ENAME_BUFFERING_COMPLETED);
+            if (!isDynamic && buffer.buffered.start(lastRange) <= currentTime && buffer.buffered.end(lastRange) >= this.playbackController.getStreamDuration() - TOLERANCE) {
+                if (!bufferCompletedSent) {
+                    bufferCompletedSent = true;
+                    this.notify(MediaPlayer.dependencies.BufferController.eventList.ENAME_BUFFERING_COMPLETED);
+                }
+                return true;
+            } else {
+                if (!isPruningInProgress) {
+                    // Prune future buffer if it's discontinuous and a long way away
+                    for (i = lastRange; i > 0; i--) {
+                        if (currentTime + MediaPlayer.dependencies.BufferController.BUFFER_AHEAD_TO_KEEP < buffer.buffered.start(i)) {
+                            pruneStart = buffer.buffered.start(i);
+                        } else {
+                            break;
+                        }
+                    }
+                    if (pruneStart) {
+                        isPruningInProgress = true;
+                        this.sourceBufferExt.remove(buffer, pruneStart, buffer.buffered.end(lastRange), mediaSource);
+                    }
+                }
+                return false;
+            }
         },
 
         checkIfSufficientBuffer = function () {
-            if (bufferLevel < STALL_THRESHOLD && !isBufferingCompleted) {
+            if (bufferLevel < STALL_THRESHOLD && !this.isBufferingCompleted()) {
                 notifyIfSufficientBufferStateChanged.call(this, false);
             } else {
                 notifyIfSufficientBufferStateChanged.call(this, true);
@@ -627,10 +655,13 @@ MediaPlayer.dependencies.BufferController = function () {
         },
 
         onWallclockTimeUpdated = function(/*e*/) {
+            var secondsElapsed;
             appendNext.call(this);
             // constantly prune buffer every so often
             wallclockTicked += 1;
-            if ((wallclockTicked % MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL) === 0 && !isAppendingInProgress) {
+            secondsElapsed = (wallclockTicked * (MediaPlayer.dependencies.PlaybackController.WALLCLOCK_TIME_UPDATE_INTERVAL / 1000));
+            if ((secondsElapsed >= MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL) && !isAppendingInProgress) {
+                wallclockTicked = 0;
                 pruneBuffer.call(this);
             }
         },
@@ -749,7 +780,7 @@ MediaPlayer.dependencies.BufferController = function () {
         },
 
         isBufferingCompleted : function() {
-            return isBufferingCompleted;
+            return checkIfBufferingCompleted.call(this);
         },
 
         reset: function(errored) {
@@ -765,6 +796,7 @@ MediaPlayer.dependencies.BufferController = function () {
             self.sourceBufferExt.unsubscribe(MediaPlayer.dependencies.SourceBufferExtensions.eventList.ENAME_SOURCEBUFFER_APPEND_COMPLETED, self, onAppended);
             self.sourceBufferExt.unsubscribe(MediaPlayer.dependencies.SourceBufferExtensions.eventList.ENAME_SOURCEBUFFER_REMOVE_COMPLETED, self, onRemoved);
             appendedBytesInfo = null;
+            bufferCompletedSent = false;
 
             this.virtualBuffer.unsubscribe(MediaPlayer.utils.VirtualBuffer.eventList.CHUNK_APPENDED, self, onChunkAppended);
 
@@ -793,6 +825,7 @@ MediaPlayer.dependencies.BufferController.RICH_BUFFER_THRESHOLD = 20;
 MediaPlayer.dependencies.BufferController.BUFFER_LOADED = "bufferLoaded";
 MediaPlayer.dependencies.BufferController.BUFFER_EMPTY = "bufferStalled";
 MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP = 30;
+MediaPlayer.dependencies.BufferController.BUFFER_AHEAD_TO_KEEP = 120;
 MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL = 30;
 
 
