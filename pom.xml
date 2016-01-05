@@ -106,6 +106,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
                     </execution>
                     <execution>
                         <id>npm install</id>
+                        <phase>${grunt.phase}</phase>
                         <goals>
                             <goal>npm</goal>
                         </goals>
