@@ -133,6 +133,8 @@ function MediaPlayer() {
         restoreDefaultUTCTimingSources();
         setAutoPlay(AutoPlay !== undefined ? AutoPlay : true);
 
+        createControllers();
+
         if (view) {
             attachView(view);
         }
@@ -180,7 +182,6 @@ function MediaPlayer() {
         playing = true;
         log('Playback initiated!');
 
-        createControllers();
         domStorage.checkInitialBitrate();
         if (typeof source === 'string') {
             streamController.load(source);
@@ -1231,7 +1232,10 @@ function MediaPlayer() {
             protectionController = protectionCtrl;
         }
         protectionData = data;
-        resetAndPlay();
+
+        if (urlOrManifest) {
+            resetAndPlay();
+        }
     }
 
     /**
