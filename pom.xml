@@ -55,13 +55,13 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>2.5</version>
                 <executions>
-                <execution>
-                <id>auto-clean</id>
-                <phase>initialize</phase>
-                <goals>
-                    <goal>clean</goal>
-                </goals>
-                </execution>
+                    <execution>
+                        <id>auto-clean</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
 
