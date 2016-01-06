@@ -1274,6 +1274,7 @@ function MediaPlayer() {
         playing = false;
         eventBus.off(Events.STREAM_TEARDOWN_COMPLETE, onStreamTeardownComplete, this);
         resetting = false;
+        createControllers();
         play();
     }
 
