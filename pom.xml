@@ -29,9 +29,6 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
     </scm>
 
     <properties>
-        <!-- deployment url -->
-        <deploy.to.path>${basedir}/bin/target/releases</deploy.to.path>
-
         <!-- git revision -->
         <revision>${git.commitsCount}</revision>
 
@@ -45,9 +42,6 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
     </properties>
 
     <build>
-        <outputDirectory>${basedir}/bin/target</outputDirectory>
-        <testOutputDirectory>${basedir}/bin/target/test-classes</testOutputDirectory>
-
         <plugins>
 
             <plugin>
