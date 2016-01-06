@@ -140,7 +140,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
         <!-- Plug in the version number -->
         <resources>
             <resource>
-                <directory>../dist</directory>
+                <directory>dist</directory>
                 <includes>
                     <include>*.js</include>
                 </includes>
