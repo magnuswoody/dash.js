@@ -203,7 +203,11 @@ function MediaPlayer() {
      * @instance
      */
     function getDVRWindowSize() {
-        return getDVRInfoMetric().manifestInfo.DVRWindowSize;
+        var metric = getDVRInfoMetric();
+        if (!metric) {
+            return NaN;
+        }
+        return metric.manifestInfo.DVRWindowSize;
     }
 
     /**
