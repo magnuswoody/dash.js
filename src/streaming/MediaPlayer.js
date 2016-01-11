@@ -1395,6 +1395,8 @@ function MediaPlayer() {
         initialize: initialize,
         on: on,
         off: off,
+        addEventListener: on,
+        removeEventListener: off,
         extend: extend,
         attachView: attachView,
         attachSource: attachSource,
