@@ -908,7 +908,7 @@ function MediaPlayer() {
      *
      */
     function getAutoSwitchQuality() {
-        return abrController.getAutoSwitchBitrateFor("video") || abrController.getAutoSwitchBitrateFor("audio");
+        return abrController.getAutoSwitchBitrateFor('video') || abrController.getAutoSwitchBitrateFor('audio');
     }
 
     /**
@@ -920,8 +920,8 @@ function MediaPlayer() {
      * @instance
      */
     function setAutoSwitchQuality(value) {
-        abrController.setAutoSwitchBitrateFor("video", value);
-        abrController.setAutoSwitchBitrateFor("audio", value);
+        abrController.setAutoSwitchBitrateFor('video', value);
+        abrController.setAutoSwitchBitrateFor('audio', value);
     }
 
     /**
