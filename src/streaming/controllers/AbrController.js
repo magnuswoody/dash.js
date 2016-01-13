@@ -128,14 +128,14 @@ function AbrController() {
      * @memberof AbrController#
      */
     function getInitialBitrateFor(type) {
-        var initialBitrate;
+        let initialBitrate;
 
         if (!bitrateDict.hasOwnProperty(type)) {
             if (!ratioDict.hasOwnProperty(type)) {
                 bitrateDict[type] = (type === 'video') ? DEFAULT_VIDEO_BITRATE : DEFAULT_AUDIO_BITRATE;
             } else {
-                var manifest = manifestModel.getValue();
-                var representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
+                let manifest = manifestModel.getValue();
+                let representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
                 if (Array.isArray(representation)) {
                     bitrateDict[type] = representation[Math.round(representation.length * ratioDict[type]) - 1].bandwidth;
                 } else {
@@ -145,7 +145,6 @@ function AbrController() {
         }
 
         initialBitrate = bitrateDict[type];
-
         return initialBitrate;
     }
 
@@ -439,12 +438,21 @@ function AbrController() {
             return idx;
         }
 
+<<<<<<< HEAD
         var element = videoModel.getElement();
         var elementWidth = element.clientWidth;
         var elementHeight = element.clientHeight;
         var manifest = manifestModel.getValue();
         var representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
         var newIdx = idx;
+=======
+        let element = videoModel.getElement();
+        let elementWidth = element.clientWidth;
+        let elementHeight = element.clientHeight;
+        let manifest = manifestModel.getValue();
+        let representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
+        let newIdx = idx;
+>>>>>>> dashif/development
 
         if (elementWidth > 0 && elementHeight > 0) {
             while (

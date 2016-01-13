@@ -368,8 +368,8 @@ function MediaPlayer() {
     /**
      * TODO Need Docs
      */
-    function extend(parentNameString, childInstance) {
-        FactoryMaker.extend(parentNameString, childInstance, context);
+    function extend(parentNameString, childInstance, override) {
+        FactoryMaker.extend(parentNameString, childInstance, override, context);
     }
 
     /**
