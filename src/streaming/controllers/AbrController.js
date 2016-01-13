@@ -438,21 +438,12 @@ function AbrController() {
             return idx;
         }
 
-<<<<<<< HEAD
-        var element = videoModel.getElement();
-        var elementWidth = element.clientWidth;
-        var elementHeight = element.clientHeight;
-        var manifest = manifestModel.getValue();
-        var representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
-        var newIdx = idx;
-=======
         let element = videoModel.getElement();
         let elementWidth = element.clientWidth;
         let elementHeight = element.clientHeight;
         let manifest = manifestModel.getValue();
         let representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
         let newIdx = idx;
->>>>>>> dashif/development
 
         if (elementWidth > 0 && elementHeight > 0) {
             while (
