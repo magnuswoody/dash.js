@@ -31,7 +31,7 @@
 
 import SwitchRequest from '../rules/SwitchRequest';
 import BitrateInfo from '../vo/BitrateInfo.js';
-import ABRRulesCollection from '../rules/ABRRules/ABRRulesCollection.js';
+import ABRRulesCollection from '../rules/abr/ABRRulesCollection.js';
 import FragmentModel from '../models/FragmentModel.js';
 import EventBus from '../../core/EventBus.js';
 import Events from '../../core/events/Events.js';
@@ -536,11 +536,10 @@ function AbrController() {
     return instance;
 }
 
+AbrController.__dashjs_factory_name = 'AbrController';
 let factory = FactoryMaker.getSingletonFactory(AbrController);
-
 factory.ABANDON_LOAD = ABANDON_LOAD;
 factory.BANDWIDTH_SAFETY = BANDWIDTH_SAFETY;
 factory.DEFAULT_VIDEO_BITRATE = DEFAULT_VIDEO_BITRATE;
 factory.DEFAULT_AUDIO_BITRATE = DEFAULT_AUDIO_BITRATE;
-
 export default factory;

@@ -39,7 +39,6 @@ let FactoryMaker = (function () {
 
     function extend(name, childInstance, override, context) {
         let extensionContext = getExtensionContext(context);
-
         if (!extensionContext[name] && childInstance) {
             extensionContext[name] = {instance: childInstance, override: override};
         }
@@ -47,37 +46,33 @@ let FactoryMaker = (function () {
 
     function getSingletonInstance(context, className) {
         for (let i in singletonContexts) {
-            const obj = singletonContexts[i];
+            let obj = singletonContexts[i];
             if (obj.context === context && obj.name === className) {
                 return obj.instance;
             }
         }
-
         return null;
     }
 
     function setSingletonInstance(context, className, instance) {
         for (let i in singletonContexts) {
-            const obj = singletonContexts[i];
+            let obj = singletonContexts[i];
             if (obj.context === context && obj.name === className) {
                 singletonContexts[i].instance = instance;
                 return;
             }
         }
-
         singletonContexts.push({ name: className, context: context, instance: instance });
     }
 
     function getClassFactory(classConstructor) {
         return function (context) {
-
             if (context === undefined) {
                 context = {};
             }
-
             return {
                 create: function () {
-                    return merge(classConstructor.name, classConstructor.apply({ context: context }, arguments), context);
+                    return merge(classConstructor.__dashjs_factory_name, classConstructor.apply({ context: context }, arguments), context);
                 }
             };
         };
@@ -85,21 +80,21 @@ let FactoryMaker = (function () {
 
     function getSingletonFactory(classConstructor) {
         return function (context) {
+            let instance;
             if (context === undefined) {
                 context = {};
             }
-
-            let instance = getSingletonInstance(context, classConstructor.name);
-
             return {
                 getInstance: function () {
-                    if (instance) {
-                        return instance;
+                    // If we don't have an instance yet check for one on the context
+                    if (!instance) {
+                        instance = getSingletonInstance(context, classConstructor.__dashjs_factory_name);
                     }
-
-                    instance = merge(classConstructor.name, classConstructor.apply({ context: context }, arguments), context);
-                    singletonContexts.push({ name: classConstructor.name, context: context, instance: instance });
-
+                    // If there's no instance on the context then create one
+                    if (!instance) {
+                        instance = merge(classConstructor.__dashjs_factory_name, classConstructor.apply({ context: context }, arguments), context);
+                        singletonContexts.push({ name: classConstructor.__dashjs_factory_name, context: context, instance: instance });
+                    }
                     return instance;
                 }
             };
@@ -107,7 +102,6 @@ let FactoryMaker = (function () {
     }
 
     function merge(name, classConstructor, context) {
-
         let extensionContext = getExtensionContext(context);
         let extensionObject = extensionContext[name];
         if (extensionObject) {
@@ -128,17 +122,14 @@ let FactoryMaker = (function () {
 
     function getExtensionContext(context) {
         let extensionContext;
-
         extensions.forEach(function (obj) {
             if (obj === context) {
                 extensionContext = obj;
             }
         });
-
         if (!extensionContext) {
             extensionContext = extensions.push(context);
         }
-
         return extensionContext;
     }
 

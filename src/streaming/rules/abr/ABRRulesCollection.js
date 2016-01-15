@@ -28,45 +28,47 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-
+import ThroughputRule from './ThroughputRule.js';
+import BufferOccupancyRule from './BufferOccupancyRule.js';
+import InsufficientBufferRule from './InsufficientBufferRule.js';
+import AbandonRequestsRule from './AbandonRequestsRule.js';
+import MetricsModel from '../../models/MetricsModel.js';
+import DashMetricsExtensions from '../../../dash/extensions/DashMetricsExtensions.js';
 import FactoryMaker from '../../../core/FactoryMaker.js';
-import TimelineConverter from '../../../dash/TimelineConverter.js';
-import LiveEdgeBinarySearchRule from './LiveEdgeBinarySearchRule.js';
-import LiveEdgeWithTimeSynchronizationRule from './LiveEdgeWithTimeSynchronizationRule.js';
-import DashAdapter from '../../../dash/DashAdapter.js';
 
+const QUALITY_SWITCH_RULES = 'qualitySwitchRules';
+const ABANDON_FRAGMENT_RULES = 'abandonFragmentRules';
 
-const TIME_SYNCHRONIZED_RULES = 'withAccurateTimeSourceRules';
-const BEST_GUESS_RULES = 'bestGuestRules';
-
-function SynchronizationRulesCollection() {
+function ABRRulesCollection() {
 
     let context = this.context;
 
     let instance,
-        withAccurateTimeSourceRules,
-        bestGuestRules;
+        qualitySwitchRules,
+        abandonFragmentRules;
 
     function initialize() {
-        withAccurateTimeSourceRules = [];
-        bestGuestRules = [];
+        qualitySwitchRules = [];
+        abandonFragmentRules = [];
 
-        withAccurateTimeSourceRules.push(LiveEdgeWithTimeSynchronizationRule(context).create({
-            timelineConverter: TimelineConverter(context).getInstance()
-        }));
+        let metricsModel = MetricsModel(context).getInstance();
 
-        bestGuestRules.push(LiveEdgeBinarySearchRule(context).create({
-            timelineConverter: TimelineConverter(context).getInstance(),
-            adapter: DashAdapter(context).getInstance()
-        }));
+        qualitySwitchRules.push(ThroughputRule(context).create({
+                metricsModel: metricsModel,
+                metricsExt: DashMetricsExtensions(context).getInstance()
+            })
+        );
+        qualitySwitchRules.push(BufferOccupancyRule(context).create({metricsModel: metricsModel}));
+        qualitySwitchRules.push(InsufficientBufferRule(context).create({metricsModel: metricsModel}));
+        abandonFragmentRules.push(AbandonRequestsRule(context).create());
     }
 
-    function getRules(type) {
+    function getRules (type) {
         switch (type) {
-            case TIME_SYNCHRONIZED_RULES:
-                return withAccurateTimeSourceRules;
-            case BEST_GUESS_RULES:
-                return bestGuestRules;
+            case QUALITY_SWITCH_RULES:
+                return qualitySwitchRules;
+            case ABANDON_FRAGMENT_RULES:
+                return abandonFragmentRules;
             default:
                 return null;
         }
@@ -80,9 +82,8 @@ function SynchronizationRulesCollection() {
     return instance;
 }
 
-let factory = FactoryMaker.getSingletonFactory(SynchronizationRulesCollection);
-
-factory.TIME_SYNCHRONIZED_RULES = TIME_SYNCHRONIZED_RULES;
-factory.BEST_GUESS_RULES = BEST_GUESS_RULES;
-
+ABRRulesCollection.__dashjs_factory_name = 'ABRRulesCollection';
+let factory =  FactoryMaker.getSingletonFactory(ABRRulesCollection);
+factory.QUALITY_SWITCH_RULES = QUALITY_SWITCH_RULES;
+factory.ABANDON_FRAGMENT_RULES = ABANDON_FRAGMENT_RULES;
 export default factory;
