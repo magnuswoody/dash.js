@@ -147,7 +147,7 @@ function StreamController() {
 
     function onCanPlay(/*e*/) {
         canPlay = true;
-        startAutoPlay();
+        //startAutoPlay();
     }
 
     function onPlaybackError(e) {
