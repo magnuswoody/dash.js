@@ -31,6 +31,7 @@
 import SwitchRequest from '../SwitchRequest.js';
 import BufferController from '../../controllers/BufferController.js';
 import AbrController from '../../controllers/AbrController.js';
+import MediaPlayerModel from '../../models/MediaPlayerModel.js';
 import FactoryMaker from '../../../core/FactoryMaker.js';
 import Debug from '../../../core/Debug.js';
 
@@ -43,8 +44,12 @@ function ThroughputRule(config) {
     let log = Debug(context).getInstance().log;
     let metricsExt = config.metricsExt;
     let metricsModel = config.metricsModel;
+    let instance,
+        mediaPlayerModel;
 
-    let instance;
+    function setup() {
+        mediaPlayerModel = MediaPlayerModel(context).getInstance();
+    }
 
     function execute (rulesContext, callback) {
         var averageThroughput;
@@ -68,7 +73,7 @@ function ThroughputRule(config) {
         }
 
         averageThroughput = metricsExt.getRecentThroughput(metrics, (isDynamic ? AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_LIVE : AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_VOD));
-        averageThroughput = Math.round((averageThroughput * AbrController.BANDWIDTH_SAFETY) / 1000);
+        averageThroughput = Math.round((averageThroughput * mediaPlayerModel.getBandwidthSafetyFactor()) / 1000);
 
         abrController.setAverageThroughput(mediaType, averageThroughput);
 
@@ -90,9 +95,16 @@ function ThroughputRule(config) {
         callback(switchRequest);
     }
 
+    function reset() {
+        setup();
+    }
+
     instance = {
         execute: execute,
+        reset: reset
     };
+
+    setup();
 
     return instance;
 }

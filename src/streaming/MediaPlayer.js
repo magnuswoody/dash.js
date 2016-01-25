@@ -75,6 +75,9 @@ import MediaPlayerFactory from '../streaming/MediaPlayerFactory.js';
 function MediaPlayer() {
 
     const VERSION = '2.0.0';
+    const PLAYBACK_NOT_INITIALIZED_ERROR = 'You must first call play() to init playback before calling this method';
+    const ELEMENT_NOT_ATTACHED_ERROR = 'You must first call attachView() to set the video element before calling this method';
+    const MEDIA_PLAYER_NOT_INITIALIZED_ERROR = 'MediaPlayer not initialized!';
 
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
@@ -86,7 +89,6 @@ function MediaPlayer() {
         source,
         protectionData,
         initialized,
-        resetting,
         playbackInitiated,
         autoPlay,
         abrController,
@@ -108,7 +110,6 @@ function MediaPlayer() {
 
     function setup() {
         initialized = false;
-        resetting = false;
         playbackInitiated = false;
         autoPlay = true;
         protectionController = null;
@@ -128,12 +129,16 @@ function MediaPlayer() {
         if (initialized) return;
         initialized = true;
 
+        abrController = AbrController(context).getInstance();
+        mediaPlayerModel = MediaPlayerModel(context).getInstance();
+        playbackController = PlaybackController(context).getInstance();
+        mediaController = MediaController(context).getInstance();
+        mediaController.initialize();
         manifestExt = DashManifestExtensions(context).getInstance();
         metricsExt = DashMetricsExtensions(context).getInstance();
         domStorage = DOMStorage(context).getInstance();
         metricsModel = MetricsModel(context).getInstance();
         metricsModel.setConfig({adapter: createAdaptor()});
-        mediaPlayerModel = MediaPlayerModel(context).getInstance();
         errHandler = ErrorHandler(context).getInstance();
 
         restoreDefaultUTCTimingSources();
@@ -162,7 +167,7 @@ function MediaPlayer() {
      * @instance
      */
     function isReady() {
-        return (!!element && !!source && !resetting);
+        return (!!element && !!source);
     }
 
     /**
@@ -176,7 +181,7 @@ function MediaPlayer() {
 
         if (!playbackInitiated) {
             if (!initialized) {
-                throw 'MediaPlayer not initialized!';
+                throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
             }
             if (!element || !source) {
                 throw 'Missing view or source.';
@@ -201,30 +206,51 @@ function MediaPlayer() {
     }
 
     function pause() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         playbackController.pause();
     }
 
     function isPaused() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return playbackController.isPaused();
     }
 
     function isSeeking() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return playbackController.isSeeking();
     }
 
     function setMute(value) {
+        if (!element) {
+            throw ELEMENT_NOT_ATTACHED_ERROR;
+        }
         element.muted = value;
     }
 
     function isMuted() {
+        if (!element) {
+            throw ELEMENT_NOT_ATTACHED_ERROR;
+        }
         return element.muted;
     }
 
     function setVolume(value) {
+        if (!element) {
+            throw ELEMENT_NOT_ATTACHED_ERROR;
+        }
         element.volume = value;
     }
 
     function getVolume() {
+        if (!element) {
+            throw ELEMENT_NOT_ATTACHED_ERROR;
+        }
         return element.volume;
     }
 
@@ -243,7 +269,7 @@ function MediaPlayer() {
     function getDVRWindowSize() {
         var metric = getDVRInfoMetric();
         if (!metric) {
-            return NaN;
+            return 0;
         }
         return metric.manifestInfo.DVRWindowSize;
     }
@@ -261,6 +287,11 @@ function MediaPlayer() {
      */
     function getDVRSeekOffset(value) {
         var metric = getDVRInfoMetric();
+
+        if (!metric) {
+            return 0;
+        }
+
         var val = metric.range.start + value;
 
         if (val > metric.range.end) {
@@ -280,6 +311,9 @@ function MediaPlayer() {
      * @instance
      */
     function seek(value) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         var s = playbackController.getIsDynamic() ? getDVRSeekOffset(value) : value;
         playbackController.seek(s);
     }
@@ -293,6 +327,9 @@ function MediaPlayer() {
      * @instance
      */
     function time() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         var t = element.currentTime;
         if (playbackController.getIsDynamic()) {
             var metric = getDVRInfoMetric();
@@ -309,6 +346,9 @@ function MediaPlayer() {
      * @instance
      */
     function duration() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         var d = element.duration;
 
         if (playbackController.getIsDynamic()) {
@@ -316,7 +356,7 @@ function MediaPlayer() {
             var metric = getDVRInfoMetric();
             var range;
 
-            if (metric === null) {
+            if (!metric) {
                 return 0;
             }
 
@@ -331,7 +371,7 @@ function MediaPlayer() {
         var availableFrom,
             utcValue;
 
-        if (metric === null) {
+        if (!metric) {
             return 0;
         }
         availableFrom = metric.manifestInfo.availableFrom.getTime() / 1000;
@@ -348,6 +388,9 @@ function MediaPlayer() {
      * @instance
      */
     function timeAsUTC() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return getAsUTC(time());
     }
 
@@ -360,6 +403,9 @@ function MediaPlayer() {
      * @instance
      */
     function durationAsUTC() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return getAsUTC(duration());
     }
 
@@ -398,6 +444,9 @@ function MediaPlayer() {
     }
 
     function getActiveStream() {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         var streamInfo = streamController.getActiveStreamInfo();
         return streamInfo ? streamController.getStreamById(streamInfo.id) : null;
     }
@@ -457,6 +506,9 @@ function MediaPlayer() {
      * @instance
      */
     function getVideoModel() {
+        if (!element) {
+            throw ELEMENT_NOT_ATTACHED_ERROR;
+        }
         return videoModel;
     }
 
@@ -511,7 +563,7 @@ function MediaPlayer() {
      *
      */
     function enableLastBitrateCaching(enable, ttl) {
-        domStorage.enableLastBitrateCaching(enable, ttl);
+        mediaPlayerModel.setLastBitrateCachingInfo(enable, ttl);
     }
 
     /**
@@ -529,7 +581,7 @@ function MediaPlayer() {
      *
      */
     function enableLastMediaSettingsCaching(enable, ttl) {
-        domStorage.enableLastMediaSettingsCaching(enable, ttl);
+        mediaPlayerModel.setLastMediaSettingsCachingInfo(enable, ttl);
     }
 
     /**
@@ -662,6 +714,9 @@ function MediaPlayer() {
      * @instance
      */
     function getQualityFor(type) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return abrController.getQualityFor(type, streamController.getActiveStreamInfo());
     }
 
@@ -674,6 +729,9 @@ function MediaPlayer() {
      * @instance
      */
     function setQualityFor(type, value) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         abrController.setPlaybackQuality(type, streamController.getActiveStreamInfo(), value);
     }
 
@@ -707,6 +765,9 @@ function MediaPlayer() {
      * @instance
      */
     function setTextTrack(idx) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         //For external time text file,  the only action needed to change a track is marking the track mode to showing.
         // Fragmented text tracks need the additional step of calling textSourceBuffer.setTextTrack();
         if (textSourceBuffer === undefined) {
@@ -735,6 +796,9 @@ function MediaPlayer() {
      * @instance
      */
     function getBitrateInfoListFor(type) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         var stream = getActiveStream();
         return stream ? stream.getBitrateListFor(type) : [];
     }
@@ -756,6 +820,9 @@ function MediaPlayer() {
      * @instance
      */
     function getInitialBitrateFor(type) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR; //abrController.getInitialBitrateFor is overloaded with ratioDict logic that needs manifest force it to not be callable pre play.
+        }
         return abrController.getInitialBitrateFor(type);
     }
 
@@ -787,6 +854,9 @@ function MediaPlayer() {
      * @instance
      */
     function getStreamsFromManifest(manifest) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         return adapter.getStreamsInfo(manifest);
     }
 
@@ -798,10 +868,11 @@ function MediaPlayer() {
      * @instance
      */
     function getTracksFor(type) {
-        var streamInfo = streamController ? streamController.getActiveStreamInfo() : null;
-
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
+        let streamInfo = streamController.getActiveStreamInfo();
         if (!streamInfo) return [];
-
         return mediaController.getTracksFor(type, streamInfo);
     }
 
@@ -815,6 +886,10 @@ function MediaPlayer() {
      * @instance
      */
     function getTracksForTypeFromManifest(type, manifest, streamInfo) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
+
         streamInfo = streamInfo || adapter.getStreamsInfo(manifest)[0];
 
         return streamInfo ? adapter.getAllMediaInfoForType(manifest, streamInfo, type) : [];
@@ -827,7 +902,10 @@ function MediaPlayer() {
      * @instance
      */
     function getCurrentTrackFor(type) {
-        var streamInfo = streamController ? streamController.getActiveStreamInfo() : null;
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
+        var streamInfo = streamController.getActiveStreamInfo();
 
         if (!streamInfo) return null;
 
@@ -876,6 +954,9 @@ function MediaPlayer() {
      * @instance
      */
     function setCurrentTrack(track) {
+        if (!playbackInitiated) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
         mediaController.setTrack(track);
     }
 
@@ -983,23 +1064,12 @@ function MediaPlayer() {
         abrController.setAutoSwitchBitrateFor(type, value);
     }
 
-
-
-    /**
-     * A Callback function provided when retrieving manifests
-     *
-     * @callback MediaPlayer~retrieveManifestCallback
-     * @param {Object} manifest JSON version of the manifest XML data or null if an
-     * error was encountered
-     * @param {String} error An error string or null if the operation was successful
-     */
-
     /**
      * Allows application to retrieve a manifest.  Manifest loading is asynchronous and
      * requires the app-provided callback function
      *
-     * @param {string} url the manifest url
-     * @param {MediaPlayer~retrieveManifestCallback} callback manifest retrieval callback
+     * @param url {string} url the manifest url
+     * @param callback {function} A Callback function provided when retrieving manifests
      * @memberof module:MediaPlayer
      * @instance
      */
@@ -1138,14 +1208,6 @@ function MediaPlayer() {
     }
 
     /**
-     * @memberof module:MediaPlayer
-     * @instance
-     */
-    function getBufferToKeep() {
-        return mediaPlayerModel.getBufferToKeep();
-    }
-
-    /**
      * @param value
      * @memberof module:MediaPlayer
      * @instance
@@ -1155,11 +1217,75 @@ function MediaPlayer() {
     }
 
     /**
+     * @param value
      * @memberof module:MediaPlayer
      * @instance
      */
-    function getBufferPruningInterval() {
-        return mediaPlayerModel.getBufferPruningInterval();
+    function setStableBufferTime(value) {
+        mediaPlayerModel.setStableBufferTime(value);
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setBufferTimeAtTopQuality (value) {
+        mediaPlayerModel.setBufferTimeAtTopQuality(value);
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setBufferTimeAtTopQualityLongForm (value) {
+        mediaPlayerModel.setBufferTimeAtTopQualityLongForm(value);
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setLongFormContentDurationThreshold (value) {
+        mediaPlayerModel.setLongFormContentDurationThreshold(value);
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setRichBufferThreshold (value) {
+        mediaPlayerModel.setRichBufferThreshold(value);
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setBandwidthSafetyFactor(value) {
+        mediaPlayerModel.setBandwidthSafetyFactor(value);
+    }
+
+    /**
+     * @return value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getBandwidthSafetyFactor() {
+        return mediaPlayerModel.getBandwidthSafetyFactor();
+    }
+
+    /**
+     * @param value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setAbandonLoadTimeout(value) {
+        mediaPlayerModel.setAbandonLoadTimeout(value);
     }
 
     /**
@@ -1171,6 +1297,26 @@ function MediaPlayer() {
     }
 
     /**
+     * @param {ProtectionController} [value] valid protection controller instance.
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function attachProtectionController(value) {
+        protectionController = value;
+    }
+
+    /**
+     * @param {ProtectionData} [value] object containing
+     * property names corresponding to key system name strings and associated
+     * values being instances of
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setProtectionData(value) {
+        protectionData = value;
+    }
+
+    /**
      * This method serves to control captions z-index value. If 'true' is passed, the captions will have the highest z-index and be
      * displayed on top of other html elements. Default value is 'false' (z-index is not set).
      * @param value {Boolean}
@@ -1178,7 +1324,7 @@ function MediaPlayer() {
      * @instance
      */
     function displayCaptionsOnTop(value) {
-        var textTrackExt = TextTrackExtensions(context).getInstance();
+        let textTrackExt = TextTrackExtensions(context).getInstance();
         textTrackExt.setConfig({videoModel: videoModel});
         textTrackExt.initialize();
         textTrackExt.displayCConTop(value);
@@ -1193,9 +1339,8 @@ function MediaPlayer() {
      */
     function attachVideoContainer(container) {
         if (!videoModel) {
-            throw 'Must call attachView with video element before you attach container element';
+            throw ELEMENT_NOT_ATTACHED_ERROR;
         }
-
         videoModel.setVideoContainer(container);
     }
 
@@ -1208,7 +1353,7 @@ function MediaPlayer() {
      */
     function attachView(view) {
         if (!initialized) {
-            throw 'MediaPlayer not initialized!';
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
         }
         videoModel = null;
         element = view;
@@ -1218,9 +1363,9 @@ function MediaPlayer() {
             videoModel.setElement(element);
             // Workaround to force Firefox to fire the canplay event.
             element.preload = 'auto';
-            //Todo figure out a better place for this!
             detectProtection();
         }
+        resetAndCheckAutoPlay();
     }
 
     /**
@@ -1232,7 +1377,7 @@ function MediaPlayer() {
      */
     function attachTTMLRenderingDiv(div) {
         if (!videoModel) {
-            throw 'Must call attachView with video element before you attach TTML Rendering Div';
+            throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         videoModel.setTTMLRenderingDiv(div);
     }
@@ -1244,19 +1389,16 @@ function MediaPlayer() {
      *
      * @param {string | object} urlOrManifest A URL to a valid MPD manifest file, or a
      * parsed manifest object.
-     * @param {MediaPlayer.dependencies.ProtectionController} [protectionCtrl] optional
-     * protection controller
-     * @param {MediaPlayer.vo.protection.ProtectionData} [data] object containing
-     * property names corresponding to key system name strings and associated
-     * values being instances of
+     *
+     *
      * @throw "MediaPlayer not initialized!"
      *
      * @memberof module:MediaPlayer
      * @instance
      */
-    function attachSource(urlOrManifest, protectionCtrl, data) {//TODO way too overloaded with protection.  Break out all protection and only accept source.
+    function attachSource(urlOrManifest) {
         if (!initialized) {
-            throw 'MediaPlayer not initialized!';
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
         }
 
         if (typeof urlOrManifest === 'string') {
@@ -1267,16 +1409,14 @@ function MediaPlayer() {
             source = urlOrManifest;
         }
 
-        //TODO figure out a better place for this. see attachView.
-        if (protectionCtrl) {
-            protectionController = protectionCtrl;
-        }
-        protectionData = data;
-
-        if (urlOrManifest) {
-            resetAndPlay();
-        }
+        resetAndCheckAutoPlay();
     }
+
+    /**
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    //function destroy() {}
 
     /**
      * Sets the MPD source and the video element to null.
@@ -1284,37 +1424,26 @@ function MediaPlayer() {
      * @instance
      */
     function reset() {
-        //todo add all vars in reset that need to be in here
         attachSource(null);
         attachView(null);
-        protectionController = null;
-        protectionData = null;
     }
 
-    function resetAndPlay() {
-        adapter.reset();
-        if (playbackInitiated && streamController) {
-            if (!resetting) {
-                resetting = true;
-                eventBus.on(Events.STREAM_TEARDOWN_COMPLETE, onStreamTeardownComplete, this);
-                streamController.reset();
+    function resetAndCheckAutoPlay() {
+        if (playbackInitiated) {
+            playbackInitiated = false;
+            adapter.reset();
+            streamController.reset();
+            playbackController.reset();
+            abrController.reset();
+            rulesController.reset();
+            mediaController.reset();
+            streamController = null;
+            protectionController = null;
+            protectionData = null;
+            if (autoPlay && isReady()) {
+                play();
             }
-        } else if (autoPlay) {
-            play();
-        }
-    }
-
-    function onStreamTeardownComplete(/* e */) {
-        // Finish rest of shutdown process
-        abrController.reset();
-        rulesController.reset();
-        playbackController.reset();
-        mediaController.reset();
-        streamController = null;
-        playbackInitiated = false;
-        eventBus.off(Events.STREAM_TEARDOWN_COMPLETE, onStreamTeardownComplete, this);
-        resetting = false;
-        if (autoPlay) {
+        } else if (autoPlay && isReady()) {
             play();
         }
     }
@@ -1339,14 +1468,11 @@ function MediaPlayer() {
             sourceBufferExt: sourceBufferExt
         });
 
-        mediaController = MediaController(context).getInstance();
         mediaController.initialize();
         mediaController.setConfig({
             DOMStorage: domStorage,
             errHandler: errHandler
         });
-
-        playbackController = PlaybackController(context).getInstance();
 
         rulesController = RulesController(context).getInstance();
         rulesController.initialize();
@@ -1376,7 +1502,6 @@ function MediaPlayer() {
         });
         streamController.initialize(autoPlay, protectionData);
 
-        abrController = AbrController(context).getInstance();
         abrController.setConfig({
             abrRulesCollection: abrRulesCollection,
             rulesController: rulesController,
@@ -1498,16 +1623,24 @@ function MediaPlayer() {
         setAutoSwitchQuality: setAutoSwitchQuality,
         getAutoSwitchQualityFor: getAutoSwitchQualityFor,
         setAutoSwitchQualityFor: setAutoSwitchQualityFor,
+        setBandwidthSafetyFactor: setBandwidthSafetyFactor,
+        getBandwidthSafetyFactor: getBandwidthSafetyFactor,
+        setAbandonLoadTimeout: setAbandonLoadTimeout,
         retrieveManifest: retrieveManifest,
         addUTCTimingSource: addUTCTimingSource,
         removeUTCTimingSource: removeUTCTimingSource,
         clearDefaultUTCTimingSources: clearDefaultUTCTimingSources,
         restoreDefaultUTCTimingSources: restoreDefaultUTCTimingSources,
         setBufferToKeep: setBufferToKeep,
-        getBufferToKeep: getBufferToKeep,
         setBufferPruningInterval: setBufferPruningInterval,
-        getBufferPruningInterval: getBufferPruningInterval,
+        setStableBufferTime: setStableBufferTime,
+        setBufferTimeAtTopQuality: setBufferTimeAtTopQuality,
+        setBufferTimeAtTopQualityLongForm: setBufferTimeAtTopQualityLongForm,
+        setLongFormContentDurationThreshold: setLongFormContentDurationThreshold,
+        setRichBufferThreshold: setRichBufferThreshold,
         getProtectionController: getProtectionController,
+        attachProtectionController: attachProtectionController,
+        setProtectionData: setProtectionData,
         enableManifestDateHeaderTimeSource: enableManifestDateHeaderTimeSource,
         displayCaptionsOnTop: displayCaptionsOnTop,
         attachVideoContainer: attachVideoContainer,
