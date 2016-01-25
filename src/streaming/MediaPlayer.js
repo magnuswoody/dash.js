@@ -144,8 +144,6 @@ function MediaPlayer() {
         restoreDefaultUTCTimingSources();
         setAutoPlay(AutoPlay !== undefined ? AutoPlay : true);
 
-        createControllers();
-
         if (view) {
             attachView(view);
         }
