@@ -195,6 +195,7 @@ function MediaPlayer() {
             } else {
                 streamController.loadWithManifest(source);
             }
+            element.autoplay = true;
         }
 
 
@@ -208,6 +209,7 @@ function MediaPlayer() {
             throw PLAYBACK_NOT_INITIALIZED_ERROR;
         }
         playbackController.pause();
+        element.autoplay = false;
     }
 
     function isPaused() {
