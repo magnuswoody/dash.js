@@ -71,7 +71,6 @@ import MediaPlayerFactory from '../streaming/MediaPlayerFactory.js';
 
 /**
  * @Module MediaPlayer
- * @return {{initialize: initialize, on: module.on, off: module.off, extend: extend, attachView: module.attachView, attachSource: module.attachSource, isReady: module.isReady, play: module.play, isPaused: isPaused, pause: pause, isSeeking: isSeeking, seek: module.seek, setMute: setMute, isMuted: isMuted, setVolume: setVolume, getVolume: getVolume, time: module.time, duration: module.duration, timeAsUTC: module.timeAsUTC, durationAsUTC: module.durationAsUTC, getDVRWindowSize: module.getDVRWindowSize, getDVRSeekOffset: module.getDVRSeekOffset, convertToTimeCode: module.convertToTimeCode, formatUTC: module.formatUTC, getVersion: module.getVersion, getDebug: module.getDebug, getVideoModel: module.getVideoModel, getVideoContainer: module.getVideoContainer, setLiveDelayFragmentCount: module.setLiveDelayFragmentCount, useSuggestedPresentationDelay: module.useSuggestedPresentationDelay, enableLastBitrateCaching: module.enableLastBitrateCaching, enableLastMediaSettingsCaching: module.enableLastMediaSettingsCaching, setMaxAllowedBitrateFor: module.setMaxAllowedBitrateFor, getMaxAllowedBitrateFor: module.getMaxAllowedBitrateFor, setMaxAllowedRepresentationRatioFor: module.setMaxAllowedRepresentationRatioFor, getMaxAllowedRepresentationRatioFor: module.getMaxAllowedRepresentationRatioFor, setAutoPlay: module.setAutoPlay, getAutoPlay: module.getAutoPlay, setScheduleWhilePaused: module.setScheduleWhilePaused, getScheduleWhilePaused: module.getScheduleWhilePaused, getMetricsExt: module.getMetricsExt, getMetricsFor: module.getMetricsFor, getQualityFor: module.getQualityFor, setQualityFor: module.setQualityFor, getLimitBitrateByPortal: module.getLimitBitrateByPortal, setLimitBitrateByPortal: module.setLimitBitrateByPortal, setTextTrack: module.setTextTrack, getBitrateInfoListFor: module.getBitrateInfoListFor, setInitialBitrateFor: module.setInitialBitrateFor, getInitialBitrateFor: module.getInitialBitrateFor, setInitialRepresentationRatioFor: module.setInitialRepresentationRatioFor, getInitialRepresentationRatioFor: module.getInitialRepresentationRatioFor, getStreamsFromManifest: module.getStreamsFromManifest, getTracksFor: module.getTracksFor, getTracksForTypeFromManifest: module.getTracksForTypeFromManifest, getCurrentTrackFor: module.getCurrentTrackFor, setInitialMediaSettingsFor: module.setInitialMediaSettingsFor, getInitialMediaSettingsFor: module.getInitialMediaSettingsFor, setCurrentTrack: module.setCurrentTrack, getTrackSwitchModeFor: module.getTrackSwitchModeFor, setTrackSwitchModeFor: module.setTrackSwitchModeFor, setSelectionModeForInitialTrack: module.setSelectionModeForInitialTrack, getSelectionModeForInitialTrack: module.getSelectionModeForInitialTrack, getAutoSwitchQuality: module.getAutoSwitchQuality, setAutoSwitchQuality: module.setAutoSwitchQuality, getAutoSwitchQualityFor: module.getAutoSwitchQualityFor, setAutoSwitchQualityFor: module.setAutoSwitchQualityFor, setBandwidthSafetyFactor: module.setBandwidthSafetyFactor, getBandwidthSafetyFactor: module.getBandwidthSafetyFactor, setAbandonLoadTimeout: module.setAbandonLoadTimeout, retrieveManifest: module.retrieveManifest, addUTCTimingSource: module.addUTCTimingSource, removeUTCTimingSource: module.removeUTCTimingSource, clearDefaultUTCTimingSources: module.clearDefaultUTCTimingSources, restoreDefaultUTCTimingSources: module.restoreDefaultUTCTimingSources, setBufferToKeep: module.setBufferToKeep, setBufferPruningInterval: module.setBufferPruningInterval, setStableBufferTime: module.setStableBufferTime, setBufferTimeAtTopQuality: module.setBufferTimeAtTopQuality, setFragmentLoaderRetryAttempts: module.setFragmentLoaderRetryAttempts, setFragmentLoaderRetryInterval: module.setFragmentLoaderRetryInterval, setBufferTimeAtTopQualityLongForm: module.setBufferTimeAtTopQualityLongForm, setLongFormContentDurationThreshold: module.setLongFormContentDurationThreshold, setRichBufferThreshold: module.setRichBufferThreshold, getProtectionController: module.getProtectionController, attachProtectionController: module.attachProtectionController, setProtectionData: module.setProtectionData, enableManifestDateHeaderTimeSource: module.enableManifestDateHeaderTimeSource, displayCaptionsOnTop: module.displayCaptionsOnTop, attachVideoContainer: module.attachVideoContainer, attachTTMLRenderingDiv: module.attachTTMLRenderingDiv, reset: module.reset}|*}
  */
 function MediaPlayer() {
 
@@ -122,8 +121,6 @@ function MediaPlayer() {
     function initialize(view, source, AutoPlay) {
 
         capabilities = Capabilities(context).getInstance();
-        errHandler = ErrorHandler(context).getInstance();
-
         if (!capabilities.supportsMediaSource()) {
             errHandler.capabilityError('mediasource');
             return;
@@ -142,6 +139,7 @@ function MediaPlayer() {
         domStorage = DOMStorage(context).getInstance();
         metricsModel = MetricsModel(context).getInstance();
         metricsModel.setConfig({adapter: createAdaptor()});
+        errHandler = ErrorHandler(context).getInstance();
 
         restoreDefaultUTCTimingSources();
         setAutoPlay(AutoPlay !== undefined ? AutoPlay : true);
@@ -154,7 +152,7 @@ function MediaPlayer() {
             attachSource(source);
         }
 
-        log('[dash.js ' + VERSION + '] ' + 'MediaPlayer has been initialized');
+        log('[dash.js ' + VERSION + '] ' + 'new MediaPlayer instance has been created');
     }
 
     /**
@@ -454,8 +452,7 @@ function MediaPlayer() {
     }
 
     /**
-     * @memberof module:MediaPlayer
-     * @instance
+     * TODO Need Docs
      */
     function extend(parentNameString, childInstance, override) {
         FactoryMaker.extend(parentNameString, childInstance, override, context);
@@ -1242,24 +1239,6 @@ function MediaPlayer() {
      * @memberof module:MediaPlayer
      * @instance
      */
-    function setFragmentLoaderRetryAttempts (value) {
-        mediaPlayerModel.setFragmentRetryAttempts(value);
-    }
-
-    /**
-     * @param value
-     * @memberof module:MediaPlayer
-     * @instance
-     */
-    function setFragmentLoaderRetryInterval (value) {
-        mediaPlayerModel.setFragmentRetryInterval(value);
-    }
-
-    /**
-     * @param value
-     * @memberof module:MediaPlayer
-     * @instance
-     */
     function setBufferTimeAtTopQualityLongForm (value) {
         mediaPlayerModel.setBufferTimeAtTopQualityLongForm(value);
     }
@@ -1491,6 +1470,7 @@ function MediaPlayer() {
 
         mediaController.initialize();
         mediaController.setConfig({
+            DOMStorage: domStorage,
             errHandler: errHandler
         });
 
@@ -1655,8 +1635,6 @@ function MediaPlayer() {
         setBufferPruningInterval: setBufferPruningInterval,
         setStableBufferTime: setStableBufferTime,
         setBufferTimeAtTopQuality: setBufferTimeAtTopQuality,
-        setFragmentLoaderRetryAttempts: setFragmentLoaderRetryAttempts,
-        setFragmentLoaderRetryInterval: setFragmentLoaderRetryInterval,
         setBufferTimeAtTopQualityLongForm: setBufferTimeAtTopQualityLongForm,
         setLongFormContentDurationThreshold: setLongFormContentDurationThreshold,
         setRichBufferThreshold: setRichBufferThreshold,

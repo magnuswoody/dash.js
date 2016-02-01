@@ -86,7 +86,7 @@ function DashHandler(config) {
         return currentTime;
     }
 
-    function getCurrentIndex() {
+    function getCurrentIndex () {
         return index;
     }
 
@@ -763,6 +763,7 @@ function DashHandler(config) {
                 ft = frag.presentationStartTime;
                 fd = frag.duration;
                 epsilon = (timeThreshold === undefined || timeThreshold === null) ? fd / 2 : timeThreshold;
+
                 if ((time + epsilon) >= ft &&
                     (time - epsilon) < (ft + fd)) {
                     idx = frag.availabilityIdx;
@@ -867,11 +868,9 @@ function DashHandler(config) {
             return null;
         }
 
-        if (requestedTime !== time) { // When playing at live edge with 0 delay we may loop back with same time and index until it is available. Reduces verbosness of logs.
-            requestedTime = time;
-            log('Getting the request for ' + type + ' time : ' + time);
-        }
+        requestedTime = time;
 
+        log('Getting the request for ' + type + ' time : ' + time);
         index = getIndexForSegments(time, representation, timeThreshold);
         //Index may be -1 if getSegments needs to update.  So after getSegments is called and updated then try to get index again.
         getSegments(representation);
@@ -879,9 +878,7 @@ function DashHandler(config) {
             index = getIndexForSegments(time, representation, timeThreshold);
         }
 
-        if (requestedTime !== time) {
-            log('Index for ' + type + ' time ' + time + ' is ' + index );
-        }
+        log('Index for ' + type + ' time ' + time + ' is ' + index);
 
         finished = !ignoreIsFinished ? isMediaFinished(representation) : false;
         if (finished) {
@@ -915,7 +912,8 @@ function DashHandler(config) {
     function getNextSegmentRequest(representation) {
         var request,
             segment,
-            finished;
+            finished,
+            idx;
 
         if (!representation || index === -1) {
             return null;
@@ -923,30 +921,21 @@ function DashHandler(config) {
 
         requestedTime = null;
         index++;
-
+        idx = index;
         log('Getting the next request at index: ' + index);
 
         finished = isMediaFinished(representation);
         if (finished) {
             request = new FragmentRequest();
             request.action = FragmentRequest.ACTION_COMPLETE;
-            request.index = index;
+            request.index = idx;
             request.mediaType = type;
             request.mediaInfo = streamProcessor.getMediaInfo();
             log('Signal complete.');
         } else {
             getSegments(representation);
-            segment = getSegmentByIndex(index, representation);
+            segment = getSegmentByIndex(idx, representation);
             request = getRequestForSegment(segment);
-            if (!segment && isDynamic) {
-                /*
-                 Sometimes when playing dynamic streams with 0 fragment delay at live edge we ask for
-                 an index before it is available so we decrement index back and send null request
-                 which triggers the validate loop to rerun and the next time the segment should be
-                 available.
-                 */
-                index--;
-            }
         }
 
         return request;

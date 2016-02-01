@@ -58,6 +58,7 @@ function ScheduleController(config) {
     let mediaPlayerModel = config.mediaPlayerModel;
 
     let instance,
+        fragmentsToLoad,
         type,
         ready,
         fragmentModel,
@@ -82,6 +83,7 @@ function ScheduleController(config) {
 
 
     function setup() {
+        fragmentsToLoad = 0;
         initialPlayback = true;
         isStopped = false;
         playListMetrics = null;
@@ -141,7 +143,7 @@ function ScheduleController(config) {
         }
     }
 
-    function start() {
+    function doStart() {
         if (!ready) return;
         isStopped = false;
         if (initialPlayback) {
@@ -160,10 +162,10 @@ function ScheduleController(config) {
             addPlaylistMetrics(PlayList.INITIAL_PLAY_START_REASON);
         }
 
-        start();
+        doStart();
     }
 
-    function stop() {
+    function doStop() {
         if (isStopped) return;
         isStopped = true;
         log('Schedule controller stopping for ' + type);
@@ -200,30 +202,36 @@ function ScheduleController(config) {
 
     function validate() {
         if (isStopped || (playbackController.isPaused() && (playbackController.getPlayedRanges().length > 0) && !scheduleWhilePaused)) return;
-        getRequiredFragmentCount();
+        getRequiredFragmentCount(onGetRequiredFragmentCount);
         //log("validate", type);
     }
 
-    function getRequiredFragmentCount() {
-        let rules = scheduleRulesCollection.getRules(ScheduleRulesCollection.FRAGMENTS_TO_SCHEDULE_RULES);
-        rulesController.applyRules(rules, streamProcessor, onGetRequiredFragmentCount, 0, function (currentValue, newValue) {
+    function getRequiredFragmentCount(callback) {
+        var rules = scheduleRulesCollection.getRules(ScheduleRulesCollection.FRAGMENTS_TO_SCHEDULE_RULES);
+
+        rulesController.applyRules(rules, streamProcessor, callback, fragmentsToLoad, function (currentValue, newValue) {
             currentValue = currentValue === SwitchRequest.NO_CHANGE ? 0 : currentValue;
             return Math.max(currentValue, newValue);
         });
     }
 
     function onGetRequiredFragmentCount(result) {
-        if (result.value === 1 && !isFragmentLoading && (manifestExt.getIsTextTrack(type) || !bufferController.getIsAppendingInProgress())) {
+        fragmentsToLoad = result.value;
+        if (fragmentsToLoad > 0 && !bufferController.getIsAppendingInProgress() && !isFragmentLoading) {
             isFragmentLoading = true;
-            abrController.getPlaybackQuality(streamProcessor,  getNextFragment());
+            abrController.getPlaybackQuality(streamProcessor,  getNextFragment(onGetNextFragment));
         } else {
-            startValidateTimer(1000);
+            validateTimeout = setTimeout(function () {
+                //log("timeout going back to validate")
+                validate();
+            }, 1000); //TODO should this be something based on fragment duration?
         }
     }
 
-    function getNextFragment() {
-        let rules = scheduleRulesCollection.getRules(ScheduleRulesCollection.NEXT_FRAGMENT_RULES);
-        rulesController.applyRules(rules, streamProcessor, onGetNextFragment, null, function (currentValue, newValue) {
+    function getNextFragment(callback) {
+        var rules = scheduleRulesCollection.getRules(ScheduleRulesCollection.NEXT_FRAGMENT_RULES);
+
+        rulesController.applyRules(rules, streamProcessor, callback, null, function (currentValue, newValue) {
             return newValue;
         });
     }
@@ -231,17 +239,7 @@ function ScheduleController(config) {
     function onGetNextFragment(result) {
         if (result.value) {
             fragmentModel.executeRequest(result.value);
-        } else {
-            isFragmentLoading = false;
-            startValidateTimer(1000);
         }
-    }
-
-    function startValidateTimer(value) {
-        validateTimeout = setTimeout(function () {
-            //log("timeout going back to validate")
-            validate();
-        }, value);
     }
 
     function onQualityChanged(e) {
@@ -287,7 +285,7 @@ function ScheduleController(config) {
             isFragmentLoading = false;
         }
         if (!e.error) return;
-        stop();
+        doStop();
     }
 
     function onBytesAppended(e) {
@@ -299,7 +297,7 @@ function ScheduleController(config) {
 
     function onDataUpdateStarted(e) {
         if (e.sender.getStreamProcessor() !== streamProcessor) return;
-        stop();
+        doStop();
     }
 
     function onInitRequested(e) {
@@ -315,7 +313,7 @@ function ScheduleController(config) {
         fragmentModel.removeExecutedRequestsBeforeTime(e.to);
 
         if (e.hasEnoughSpaceToAppend && !bufferController.getIsBufferingCompleted()) {
-            start();
+            doStart();
         }
     }
 
@@ -328,7 +326,7 @@ function ScheduleController(config) {
 
     function onQuotaExceeded(e) {
         if (e.sender.getStreamProcessor() !== streamProcessor) return;
-        stop();
+        doStop();
     }
 
     function addPlaylistMetrics(stopReason) {
@@ -356,22 +354,23 @@ function ScheduleController(config) {
     }
 
     function onPlaybackStarted() {
-        start();
+        doStart();
     }
 
     function onPlaybackSeeking(e) {
+
         if (!initialPlayback) {
             isFragmentLoading = false;
         }
 
-        let metrics = metricsModel.getMetricsFor('stream');
-        let manifestUpdateInfo = metricsExt.getCurrentManifestUpdate(metrics);
+        var metrics = metricsModel.getMetricsFor('stream');
+        var manifestUpdateInfo = metricsExt.getCurrentManifestUpdate(metrics);
 
         seekTarget = e.seekTime;
+        log('seek: ' + seekTarget);
         addPlaylistMetrics(PlayList.SEEK_START_REASON);
 
-        let latency = currentRepresentationInfo.DVRWindow ? currentRepresentationInfo.DVRWindow.end - playbackController.getTime() : NaN;
-        metricsModel.updateManifestUpdateInfo(manifestUpdateInfo, {latency: latency});
+        metricsModel.updateManifestUpdateInfo(manifestUpdateInfo, {latency: currentRepresentationInfo.DVRWindow.end - playbackController.getTime()});
 
         if (isDynamic) { // need to validate again for dynamic after first seek
             validate();
@@ -456,9 +455,10 @@ function ScheduleController(config) {
             eventBus.off(Events.TIMED_TEXT_REQUESTED, onTimedTextRequested, this);
         }
 
-        stop();
+        doStop();
         fragmentController.detachModel(fragmentModel);
         isFragmentLoading = false;
+        fragmentsToLoad = 0;
         timeToloadDelay = 0;
         seekTarget = NaN;
         playbackController = null;
@@ -473,8 +473,8 @@ function ScheduleController(config) {
         setTimeToLoadDelay: setTimeToLoadDelay,
         getTimeToLoadDelay: getTimeToLoadDelay,
         replaceCanceledRequests: replaceCanceledRequests,
-        start: start,
-        stop: stop,
+        start: doStart,
+        stop: doStop,
         reset: reset
     };
 
