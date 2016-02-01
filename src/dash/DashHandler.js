@@ -894,7 +894,7 @@ function DashHandler(config) {
             request = getRequestForSegment(segment);
         }
 
-        if (keepIdx && idx >= 0) {
+        if (keepIdx && idx >= 0 && representation.segmentInfoType !== 'SegmentTimeline') {
             index = idx;
         }
 
@@ -936,6 +936,16 @@ function DashHandler(config) {
             getSegments(representation);
             segment = getSegmentByIndex(idx, representation);
             request = getRequestForSegment(segment);
+
+            if (!segment && isDynamic) {
+                /*
+                 Sometimes when playing dynamic streams with 0 fragment delay at live edge we ask for
+                 an index before it is available so we decrement index back and send null request
+                 which triggers the validate loop to rerun and the next time the segment should be
+                 available.
+                 */
+                index-- ;
+            }
         }
 
         return request;

@@ -143,6 +143,11 @@ function PlaybackController() {
         return element.played;
     }
 
+    function getEnded() {
+        if (!element) return;
+        return element.ended;
+    }
+
     function getIsDynamic() {
         return isDynamic;
     }
@@ -348,7 +353,7 @@ function PlaybackController() {
 
     function onPlaybackPaused() {
         log('Native video element event: pause');
-        eventBus.trigger(Events.PLAYBACK_PAUSED);
+        eventBus.trigger(Events.PLAYBACK_PAUSED, {ended: getEnded()});
     }
 
     function onPlaybackSeeking() {
@@ -366,7 +371,7 @@ function PlaybackController() {
         var time = getTime();
         if (time === currentTime) return;
         currentTime = time;
-        eventBus.trigger(Events.PLAYBACK_TIME_UPDATED, {timeToEnd: getTimeToStreamEnd()});
+        eventBus.trigger(Events.PLAYBACK_TIME_UPDATED, {timeToEnd: getTimeToStreamEnd(), time: time});
     }
 
     function onPlaybackProgress() {
@@ -385,8 +390,9 @@ function PlaybackController() {
     }
 
     function onPlaybackRateChanged() {
-        log('Native video element event: ratechange: ', getPlaybackRate());
-        eventBus.trigger(Events.PLAYBACK_RATE_CHANGED);
+        var rate = getPlaybackRate();
+        log('Native video element event: ratechange: ', rate);
+        eventBus.trigger(Events.PLAYBACK_RATE_CHANGED, { playbackRate: rate });
     }
 
     function onPlaybackMetaDataLoaded() {
@@ -502,6 +508,7 @@ function PlaybackController() {
         getTime: getTime,
         getPlaybackRate: getPlaybackRate,
         getPlayedRanges: getPlayedRanges,
+        getEnded: getEnded,
         getIsDynamic: getIsDynamic,
         setLiveStartTime: setLiveStartTime,
         getLiveStartTime: getLiveStartTime,

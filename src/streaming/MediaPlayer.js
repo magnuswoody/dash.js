@@ -94,6 +94,7 @@ function MediaPlayer() {
         abrController,
         mediaController,
         protectionController,
+        metricsReportingController,
         adapter,
         domStorage,
         metricsModel,
@@ -257,6 +258,40 @@ function MediaPlayer() {
     function getDVRInfoMetric() {
         var metric = metricsModel.getReadOnlyMetricsFor('video') || metricsModel.getReadOnlyMetricsFor('audio');
         return metricsExt.getCurrentDVRInfo(metric);
+    }
+
+    /**
+     * The length of the buffer for a given media type, in seconds. Valid media types are "video", "audio" and "fragmentedText". If no type
+     * is passed in, then the minimum of the video and the audio buffer length is returned. The value is returned to a precision of two decimal places.
+     * NaN is returned if an invalid type is requested, or if the presentation does not contain that type or if no arguments are passed and the
+     * presentation doers not include any audio or video adaption sets.
+     *
+     * @returns {number} The length of the buffer for the given media type, in seconds.
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getBufferLength(type) {
+        if (!type)
+        {
+            let videoBuffer = getMetricsExt().getCurrentBufferLevel(getMetricsFor('video'));
+            let audioBuffer = getMetricsExt().getCurrentBufferLevel(getMetricsFor('audio'));
+            videoBuffer = videoBuffer === null ? Number.MAX_SAFE_INTEGER :  videoBuffer.level;
+            audioBuffer = audioBuffer === null ? Number.MAX_SAFE_INTEGER :  audioBuffer.level;
+            return Math.min(videoBuffer,audioBuffer).toPrecision(3);
+        }
+        else
+        {
+            if (type === 'video' || type === 'audio' || type === 'fragmentedText')
+            {
+                let buffer = getMetricsExt().getCurrentBufferLevel(getMetricsFor(type));
+                return buffer ? buffer.level.toPrecision(3) : NaN;
+            }
+            else
+            {
+                log('Warning  - getBufferLength requested for invalid type');
+                return NaN;
+            }
+        }
     }
 
     /**
@@ -1364,6 +1399,7 @@ function MediaPlayer() {
             // Workaround to force Firefox to fire the canplay event.
             element.preload = 'auto';
             detectProtection();
+            detectMetricsReporting();
         }
         resetAndCheckAutoPlay();
     }
@@ -1438,6 +1474,7 @@ function MediaPlayer() {
             rulesController.reset();
             mediaController.reset();
             streamController = null;
+            metricsReportingController = null;
             protectionController = null;
             protectionData = null;
             if (autoPlay && isReady()) {
@@ -1553,6 +1590,29 @@ function MediaPlayer() {
         return null;
     }
 
+    function detectMetricsReporting() {
+        if (metricsReportingController) {
+            return metricsReportingController;
+        }
+
+        /* jshint ignore:start */
+        if (typeof MetricsReporting === 'function') {//TODO need a better way to register/detect plugin components
+            let metricsReporting = MetricsReporting(context).create();
+
+            metricsReportingController = metricsReporting.createMetricsReporting({
+                log: log,
+                eventBus: eventBus,
+                mediaElement: videoModel.getElement(),
+                manifestExt: manifestExt,
+                metricsModel: metricsModel
+            });
+
+            return metricsReportingController;
+        }
+        /* jshint ignore:end */
+        return null;
+    }
+
     instance = {
         initialize: initialize,
         on: on,
@@ -1582,6 +1642,7 @@ function MediaPlayer() {
         formatUTC: formatUTC,
         getVersion: getVersion,
         getDebug: getDebug,
+        getBufferLength: getBufferLength,
         getVideoModel: getVideoModel,
         getVideoContainer: getVideoContainer,
         setLiveDelayFragmentCount: setLiveDelayFragmentCount,

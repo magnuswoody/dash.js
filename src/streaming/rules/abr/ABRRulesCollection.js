@@ -52,13 +52,22 @@ function ABRRulesCollection() {
         abandonFragmentRules = [];
 
         let metricsModel = MetricsModel(context).getInstance();
+        let metricsExt = DashMetricsExtensions(context).getInstance();
 
-        qualitySwitchRules.push(ThroughputRule(context).create({
+        qualitySwitchRules.push(
+            ThroughputRule(context).create({
                 metricsModel: metricsModel,
-                metricsExt: DashMetricsExtensions(context).getInstance()
+                metricsExt: metricsExt
             })
         );
-        qualitySwitchRules.push(BufferOccupancyRule(context).create({metricsModel: metricsModel}));
+
+        qualitySwitchRules.push(
+            BufferOccupancyRule(context).create({
+                metricsModel: metricsModel,
+                metricsExt: metricsExt
+            })
+        );
+
         qualitySwitchRules.push(InsufficientBufferRule(context).create({metricsModel: metricsModel}));
         abandonFragmentRules.push(AbandonRequestsRule(context).create());
     }

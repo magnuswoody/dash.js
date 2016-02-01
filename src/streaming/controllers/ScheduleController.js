@@ -132,12 +132,14 @@ function ScheduleController(config) {
         var duration = 0;
         var startTime = null;
 
-        if (playListTraceMetricsClosed === false) {
+        if (playListMetrics && playListTraceMetricsClosed === false) {
             startTime = playListTraceMetrics.start;
             duration = endTime.getTime() - startTime.getTime();
 
             playListTraceMetrics.duration = duration;
             playListTraceMetrics.stopreason = stopreason;
+
+            playListMetrics.trace.push(playListTraceMetrics);
 
             playListTraceMetricsClosed = true;
         }
@@ -145,6 +147,9 @@ function ScheduleController(config) {
 
     function doStart() {
         if (!ready) return;
+
+        addPlaylistTraceMetrics();
+
         isStopped = false;
         if (initialPlayback) {
             initialPlayback = false;
@@ -159,7 +164,6 @@ function ScheduleController(config) {
     function startOnReady() {
         if (initialPlayback) {
             getInitRequest(currentRepresentationInfo.quality);
-            addPlaylistMetrics(PlayList.INITIAL_PLAY_START_REASON);
         }
 
         doStart();
@@ -170,7 +174,6 @@ function ScheduleController(config) {
         isStopped = true;
         log('Schedule controller stopping for ' + type);
         clearInterval(validateTimeout);
-        clearPlayListTraceMetrics(new Date(), PlayList.Trace.USER_REQUEST_STOP_REASON);
     }
 
     function getInitRequest(quality) {
@@ -251,6 +254,7 @@ function ScheduleController(config) {
         }
 
         clearPlayListTraceMetrics(new Date(), PlayList.Trace.REPRESENTATION_SWITCH_STOP_REASON);
+        addPlaylistTraceMetrics();
     }
 
     function onDataUpdateCompleted(e) {
@@ -275,7 +279,6 @@ function ScheduleController(config) {
     function onStreamCompleted(e) {
         if (e.fragmentModel !== fragmentModel) return;
         log('Stream is complete');
-        clearPlayListTraceMetrics(new Date(), PlayList.Trace.END_OF_CONTENT_STOP_REASON);
     }
 
     function onFragmentLoadingCompleted(e) {
@@ -291,7 +294,6 @@ function ScheduleController(config) {
     function onBytesAppended(e) {
         if (e.sender.getStreamProcessor() !== streamProcessor) return;
 
-        addPlaylistTraceMetrics();
         validate();
     }
 
@@ -329,22 +331,15 @@ function ScheduleController(config) {
         doStop();
     }
 
-    function addPlaylistMetrics(stopReason) {
-        var currentTime = new Date();
-        var presentationTime = playbackController.getTime();
-
-        clearPlayListTraceMetrics(currentTime, PlayList.Trace.USER_REQUEST_STOP_REASON);
-        playListMetrics = metricsModel.addPlayList(type, currentTime, presentationTime, stopReason);
-    }
-
     function addPlaylistTraceMetrics() {
-        var currentVideoTime = playbackController.getTime();
-        var rate = playbackController.getPlaybackRate();
-        var currentTime = new Date();
-
-        if (playListTraceMetricsClosed === true && currentRepresentationInfo && playListMetrics) {
+        if (playListMetrics && playListTraceMetricsClosed === true && currentRepresentationInfo) {
             playListTraceMetricsClosed = false;
-            playListTraceMetrics = metricsModel.appendPlayListTrace(playListMetrics, currentRepresentationInfo.id, null, currentTime, currentVideoTime, null, rate, null);
+
+            playListTraceMetrics = new PlayList.Trace();
+            playListTraceMetrics.representationid = currentRepresentationInfo.id;
+            playListTraceMetrics.start = new Date();
+            playListTraceMetrics.mstart = playbackController.getTime() * 1000;
+            playListTraceMetrics.playbackspeed = playbackController.getPlaybackRate().toString();
         }
     }
 
@@ -357,7 +352,7 @@ function ScheduleController(config) {
         doStart();
     }
 
-    function onPlaybackSeeking(e) {
+    function onPlaybackSeeking() {
 
         if (!initialPlayback) {
             isFragmentLoading = false;
@@ -366,10 +361,6 @@ function ScheduleController(config) {
         var metrics = metricsModel.getMetricsFor('stream');
         var manifestUpdateInfo = metricsExt.getCurrentManifestUpdate(metrics);
 
-        seekTarget = e.seekTime;
-        log('seek: ' + seekTarget);
-        addPlaylistMetrics(PlayList.SEEK_START_REASON);
-
         metricsModel.updateManifestUpdateInfo(manifestUpdateInfo, {latency: currentRepresentationInfo.DVRWindow.end - playbackController.getTime()});
 
         if (isDynamic) { // need to validate again for dynamic after first seek
@@ -377,8 +368,10 @@ function ScheduleController(config) {
         }
     }
 
-    function onPlaybackRateChanged(/*e*/) {
-        addPlaylistTraceMetrics();
+    function onPlaybackRateChanged(e) {
+        if (playListTraceMetrics) {
+            playListTraceMetrics.playbackspeed = e.playbackRate.toString();
+        }
     }
 
     function onLiveEdgeSearchCompleted (e) {
@@ -433,6 +426,15 @@ function ScheduleController(config) {
         return streamProcessor;
     }
 
+    function setPlayList(playList) {
+        playListMetrics = playList;
+    }
+
+    function finalisePlayList(time, reason) {
+        clearPlayListTraceMetrics(time, reason);
+        playListMetrics = null;
+    }
+
     function reset() {
         eventBus.off(Events.LIVE_EDGE_SEARCH_COMPLETED, onLiveEdgeSearchCompleted, this);
         eventBus.off(Events.DATA_UPDATE_STARTED, onDataUpdateStarted, this);
@@ -462,6 +464,7 @@ function ScheduleController(config) {
         timeToloadDelay = 0;
         seekTarget = NaN;
         playbackController = null;
+        playListMetrics = null;
     }
 
     instance = {
@@ -473,9 +476,17 @@ function ScheduleController(config) {
         setTimeToLoadDelay: setTimeToLoadDelay,
         getTimeToLoadDelay: getTimeToLoadDelay,
         replaceCanceledRequests: replaceCanceledRequests,
+<<<<<<< HEAD
         start: doStart,
         stop: doStop,
         reset: reset
+=======
+        start: start,
+        stop: stop,
+        reset: reset,
+        setPlayList: setPlayList,
+        finalisePlayList: finalisePlayList
+>>>>>>> dashif/development
     };
 
     setup();
