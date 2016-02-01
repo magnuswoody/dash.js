@@ -354,13 +354,15 @@ function ScheduleController(config) {
         start();
     }
 
-    function onPlaybackSeeking() {
+    function onPlaybackSeeking(e) {
         if (!initialPlayback) {
             isFragmentLoading = false;
         }
 
         let metrics = metricsModel.getMetricsFor('stream');
         let manifestUpdateInfo = metricsExt.getCurrentManifestUpdate(metrics);
+
+        seekTarget = e.seekTime;
 
         let latency = currentRepresentationInfo.DVRWindow ? currentRepresentationInfo.DVRWindow.end - playbackController.getTime() : NaN;
         metricsModel.updateManifestUpdateInfo(manifestUpdateInfo, {latency: latency});

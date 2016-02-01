@@ -44,6 +44,7 @@ function ThroughputRule(config) {
     let log = Debug(context).getInstance().log;
     let metricsExt = config.metricsExt;
     let metricsModel = config.metricsModel;
+
     let instance,
         mediaPlayerModel;
 

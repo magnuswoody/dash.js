@@ -201,7 +201,6 @@ function MediaPlayer() {
             element.autoplay = true;
         }
 
-
         if (!autoPlay || (isPaused() && playbackInitiated)) {
             playbackController.play();
         }

@@ -496,6 +496,7 @@ function BufferController(config) {
         }
     }
 
+
     function getClearRange() {
         var currentTime,
             removeStart,

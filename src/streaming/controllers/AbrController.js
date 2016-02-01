@@ -135,8 +135,10 @@ function AbrController() {
             if (!ratioDict.hasOwnProperty(type)) {
                 bitrateDict[type] = (type === 'video') ? DEFAULT_VIDEO_BITRATE : DEFAULT_AUDIO_BITRATE;
             } else {
+
                 let manifest = manifestModel.getValue();
                 let representation = manifestExt.getAdaptationForType(manifest, 0, type).Representation;
+
                 if (Array.isArray(representation)) {
                     bitrateDict[type] = representation[Math.round(representation.length * ratioDict[type]) - 1].bandwidth;
                 } else {

@@ -938,7 +938,6 @@ function DashHandler(config) {
             getSegments(representation);
             segment = getSegmentByIndex(index, representation);
             request = getRequestForSegment(segment);
-
             if (!segment && isDynamic) {
                 /*
                  Sometimes when playing dynamic streams with 0 fragment delay at live edge we ask for
