@@ -228,6 +228,10 @@ function StreamController() {
 
         hasMediaError = true;
 
+        if (e.error.msExtendedCode) {
+            msg += ' (0x' + (e.error.msExtendedCode >>> 0).toString(16).toUpperCase() + ')';
+        }
+
         log('Video Element Error: ' + msg);
         if (e.error) {
             log(e.error);
