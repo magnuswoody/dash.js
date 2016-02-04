@@ -53,11 +53,11 @@ function BufferLevelRule(config) {
     }
 
     function execute(rulesContext, callback) {
-        var mediaInfo = rulesContext.getMediaInfo();
-        var mediaType = mediaInfo.type;
-        var metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
-        var bufferLevel = metricsExt.getCurrentBufferLevel(metrics);
-        var fragmentCount;
+        let mediaInfo = rulesContext.getMediaInfo();
+        let mediaType = mediaInfo.type;
+        let metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
+        let bufferLevel = metricsExt.getCurrentBufferLevel(metrics);
+        let fragmentCount;
 
         fragmentCount = bufferLevel < getBufferTarget(rulesContext, mediaType) ? 1 : 0;
 
@@ -72,23 +72,19 @@ function BufferLevelRule(config) {
         var abrController = streamProcessor.getABRController();
         var duration = streamInfo.manifestInfo.duration;
         var trackInfo = rulesContext.getTrackInfo();
-        var isDynamic = streamProcessor.isDynamic(); //TODO make is dynamic false if live stream is playing more than X seconds from live edge in DVR window. So it will act like VOD.
         var isLongFormContent = (duration >= mediaPlayerModel.getLongFormContentDurationThreshold());
         var metrics = metricsModel.getReadOnlyMetricsFor(type);
         var bufferTarget = NaN;
         var recentLatency;
 
-        if (!isDynamic && abrController.isPlayingAtTopQuality(streamInfo)) {//TODO || allow larger buffer targets if we stabilize on a non top quality for more than 30 seconds.
-            bufferTarget = isLongFormContent ? mediaPlayerModel.getBufferTimeAtTopQualityLongForm() : mediaPlayerModel.getBufferTimeAtTopQuality();
-        }else if (!isDynamic) {
-            //General VOD target non top quality and not stabilized on a given quality.
-            bufferTarget = mediaPlayerModel.getStableBufferTime();
-        } else {
-            bufferTarget = playbackController.getLiveDelay();
-        }
-
         if (type === 'fragmentedText') {
             bufferTarget = textSourceBuffer.getAllTracksAreDisabled() ? 0 : trackInfo.fragmentDuration;
+        } else {
+            if (abrController.isPlayingAtTopQuality(streamInfo)) {
+                bufferTarget = isLongFormContent ? mediaPlayerModel.getBufferTimeAtTopQualityLongForm() : mediaPlayerModel.getBufferTimeAtTopQuality();
+            }else {
+                bufferTarget = mediaPlayerModel.getStableBufferTime();
+            }
         }
 
         recentLatency = Math.floor( Math.max(metricsExt.getRecentLatency(metrics, 4), MINIMUM_LATENCY_BUFFER) / 1000);
