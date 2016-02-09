@@ -28,16 +28,19 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-import HTTPRequest from '../../streaming/vo/metrics/HTTPRequest.js';
-import AbrController from '../../streaming/controllers/AbrController.js';
-import ManifestModel from '../../streaming/models/ManifestModel.js';
-import DashManifestExtensions from '../../dash/extensions/DashManifestExtensions.js';
-import FactoryMaker from '../../core/FactoryMaker.js';
+import HTTPRequest from '../streaming/vo/metrics/HTTPRequest.js';
+import AbrController from '../streaming/controllers/AbrController.js';
+import ManifestModel from '../streaming/models/ManifestModel.js';
+import DashManifestModel from './models/DashManifestModel.js';
+import FactoryMaker from '../core/FactoryMaker.js';
 import Debug from '../../core/Debug.js';
 
 const PROBABLY_IN_CACHE_MS = 200;
 
-function DashMetricsExtensions() {
+/**
+ * @Module DashMetrics
+ */
+function DashMetrics() {
 
     let instance;
     let context = this.context;
@@ -58,6 +61,13 @@ function DashMetricsExtensions() {
         return representation.bandwidth;
     }
 
+
+    /**
+     *
+     * @param representationId
+     * @param periodIdx
+     * @returns {*}
+     */
     function getIndexForRepresentation(representationId, periodIdx) {
         var representationIndex;
         var manifest = manifestModel.getValue();
@@ -73,8 +83,8 @@ function DashMetricsExtensions() {
      * @param bufferType - String 'audio' or 'video',
      * @param periodIdx - Make sure this is the period index not id
      * @return int
-     * @memberof DashMetricsExtensions#
-     * @method
+     * @memberof module:DashMetrics
+     * @instance
      */
     function getMaxIndexForBufferType(bufferType, periodIdx) {
         var maxIndex;
@@ -93,9 +103,9 @@ function DashMetricsExtensions() {
      * @param periodId - Make sure this is the period id not index.
      * @return int
      * @see {@link module:MediaPlayer#setMaxAllowedBitrateFor setMaxAllowedBitrateFor()}
-     * @see {@link DashMetricsExtensions#getMaxIndexForBufferType getMaxIndexForBufferType()}
-     * @memberof DashMetricsExtensions#
-     * @method
+     * @see {@link DashMetrics#getMaxIndexForBufferType getMaxIndexForBufferType()}
+     * @memberof module:DashMetrics
+     * @instance
      */
     function getMaxAllowedIndexForBufferType(bufferType, periodId) {
         var idx = 0;
@@ -108,6 +118,12 @@ function DashMetricsExtensions() {
         return idx;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentRepresentationSwitch(metrics) {
         if (metrics === null) {
             return null;
@@ -129,6 +145,12 @@ function DashMetricsExtensions() {
         return currentRepSwitch;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getLatestBufferLevelVO(metrics) {
         if (metrics === null) {
             return null;
@@ -142,6 +164,12 @@ function DashMetricsExtensions() {
         return bufferLevel[bufferLevel.length - 1];
     }
 
+    /**
+     * @param metrics
+     * @returns {number}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentBufferLevel(metrics) {
         if (metrics === null) {
             return 0;
@@ -155,10 +183,22 @@ function DashMetricsExtensions() {
         return bufferLevel[bufferLevel.length - 1].level / 1000;
     }
 
+    /**
+     * @param metrics
+     * @returns {null|*|vo}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getRequestsQueue(metrics) {
         return metrics.RequestsQueue;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentHttpRequest(metrics) {
         if (metrics === null) {
             return null;
@@ -295,6 +335,12 @@ function DashMetricsExtensions() {
         return total / interested.length;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getHttpRequests(metrics) {
         if (metrics === null) {
             return [];
@@ -303,6 +349,12 @@ function DashMetricsExtensions() {
         return !!metrics.HttpList ? metrics.HttpList : [];
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentDroppedFrames(metrics) {
         if (metrics === null) { return null; }
 
@@ -322,6 +374,12 @@ function DashMetricsExtensions() {
         return currentDroppedFrames;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentSchedulingInfo(metrics) {
         if (metrics === null) return null;
 
@@ -342,6 +400,12 @@ function DashMetricsExtensions() {
         return currentSchedulingInfo;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentManifestUpdate(metrics) {
         if (metrics === null) return null;
 
@@ -362,6 +426,12 @@ function DashMetricsExtensions() {
         return currentManifestUpdate;
     }
 
+    /**
+     * @param metrics
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getCurrentDVRInfo(metrics) {
 
         if (metrics === null) {
@@ -382,6 +452,13 @@ function DashMetricsExtensions() {
         return curentDVRInfo;
     }
 
+    /**
+     * @param metrics
+     * @param id
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getLatestMPDRequestHeaderValueByID(metrics, id) {
         var headers = {};
         var httpRequestList,
@@ -406,6 +483,13 @@ function DashMetricsExtensions() {
         return headers[id] === undefined ? null :  headers[id];
     }
 
+    /**
+     * @param metrics
+     * @param id
+     * @returns {*}
+     * @memberof module:DashMetrics
+     * @instance
+     */
     function getLatestFragmentRequestHeaderValueByID(metrics, id) {
 
         if (metrics === null) return null;
@@ -482,7 +566,7 @@ function DashMetricsExtensions() {
     }
 
     function adaptationIsType(adaptation, bufferType) {
-        return DashManifestExtensions(context).getInstance().getIsTypeOf(adaptation, bufferType);
+        return DashManifestModel(context).getInstance().getIsTypeOf(adaptation, bufferType);
     }
 
     function findMaxBufferIndex(period, bufferType) {
@@ -529,5 +613,5 @@ function DashMetricsExtensions() {
     return instance;
 }
 
-DashMetricsExtensions.__dashjs_factory_name = 'DashMetricsExtensions';
-export default FactoryMaker.getSingletonFactory(DashMetricsExtensions);
+DashMetrics.__dashjs_factory_name = 'DashMetrics';
+export default FactoryMaker.getSingletonFactory(DashMetrics);

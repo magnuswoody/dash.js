@@ -42,7 +42,7 @@ function ThroughputRule(config) {
 
     let context = this.context;
     let log = Debug(context).getInstance().log;
-    let metricsExt = config.metricsExt;
+    let dashMetrics = config.dashMetrics;
     let metricsModel = config.metricsModel;
 
     let instance,
@@ -73,7 +73,7 @@ function ThroughputRule(config) {
 
         }
 
-        averageThroughput = metricsExt.getRecentThroughput(metrics, (isDynamic ? AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_LIVE : AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_VOD));
+        averageThroughput = dashMetrics.getRecentThroughput(metrics, (isDynamic ? AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_LIVE : AVERAGE_THROUGHPUT_SAMPLE_AMOUNT_VOD));
 
         if (averageThroughput !== -1) {
             averageThroughput = Math.round(averageThroughput * mediaPlayerModel.getBandwidthSafetyFactor());

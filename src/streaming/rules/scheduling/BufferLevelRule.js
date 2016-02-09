@@ -40,7 +40,7 @@ function BufferLevelRule(config) {
     let instance;
     let context = this.context;
 
-    let metricsExt = config.metricsExt;
+    let dashMetrics = config.dashMetrics;
     let metricsModel = config.metricsModel;
     let textSourceBuffer = config.textSourceBuffer;
 
@@ -56,7 +56,7 @@ function BufferLevelRule(config) {
         let mediaInfo = rulesContext.getMediaInfo();
         let mediaType = mediaInfo.type;
         let metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
-        let bufferLevel = metricsExt.getCurrentBufferLevel(metrics);
+        let bufferLevel = dashMetrics.getCurrentBufferLevel(metrics);
         let fragmentCount;
 
         fragmentCount = bufferLevel < getBufferTarget(rulesContext, mediaType) ? 1 : 0;
