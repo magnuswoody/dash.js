@@ -33,7 +33,7 @@ import AbrController from '../streaming/controllers/AbrController.js';
 import ManifestModel from '../streaming/models/ManifestModel.js';
 import DashManifestModel from './models/DashManifestModel.js';
 import FactoryMaker from '../core/FactoryMaker.js';
-import Debug from '../../core/Debug.js';
+import Debug from '../core/Debug.js';
 
 const PROBABLY_IN_CACHE_MS = 200;
 
