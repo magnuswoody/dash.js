@@ -440,16 +440,16 @@ function DashMetrics() {
 
         var dvrInfo = metrics.DVRInfo;
         var dvrInfoLastIndex,
-            curentDVRInfo;
+            currentDVRInfo;
 
         if (dvrInfo === null || dvrInfo.length <= 0) {
             return null;
         }
 
         dvrInfoLastIndex = dvrInfo.length - 1;
-        curentDVRInfo = dvrInfo[dvrInfoLastIndex];
+        currentDVRInfo = dvrInfo[dvrInfoLastIndex];
 
-        return curentDVRInfo;
+        return currentDVRInfo;
     }
 
     /**

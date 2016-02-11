@@ -37,6 +37,7 @@ import Debug from '../core/Debug.js';
 import VideoModel from './models/VideoModel.js';
 import TextTracks from './TextTracks.js';
 import ISOBoxer from 'codem-isoboxer';
+import cea608parser from '../../externals/cea608-parser.js';
 
 function TextSourceBuffer() {
 
@@ -212,7 +213,7 @@ function TextSourceBuffer() {
                 errHandler.timedTextError(e, 'parse', ccContent);
             }
         } else if (mediaType === 'video') { //embedded text
-            if (chunk.segmentType === 'Initialization Segment') {
+            if (chunk.segmentType === 'InitializationSegment') {
                 if (embeddedTimescale === 0) {
                     embeddedTimescale = fragmentedTextBoxParser.getMediaTimescaleFromMoov(bytes);
                     for (i = 0; i < embeddedTracks.length; i++) {
@@ -415,7 +416,7 @@ function TextSourceBuffer() {
     function getStyle(videoElement, style) {
         var fontSize = videoElement.videoHeight / 15.0;
         if (style) {
-            return 'font-size: ' + fontSize + 'px; font-family: Menlo, Consolas, \'Cutive Mono\', monospace; color: ' + ((style.foreground) ? createRGB(style.foreground) : 'rgb(255, 255, 255)') + '; font-style: ' + (style.italics ? 'italic' : 'normal') + '; text-decoration: ' + (style.underline ? 'underline' : 'none') + '; white-space: pre; background-color: ' + ((style.background) ? createRGB(style.background) : 'trasparent') + ';';
+            return 'font-size: ' + fontSize + 'px; font-family: Menlo, Consolas, \'Cutive Mono\', monospace; color: ' + ((style.foreground) ? createRGB(style.foreground) : 'rgb(255, 255, 255)') + '; font-style: ' + (style.italics ? 'italic' : 'normal') + '; text-decoration: ' + (style.underline ? 'underline' : 'none') + '; white-space: pre; background-color: ' + ((style.background) ? createRGB(style.background) : 'transparent') + ';';
         } else {
             return 'font-size: ' + fontSize + 'px; font-family: Menlo, Consolas, \'Cutive Mono\', monospace; justify-content: flex-start; text-align: left; color: rgb(255, 255, 255); font-style: normal; white-space: pre; line-height: normal; font-weight: normal; text-decoration: none; width: 100%; display: flex;';
         }
