@@ -240,8 +240,9 @@ function PlaybackController() {
      * @memberof PlaybackController#
      */
     function getStreamStartTime(streamInfo) {
-        var presentationStartTime;
-        var startTimeOffset = parseInt(URIQueryAndFragmentModel(context).getInstance().getURIFragmentData().s, 10);
+        let presentationStartTime;
+        let fragData = URIQueryAndFragmentModel(context).getInstance().getURIFragmentData();
+        let startTimeOffset = parseInt(fragData.s || fragData.t, 10);
 
         if (isDynamic) {
 
@@ -308,6 +309,7 @@ function PlaybackController() {
         let initialSeekTime = getStreamStartTime(streamInfo);
         eventBus.trigger(Events.PLAYBACK_SEEKING, {seekTime: initialSeekTime});
         log('Starting playback at offset: ' + initialSeekTime);
+        seek(initialSeekTime);
     }
 
     function updateCurrentTime() {
