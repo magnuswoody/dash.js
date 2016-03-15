@@ -84,6 +84,9 @@ function VideoModel() {
     function setSource(source) {
         if (source) {
             element.src = source;
+        } else {
+            element.removeAttribute('src');
+            element.load();
         }
     }
 
