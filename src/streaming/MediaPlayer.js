@@ -1968,7 +1968,9 @@ function MediaPlayer() {
         displayCaptionsOnTop: displayCaptionsOnTop,
         attachVideoContainer: attachVideoContainer,
         attachTTMLRenderingDiv: attachTTMLRenderingDiv,
-        reset: reset
+        reset: reset,
+        addEventListener: on,
+        removeEventListener: off
     };
 
     setup();
