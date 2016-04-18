@@ -58,7 +58,7 @@ const XLINK_RETRY_ATTEMPTS = 1;
 const XLINK_RETRY_INTERVAL = 500;
 
 //This value influences the startup time for live (in ms).
-const WALLCLOCK_TIME_UPDATE_INTERVAL = 50;
+const WALLCLOCK_TIME_UPDATE_INTERVAL = 1000;
 
 function MediaPlayerModel() {
 
