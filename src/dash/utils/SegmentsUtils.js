@@ -219,26 +219,24 @@ export function getSegmentByIndex(index, representation) {
 }
 
 
-export function decideSegmentListRangeForTimeline(timelineConverter, isDynamic, requestedTime, index, givenAvailabilityUpperLimit) {
+export function decideSegmentListRangeForTimeline(timelineConverter, isDynamic, representation, requestedTime, index, givenAvailabilityUpperLimit) {
     var availabilityLowerLimit = 2;
-    var availabilityUpperLimit = givenAvailabilityUpperLimit || 10;
-    var firstIdx = 0;
-    var lastIdx = Number.POSITIVE_INFINITY;
+    var availabilityRange = timelineConverter.calcSegmentAvailabilityRange(representation, isDynamic, true);
+    var availabilityUpperLimit = givenAvailabilityUpperLimit || availabilityRange.end - availabilityRange.start;
 
     var start,
         end,
         range;
 
     if (isDynamic && !timelineConverter.isTimeSyncCompleted()) {
-        range = {start: firstIdx, end: lastIdx};
-        return range;
+        return availabilityRange;
     }
 
     if ((!isDynamic && requestedTime) || index < 0) return null;
 
     // segment list should not be out of the availability window range
-    start = Math.max(index - availabilityLowerLimit, firstIdx);
-    end = Math.min(index + availabilityUpperLimit, lastIdx);
+    start = Math.max(index - availabilityLowerLimit, availabilityRange.start);
+    end = Math.min(index + availabilityUpperLimit, availabilityRange.end);
 
     range = {start: start, end: end};
 
