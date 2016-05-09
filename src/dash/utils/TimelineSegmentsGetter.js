@@ -84,7 +84,7 @@ function TimelineSegmentsGetter(config, isDynamic) {
 
         fragments = timeline.S_asArray;
 
-        calculatedRange = decideSegmentListRangeForTimeline(timelineConverter, isDynamic, representation, requestedTime, index, availabilityUpperLimit);
+        calculatedRange = decideSegmentListRangeForTimeline(timelineConverter, isDynamic,  requestedTime, index, availabilityUpperLimit);
 
         // if calculatedRange exists we should generate segments that belong to this range.
         // Otherwise generate maxSegmentsAhead segments ahead of the requested time
