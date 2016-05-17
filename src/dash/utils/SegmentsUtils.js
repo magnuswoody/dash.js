@@ -247,15 +247,14 @@ export function decideSegmentListRangeForTimeline(timelineConverter, isDynamic, 
 
 export function decideSegmentListRangeForTemplate(timelineConverter, isDynamic, representation, requestedTime, index, givenAvailabilityUpperLimit) {
     var duration = representation.segmentDuration;
-    var minBufferTime = representation.adaptation.period.mpd.manifest.minBufferTime;
     var availabilityWindow = representation.segmentAvailabilityRange;
     var periodRelativeRange = {
         start: timelineConverter.calcPeriodRelativeTimeFromMpdRelativeTime(representation, availabilityWindow.start),
         end: timelineConverter.calcPeriodRelativeTimeFromMpdRelativeTime(representation, availabilityWindow.end)
     };
     var currentSegmentList = representation.segments;
-    var availabilityLowerLimit = 2 * duration;
-    var availabilityUpperLimit = givenAvailabilityUpperLimit || Math.max(2 * minBufferTime, 10 * duration);
+    var availabilityLowerLimit = periodRelativeRange.start;
+    var availabilityUpperLimit = givenAvailabilityUpperLimit >= 0 ? givenAvailabilityUpperLimit : periodRelativeRange.end;
 
     var originAvailabilityTime = NaN;
     var originSegment = null;
