@@ -347,7 +347,6 @@ function StreamController() {
             videoTrackDetected = checkVideoPresence();
         }
 
-        activeStream.startEventController();
         if (autoPlay || !initialPlayback) {
             playbackController.play();
         }

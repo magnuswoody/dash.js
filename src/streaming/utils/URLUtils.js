@@ -44,7 +44,8 @@ function URLUtils() {
 
     const schemeRegex = /^[a-z][a-z0-9+\-.]*:/i;
     const httpUrlRegex = /^https?:\/\//i;
-    const originRegex = /^([a-z][a-z0-9+\-.]*:\/\/[^\/]+)\/?/i;
+    const originRegex = /^(https?:\/\/[^\/]+)\/?/i;
+    const blobUrl = /^blob:/;
 
     /**
      * Resolves a url given an optional base url
@@ -182,12 +183,16 @@ function URLUtils() {
 
     /**
      * Determines whether the url is relative.
-     * @return {bool}
+     * @return {boolean}
      * @param {string} url
      * @memberof module:URLUtils
      * @instance
      */
     function isRelative(url) {
+        if (isBlobUrl(url)) {
+            return false;
+        }
+
         return !schemeRegex.test(url);
     }
 
@@ -216,7 +221,7 @@ function URLUtils() {
     /**
      * Determines whether the url is an HTTP-URL as defined in ISO/IEC
      * 23009-1:2014 3.1.15. ie URL with a fixed scheme of http or https
-     * @return {bool}
+     * @return {boolean}
      * @param {string} url
      * @memberof module:URLUtils
      * @instance
@@ -237,17 +242,27 @@ function URLUtils() {
         return resolveFunction(url, baseUrl);
     }
 
+    /**
+     * Determines whether the url is a Blob URL.
+     * @return {boolean}
+     * @param {string} url
+     * @memberof module:URLUtils
+     * @instance
+     */
+    function isBlobUrl(url) {
+        return blobUrl.test(url);
+    }
+
     setup();
 
     const instance = {
-        parseBaseUrl:       parseBaseUrl,
-        parseOrigin:        parseOrigin,
-        parseScheme:        parseScheme,
-        isRelative:         isRelative,
-        isPathAbsolute:     isPathAbsolute,
-        isSchemeRelative:   isSchemeRelative,
-        isHTTPURL:          isHTTPURL,
-        resolve:            resolve
+        parseBaseUrl:   parseBaseUrl,
+        parseOrigin:    parseOrigin,
+        isRelative:     isRelative,
+        isPathAbsolute: isPathAbsolute,
+        isHTTPURL:      isHTTPURL,
+        resolve:        resolve,
+        isBlobUrl:      isBlobUrl
     };
 
     return instance;

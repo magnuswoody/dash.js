@@ -146,9 +146,12 @@ function RepresentationController() {
         var quality,
             averageThroughput;
 
+        const manifest = manifestModel.getValue();
+        const previousRepresentation = currentRepresentation;
+
         var bitrate = null;
-        var streamInfo = streamProcessor.getStreamInfo();
-        var maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
+        const streamInfo = streamProcessor.getStreamInfo();
+        const maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
 
         updating = true;
         eventBus.trigger(Events.DATA_UPDATE_STARTED, {sender: this});
@@ -169,6 +172,11 @@ function RepresentationController() {
 
         currentRepresentation = getRepresentationForQuality(quality);
         data = dataValue;
+
+        streamProcessor.getEventController().handleRepresentationSwitch(
+            dashManifestModel.getEventStreamsForRepresentation(manifest, previousRepresentation),
+            dashManifestModel.getEventStreamsForRepresentation(manifest, currentRepresentation)
+        );
 
         if (type !== 'video' && type !== 'audio' && type !== 'fragmentedText') {
             updating = false;
@@ -334,12 +342,20 @@ function RepresentationController() {
     }
 
     function onQualityChanged(e) {
+        const manifest = manifestModel.getValue();
+        const previousRepresentation = currentRepresentation;
+
         if (e.mediaType !== streamProcessor.getType() || streamProcessor.getStreamInfo().id !== e.streamInfo.id) return;
 
         if (e.oldQuality !== e.newQuality) {
             currentRepresentation = getRepresentationForQuality(e.newQuality);
             domStorage.setSavedBitrateSettings(e.mediaType, currentRepresentation.bandwidth);
             addRepresentationSwitch();
+
+            streamProcessor.getEventController().handleRepresentationSwitch(
+                dashManifestModel.getEventStreamsForRepresentation(manifest, previousRepresentation),
+                dashManifestModel.getEventStreamsForRepresentation(manifest, currentRepresentation)
+            );
         }
     }
 
