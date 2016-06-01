@@ -315,6 +315,8 @@ function PlaybackController() {
             onWallclockTime();
         };
 
+        // Run one instance immediately
+        tick();
         wallclockTimeIntervalId = setInterval(tick, mediaPlayerModel.getWallclockTimeUpdateInterval());
     }
 
