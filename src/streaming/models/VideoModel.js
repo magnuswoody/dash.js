@@ -148,7 +148,8 @@ function VideoModel() {
 
     function removeStalledStream(type) {
         let index = stalledStreams.indexOf(type);
-        let event;
+        let event,
+            evType;
 
         if (type === null) {
             return;
@@ -158,8 +159,10 @@ function VideoModel() {
         }
         // If nothing is stalled resume playback.
         if (isStalled() === false && element.playbackRate === 0) {
+            evType = element.paused ? 'canplay' : 'playing';
+            console.log(evType, element.paused);
             event = document.createEvent('Event');
-            event.initEvent('playing', true, false);
+            event.initEvent(evType, true, false);
             setPlaybackRate(previousPlaybackRate || 1);
             element.dispatchEvent(event);
         }

@@ -212,6 +212,50 @@ module.exports = function (grunt) {
                 }
             }
         },
+        karma: {
+            options: {
+                frameworks: ['browserify', 'mocha'],
+                files: ['src/**/*.js', 'test/*.js'],
+                browsers: ['PhantomJS'],
+                preprocessors: {
+                    'src/**/*.js': ['browserify'],
+                    'test/*.js': ['browserify']
+                },
+                browserify: {
+                    debug: true,
+                    transform: [
+                        'babelify',
+                        require('browserify-istanbul')({
+                            ignore: ['**/externals/**', '**/test/**'],
+                            instrumenterConfig: {
+                                embedSource: true
+                            }
+                        })
+                    ],
+                    plugin: ['browserify-derequire']
+                },
+                reporters: ['progress', 'coverage'],
+                coverageReporter: {
+                    type: 'lcov',
+                    dir: 'reports/',
+                    instrumenters: {
+                        isparta: require('isparta')
+                    },
+                    instrumenter: {
+                        'src/**/*.js': 'isparta'
+                    },
+                    instrumenterOptions: {
+                        isparta: { babel : { presets: 'es2015' } }
+                    }
+                }
+            },
+            unit: {
+                singleRun: true
+            },
+            watch: {
+                singleRun: false
+            }
+        },
         jscs: {
             src: ['./src/**/*.js', 'Gruntfile.js'],
             options: {
