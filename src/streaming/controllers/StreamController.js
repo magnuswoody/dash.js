@@ -189,11 +189,11 @@ function StreamController() {
     }
 
     function onPlaybackError(e) {
-        var code = e.error ? e.error.code : 0;
+        var code = e.error ? e.error.code : -1;
         var msg = '';
 
         if (code === -1) {
-            // not an error!
+            // not a media error!
             return;
         }
 
@@ -225,9 +225,8 @@ function StreamController() {
         }
 
         log('Video Element Error: ' + msg);
-        if (e.error) {
-            log(e.error);
-        }
+        log(e.error);
+
         errHandler.mediaSourceError(msg);
         reset();
     }
