@@ -1,4 +1,3 @@
-import LiveEdgeFinder from '../src/streaming/utils/LiveEdgeFinder';
 import EventBus from '../src/core/EventBus';
 import VoHelper from './helpers/VOHelper';
 import TimeLineConverter from '../src/dash/utils/TimelineConverter';

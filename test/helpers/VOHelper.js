@@ -3,6 +3,7 @@ import MediaInfo from '../../src/streaming/vo/MediaInfo';
 import MpdHelper from './MPDHelper';
 import SpecHelper from './SpecHelper';
 import Representation from '../../src/dash/vo/Representation';
+import Segment from '../../src/dash/vo/Segment';
 import FragmentRequest from '../../src/streaming/vo/FragmentRequest';
 import {HTTPRequest} from '../../src/streaming/vo/metrics/HTTPRequest';
 
@@ -56,7 +57,7 @@ class VoHelper {
         return adaptation;
     }
 
-    createRepresentation(type) {
+    createRepresentation(type, segmentInfoType) {
         var rep = new Representation();
 
         rep.id = null;
@@ -74,8 +75,31 @@ class VoHelper {
         rep.MSETimeOffset = NaN;
         rep.segmentAvailabilityRange = null;
         rep.availableSegmentsNumber = 0;
+        rep.segmentInfoType = segmentInfoType || 'SegmentTemplate';
 
         return rep;
+    }
+
+    createSegment(index) {
+        const length = 2;
+        var seg = new Segment();
+
+        seg.indexRange = null;
+        seg.index = index;
+        seg.mediaRange = null;
+        seg.media = null;
+        seg.duration = length;
+        seg.replacementTime = null;
+        seg.replacementNumber = NaN;
+        seg.mediaStartTime = length * index;
+        seg.presentationStartTime = 0;
+        seg.availabilityStartTime = 0;
+        seg.availabilityEndTime = Math.POSITIVE_INFINITY;
+        seg.availabilityIdx = index;
+        seg.wallStartTime = length * index;
+        seg.representation = null;
+
+        return seg;
     }
 
     createRequest(type) {

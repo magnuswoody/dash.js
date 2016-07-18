@@ -54,7 +54,7 @@ function SegmentsGetter(config, isDynamic) {
         var type = representation.segmentInfoType;
 
         // Already figure out the segments.
-        if (type === 'SegmentBase' || type === 'BaseURL' || !isSegmentListUpdateRequired(representation, index)) {
+        if (type === 'SegmentBase' || type === 'BaseURL' || !isSegmentListUpdateRequired(representation)) {
             segments = representation.segments;
         } else {
             if (type === 'SegmentTimeline') {
@@ -73,20 +73,9 @@ function SegmentsGetter(config, isDynamic) {
         return segments;
     }
 
-    function isSegmentListUpdateRequired(representation, index) {
-        var segments = representation.segments;
-        var updateRequired = false;
-
-        var upperIdx,
-            lowerIdx;
-
-        if (!segments || segments.length === 0) {
-            updateRequired = true;
-        } else {
-            lowerIdx = segments[0].availabilityIdx;
-            upperIdx = segments[segments.length - 1].availabilityIdx;
-            updateRequired = (index < lowerIdx) || (index > upperIdx);
-        }
+    function isSegmentListUpdateRequired(representation) {
+        const segments = representation.segments;
+        const updateRequired = isDynamic || !segments || segments.length === 0;
 
         return updateRequired;
     }
