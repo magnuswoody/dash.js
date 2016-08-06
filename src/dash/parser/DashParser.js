@@ -42,7 +42,9 @@ import SegmentValuesMap from './maps/SegmentValuesMap';
 function DashParser(/*config*/) {
 
     const context = this.context;
-    const log = Debug(context).getInstance().log;
+    const debug = Debug(context).getInstance();
+    const log = debug.log;
+    const timer = debug.timer;
     const errorHandler = ErrorHandler(context).getInstance();
 
     let instance,
@@ -69,7 +71,7 @@ function DashParser(/*config*/) {
         var manifest;
 
         try {
-            const startTime = window.performance.now();
+            const startTime = timer();
 
             manifest = converter.xml_str2json(data);
 
@@ -77,11 +79,11 @@ function DashParser(/*config*/) {
                 throw new Error('parser error');
             }
 
-            const jsonTime = window.performance.now();
+            const jsonTime = timer();
 
             objectIron.run(manifest);
 
-            const ironedTime = window.performance.now();
+            const ironedTime = timer();
 
             xlinkController.setMatchers(matchers);
             xlinkController.setIron(objectIron);

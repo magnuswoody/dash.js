@@ -255,7 +255,7 @@ export function decideSegmentListRangeForTemplate(timelineConverter, isDynamic, 
     };
     var currentSegmentList = representation.segments;
     var availabilityLowerLimit = 2 * duration;
-    var availabilityUpperLimit = givenAvailabilityUpperLimit || Math.max(2 * minBufferTime, 10 * duration);
+    var availabilityUpperLimit = givenAvailabilityUpperLimit || Number.POSITIVE_INFINITY;
 
     var originAvailabilityTime = NaN;
     var originSegment = null;

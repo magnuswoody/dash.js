@@ -44,6 +44,13 @@ class ObjectsHelper {
             contains: () => {}
         };
     }
+
+    getDummyXlinkController() {
+        return {
+            setMatchers: () => {},
+            setIron: () => {}
+        };
+    }
 }
 
 export default ObjectsHelper;

@@ -12,6 +12,7 @@
     "devel" : true,
     "browser": true,
     "loopfunc" : true,
+    "multistr": true,
     "predef" : [
         "it",
         "describe",

@@ -111,11 +111,25 @@ function Debug() {
         eventBus.trigger(Events.LOG, {message: message});
     }
 
+    /**
+     * Returns window.performance.now(), if available
+     * Otherwise falls back to Date()
+     * mocha doesn't have window.performance and it's possible some UAs don't either
+     */
+    function timer() {
+        if (typeof performance !== "undefined") {
+            return performance.now();
+        } else {
+            return (new Date()).getTime();
+        }
+    }
+
     instance = {
         log: log,
         setLogTimestampVisible: setLogTimestampVisible,
         setLogToBrowserConsole: setLogToBrowserConsole,
         getLogToBrowserConsole: getLogToBrowserConsole,
+        timer: timer
     };
 
     setup();

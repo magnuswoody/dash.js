@@ -70,10 +70,11 @@ function X2JS(matchers, attrPrefix, ignoreRoot) {
 			    i,
 			    len; 
 			
-			// get the first node that isn't a comment
+			// get the first node that we understand
 			for(i = 0, len = node.childNodes.length; i < len; i += 1) {
-			   if (node.childNodes[i].nodeType !== DOMNodeTypes.COMMENT_NODE) {
-			       child = node.childNodes[i];
+			   let cNode = node.childNodes[i];
+			   if (cNode.nodeType == DOMNodeTypes.ELEMENT_NODE || cNode.nodeType == DOMNodeTypes.TEXT_NODE || cNode.nodeType == DOMNodeTypes.CDATA_SECTION_NODE) {
+			       child = cNode;
 			       break;
 			   } 
 			}
