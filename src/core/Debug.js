@@ -42,13 +42,15 @@ function Debug() {
 
     let instance,
         logToBrowserConsole,
+        logToEventBus,
         showLogTimestamp,
         startTime;
 
     function setup() {
         logToBrowserConsole = true;
+        logToEventBus = true;
         showLogTimestamp = true;
-        startTime = new Date().getTime();
+        startTime = timer();
     }
 
     /**
@@ -62,7 +64,7 @@ function Debug() {
         showLogTimestamp = value;
     }
     /**
-     * Toggles logging to the browser's javascript console.  If you set to false you will still receive a log event with the same message.
+     * Toggles logging to the browser's javascript console.
      * @param {boolean} value Set to false if you want to turn off logging to the browser's console.
      * @default true
      * @memberof module:Debug
@@ -81,44 +83,61 @@ function Debug() {
         return logToBrowserConsole;
     }
     /**
+     * Toggles logging as Events.LOG events.
+     * @param {boolean} value Set to false if you want to turn of logging to the event bus.
+     * @default true
+     * @memberof module:Debug
+     * @instance
+     */
+    function setLogToEventBus(value) {
+        logToEventBus = value;
+    }
+    /**
+     * Use this method to get the state of logToEventBus.
+     * @returns {boolean} The current value of logToEventBus
+     * @memberof module:Debug
+     * @instance
+     */
+    function getLogToEventBus() {
+        return logToEventBus;
+    }
+    /**
      * This method will allow you send log messages to either the browser's console and/or dispatch an event to capture at the media player level.
      * @param {...*} arguments The message you want to log. The Arguments object is supported for this method so you can send in comma separated logging items.
      * @memberof module:Debug
      * @instance
      */
     function log() {
+        var params;
 
-        var message = '';
-        var logTime = null;
+        if (logToEventBus || logToBrowserConsole) {
+            params = [];
 
-        if (showLogTimestamp) {
-            logTime = new Date().getTime();
-            message += '[' + (logTime - startTime) + ']';
+            if (showLogTimestamp) {
+                params.push(`[${Math.round((timer() - startTime) * 100) / 100}]`);
+            }
+
+            Array.from(arguments).forEach(item => {
+                params.push(item);
+            });
+
+            if (logToBrowserConsole) {
+                console.log.apply(null, params);
+            }
+
+            if (logToEventBus) {
+                eventBus.trigger(Events.LOG, {message: params});
+            }
         }
-
-        if (message.length > 0) {
-            message += ' ';
-        }
-
-        Array.apply(null, arguments).forEach(function (item) {
-            message += item + ' ';
-        });
-
-        if (logToBrowserConsole) {
-            console.log(message);
-        }
-
-        eventBus.trigger(Events.LOG, {message: message});
     }
-
     /**
      * Returns window.performance.now(), if available
      * Otherwise falls back to Date()
      * mocha doesn't have window.performance and it's possible some UAs don't either
      */
     function timer() {
-        if (typeof performance !== "undefined") {
-            return performance.now();
+        if (typeof window !== 'undefined' && window.performance) {
+            return window.performance.now();
         } else {
             return (new Date()).getTime();
         }
@@ -129,6 +148,8 @@ function Debug() {
         setLogTimestampVisible: setLogTimestampVisible,
         setLogToBrowserConsole: setLogToBrowserConsole,
         getLogToBrowserConsole: getLogToBrowserConsole,
+        setLogToEventBus: setLogToEventBus,
+        getLogToEventBus: getLogToEventBus,
         timer: timer
     };
 
