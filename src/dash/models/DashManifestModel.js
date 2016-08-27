@@ -48,6 +48,10 @@ function DashManifestModel() {
     let instance;
     let context = this.context;
     let timelineConverter = TimelineConverter(context).getInstance();//TODO Need to pass this in not bake in
+    //TODO: Before I added this we assumed timelineConverter, the singleton, had already been inited elsewhere
+    // except when you're writing unit tests, it isn't
+    // not sure if the assumption was intentional or the fact that this works at all is just luck.
+    timelineConverter.initialize();
     let mediaController = MediaController(context).getInstance();
     let adaptor = DashAdapter(context).getInstance();
 

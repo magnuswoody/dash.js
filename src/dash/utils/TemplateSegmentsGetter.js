@@ -43,7 +43,6 @@ function TemplateSegmentsGetter(config, isDynamic) {
         var template = representation.adaptation.period.mpd.manifest.Period_asArray[representation.adaptation.period.index].
             AdaptationSet_asArray[representation.adaptation.index].Representation_asArray[representation.index].SegmentTemplate;
         var duration = representation.segmentDuration;
-        var availabilityWindow = representation.segmentAvailabilityRange;
 
         var segments = [];
         var url = null;
@@ -53,9 +52,13 @@ function TemplateSegmentsGetter(config, isDynamic) {
             periodSegIdx,
             startIdx,
             endIdx,
-            start;
+            start,
+            availabilityWindow;
 
         start = representation.startNumber;
+
+        representation.segmentAvailabilityRange = timelineConverter.calcSegmentAvailabilityRange(representation, isDynamic);
+        availabilityWindow = representation.segmentAvailabilityRange;
 
         if (isNaN(duration) && !isDynamic) {
             segmentRange = {start: start, end: start};

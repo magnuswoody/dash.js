@@ -9,10 +9,12 @@ import TimelineConverter from '../src/dash/utils/TimelineConverter';
 
 const expect = require('chai').expect;
 const DOMParser = require('xmldom').DOMParser;
+const sinon = require('sinon');
 
 describe('SegmentsGetter', function () {
     const objectsHelper = new ObjectsHelper();
     const voHelper = new VoHelper();
+    var clock;
 
     const createSegmentsGetter = (isDynamic) => {
         const context = {};
@@ -34,19 +36,43 @@ describe('SegmentsGetter', function () {
     };
 
     const createTimelineConverter = () => {
-        return TimelineConverter({}).getInstance();
+        const timelineConverter = TimelineConverter({}).getInstance();
+        timelineConverter.initialize();
+        return timelineConverter;
     };
 
     const parseManifest = xmlStr => {
         const manifest = createDashParser().parse(xmlStr, objectsHelper.getDummyXlinkController());
-        manifest.loadedTime = {getTime: () => 0};
+        manifest.loadedTime = {getTime: () => (new Date()).getTime()};
         return manifest;
+    };
+
+    const getResourcesForSegmentGettingFromManifest = mpdStr => {
+        const model = createDashManifestModel();
+        const timelineConverter = createTimelineConverter();
+        const manifest = parseManifest(mpdStr);
+        const mpd = model.getMpd(manifest);
+        const period = model.getRegularPeriods(manifest, mpd)[0];
+        const adaptationIndex = model.getIndexForAdaptation(model.getAdaptationForType(manifest, 0, 'video'), manifest, period.index);
+        const adaptationSet = model.getAdaptationsForPeriod(manifest, period)[adaptationIndex];
+        const representations = model.getRepresentationsForAdaptation(manifest, adaptationSet);
+        const representation = representations[representations.length - 1];
+
+        return {
+            representation: representation,
+            segmentsGetter: createSegmentsGetter(model.getIsDynamic(manifest))
+        };
     };
 
     beforeEach(() => {
         global.window = {
             DOMParser: DOMParser
         };
+        clock = sinon.useFakeTimers(new Date().getTime());
+    });
+
+    afterEach(() => {
+        clock.restore();
     });
 
     it('should not regenerate segments for a static MPD if they are already there', () => {
@@ -66,21 +92,31 @@ describe('SegmentsGetter', function () {
     });
 
     it('should calculate the correct number of segments for an ondemand SegmentTemplate manifest', (done) => {
-        const model = createDashManifestModel();
-        const timelineConverter = createTimelineConverter();
-        const manifest = parseManifest(MPDfiles.bbcrdtestcard);
-        const mpd = model.getMpd(manifest);
-        const period = model.getRegularPeriods(manifest, mpd)[0];
-        const adaptationIndex = model.getIndexForAdaptation(model.getAdaptationForType(manifest, 0, 'video'), manifest, period.index);
-        const adaptationSet = model.getAdaptationsForPeriod(manifest, period)[adaptationIndex];
-        const representations = model.getRepresentationsForAdaptation(manifest, adaptationSet);
-        const representation = representations[representations.length - 1];
+        const args = getResourcesForSegmentGettingFromManifest(MPDfiles.bbcrdtestcard);
 
-        representation.segmentAvailabilityRange = timelineConverter.calcSegmentAvailabilityRange(representation, model.getIsDynamic(manifest));
-
-        createSegmentsGetter().getSegments(representation, 0, 0, (representation, segments) => {
+        args.segmentsGetter.getSegments(args.representation, 0, 0, (representation, segments) => {
             expect(segments.length).to.equal(938);
             done();
+        });
+    });
+
+    it('should calculate the correct range for a dynamic SegmentTemplate mpd, adding/removing as appropriate', (done) => {
+        const args = getResourcesForSegmentGettingFromManifest(MPDfiles.bbcone);
+
+        args.segmentsGetter.getSegments(args.representation, 0, 0, (representation, segments) => {
+            var firstTickFirstSegmentIdx = segments[0].availabilityIdx;
+            var firstTickLastSegmentIdx = segments[segments.length - 1].availabilityIdx;
+            expect(segments.length).to.equal(900);
+
+            clock.tick(8000);
+
+            args.segmentsGetter.getSegments(args.representation, 0, 0, (representation, segments) => {
+                expect(segments.length).to.equal(900);
+                expect(segments[0].availabilityIdx).to.equal(firstTickFirstSegmentIdx + 1);
+                expect(segments[segments.length - 1].availabilityIdx).to.equal(firstTickLastSegmentIdx + 1);
+
+                done();
+            });
         });
     });
 });

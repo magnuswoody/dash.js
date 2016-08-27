@@ -205,6 +205,40 @@ var strMpd = {
             <Metrics metrics="DVBErrors">\
                     <Reporting schemeIdUri="urn:dvb:dash:reporting:2014" value="1" dvb:reportingUrl="http://rdmedia.bbc.co.uk/dash/errorreporting/reporterror.php" dvb:probability="50"/>\
             </Metrics>\
+        </MPD>',
+    bbcone: '<?xml version="1.0" encoding="utf-8"?>\
+        <MPD  xmlns="urn:mpeg:dash:schema:mpd:2011" xmlns:dvb="urn:dvb:dash:dash-extensions:2014-1"\
+          type="dynamic"\
+          availabilityStartTime="1970-01-01T00:00:32Z"\
+          publishTime="2016-05-23T12:25:32"\
+          minimumUpdatePeriod="PT1H"\
+          timeShiftBufferDepth="PT2H"\
+          maxSegmentDuration="PT8S"\
+          minBufferTime="PT4S"\
+          profiles="urn:dvb:dash:profile:dvb-dash:2014,urn:dvb:dash:profile:dvb-dash:isoff-ext-live:2014">\
+          <UTCTiming schemeIdUri="urn:mpeg:dash:utc:http-iso:2014" value="http://time.akamai.com/?iso" />\
+          <Period id="1" start="PT0S">\
+        <!-- audio adaptation_set for mp4a.40.2 codec (low-complexity)-->\
+            <AdaptationSet group="1" contentType="audio" lang="en" segmentAlignment="true" audioSamplingRate="48000" mimeType="audio/mp4" codecs="mp4a.40.2" startWithSAP="1"\
+                minBandwidth="96000" maxBandwidth="96000">\
+              <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="2"/>\
+              <Role schemeIdUri="urn:mpeg:dash:role:2011" value="main"/>\
+              <SegmentTemplate timescale="48000" initialization="bbc_one_hd-$RepresentationID$.dash" media="bbc_one_hd-$RepresentationID$-$Number$.m4s" startNumber="1" duration="384000"/>\
+              <Representation id="pa3=96000" bandwidth="96000"/>\
+            </AdaptationSet>\
+        <!-- video adaptation_set -->\
+            <AdaptationSet group="2" contentType="video" par="16:9" segmentAlignment="true" mimeType="video/mp4" startWithSAP="1"\
+                minBandwidth="281000" maxBandwidth="5070000" minWidth="384" maxWidth="1280" minHeight="216" maxHeight="720" minFrameRate="25" maxFrameRate="50">\
+              <Role schemeIdUri="urn:mpeg:dash:role:2011" value="main"/>\
+              <SegmentTemplate timescale="25" initialization="bbc_one_hd-$RepresentationID$.dash" media="bbc_one_hd-$RepresentationID$-$Number$.m4s" startNumber="1" duration="200"/>\
+              <Representation id="video=281000" bandwidth="281000" width="384" height="216" frameRate="25" codecs="avc3.42C015" scanType="progressive"/>\
+              <Representation id="video=437000" bandwidth="437000" width="512" height="288" frameRate="25" codecs="avc3.4D4015" scanType="progressive"/>\
+              <Representation id="video=827000" bandwidth="827000" width="704" height="396" frameRate="25" codecs="avc3.4D401E" scanType="progressive"/>\
+              <Representation id="video=1604000" bandwidth="1604000" width="960" height="540" frameRate="25" codecs="avc3.4D401F" scanType="progressive"/>\
+              <Representation id="video=2812000" bandwidth="2812000" width="960" height="540" frameRate="50" codecs="avc3.64001F" scanType="progressive"/>\
+              <Representation id="video=5070000" bandwidth="5070000" width="1280" height="720" frameRate="50" codecs="avc3.640020" scanType="progressive"/>\
+            </AdaptationSet>\
+          </Period>\
         </MPD>'
 };
 

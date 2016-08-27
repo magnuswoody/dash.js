@@ -238,6 +238,7 @@ function RepresentationController() {
 
         for (var i = 0, ln = availableRepresentations.length; i < ln; i++) {
             rep = availableRepresentations[i];
+            // TODO: Now segmentutils does this too, is this necessary?
             rep.segmentAvailabilityRange = timelineConverter.calcSegmentAvailabilityRange(rep, isDynamic);
         }
     }

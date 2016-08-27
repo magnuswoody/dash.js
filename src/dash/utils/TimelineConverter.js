@@ -148,9 +148,11 @@ function TimelineConverter() {
 
         if (!isDynamic) return range;
 
-        if (!isClientServerTimeSyncCompleted && representation.segmentAvailabilityRange) {
-            return representation.segmentAvailabilityRange;
-        }
+        // This means if we get here it doesn't apply time shift buffer restrictions
+        // what's the point?
+        // if (!isClientServerTimeSyncCompleted && representation.segmentAvailabilityRange) {
+        //     return representation.segmentAvailabilityRange;
+        // }
 
         checkTime = representation.adaptation.period.mpd.checkTime;
         now = calcPresentationTimeFromWallTime(new Date(), representation.adaptation.period);
