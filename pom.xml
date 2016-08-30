@@ -42,7 +42,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
     </properties>
 
     <build>
-        <directory>${project.basedir}/dist</directory>
+        <outputDirectory>${project.basedir}/dist</outputDirectory>
 
         <plugins>
 
