@@ -354,6 +354,7 @@ function X2JS(matchers, attrPrefix, ignoreRoot) {
 
 		if (window.DOMParser) {
 			parser = new window.DOMParser();
+		}
 
 		try {
 			ns = parser.parseFromString('<', 'text/xml').getElementsByTagName("parsererror")[0].namespaceURI;
