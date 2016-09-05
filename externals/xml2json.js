@@ -349,43 +349,36 @@ function X2JS(matchers, attrPrefix, ignoreRoot) {
 		return result;
 	}
 	
-	this.parseXmlString = function(xmlDocStr) {
-		var xmlDoc,
-			parser,
-			ns;
+	this.parseXmlString = function (xmlDocStr) {
+		var xmlDoc, parser, ns;
 
 		if (window.DOMParser) {
 			parser = new window.DOMParser();
 
-			try {
-				ns = parser.parseFromString('<', 'text/xml').getElementsByTagName("parsererror")[0].namespaceURI;
-			} catch (e) {
-				// IE11 will definitely throw SyntaxError here
-				// ns will be undefined
-			}
+		try {
+			ns = parser.parseFromString('<', 'text/xml').getElementsByTagName("parsererror")[0].namespaceURI;
+		} catch (e) {
+			// IE11 will definitely throw SyntaxError here
+			// ns will be undefined
+		}
 
-			try {
-				xmlDoc = parser.parseFromString( xmlDocStr, "text/xml" );
+		if (ns) {
+			xmlDoc = parser.parseFromString(xmlDocStr, "application/xml");
 
-				if (ns) {
-					if(xmlDoc.getElementsByTagNameNS(ns, 'parsererror').length) {
-						xmlDoc = undefined;
-					}
-				}
-			} catch (e) {
-				// IE11 may throw SyntaxError here if xmlDocStr is
-				// not well formed. xmlDoc will be undefined
+			if (xmlDoc.getElementsByTagNameNS(ns, 'parsererror').length) {
+				xmlDoc = undefined;
 			}
 		}
-		else {
+		if (!ns) {
 			// IE :(
-			if(xmlDocStr.indexOf("<?")==0) {
-				xmlDocStr = xmlDocStr.substr( xmlDocStr.indexOf("?>") + 2 );
+			if (xmlDocStr.indexOf("<?") == 0) {
+				xmlDocStr = xmlDocStr.substr(xmlDocStr.indexOf("?>") + 2);
 			}
-			xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
-			xmlDoc.async="false";
+			xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+			xmlDoc.async = "false";
 			xmlDoc.loadXML(xmlDocStr);
 		}
+
 		return xmlDoc;
 	}
 
