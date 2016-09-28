@@ -92,7 +92,7 @@ function AbrController() {
         streamProcessorDict = {};
         limitBitrateByPortal = false;
         usePixelRatioInLimitBitrateByPortal = false;
-        if(windowResizeEventCalled === undefined) windowResizeEventCalled = false;
+        if (windowResizeEventCalled === undefined) windowResizeEventCalled = false;
         domStorage = DOMStorage(context).getInstance();
         mediaPlayerModel = MediaPlayerModel(context).getInstance();
         manifestModel = ManifestModel(context).getInstance();
@@ -476,7 +476,7 @@ function AbrController() {
 
     function setElementSize() {
         var element = videoModel.getElement();
-        if( element !== undefined ){
+        if (element !== undefined) {
             var hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
             var pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
             elementWidth = element.clientWidth * pixelRatio;
@@ -490,7 +490,7 @@ function AbrController() {
             return idx;
         }
 
-        if(!windowResizeEventCalled) setElementSize();
+        if (!windowResizeEventCalled) setElementSize();
 
         var manifest = manifestModel.getValue();
         var representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
