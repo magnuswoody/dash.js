@@ -70,6 +70,9 @@ function AbrController() {
         abandonmentTimeout,
         limitBitrateByPortal,
         usePixelRatioInLimitBitrateByPortal,
+        windowResizeEventCalled,
+        elementWidth,
+        elementHeight,
         manifestModel,
         dashManifestModel,
         videoModel,
@@ -89,6 +92,7 @@ function AbrController() {
         streamProcessorDict = {};
         limitBitrateByPortal = false;
         usePixelRatioInLimitBitrateByPortal = false;
+        if(windowResizeEventCalled === undefined) windowResizeEventCalled = false;
         domStorage = DOMStorage(context).getInstance();
         mediaPlayerModel = MediaPlayerModel(context).getInstance();
         manifestModel = ManifestModel(context).getInstance();
@@ -102,6 +106,7 @@ function AbrController() {
         abandonmentStateDict[type].state = ALLOW_LOAD;
         eventBus.on(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
         eventBus.on(MediaPlayerEvents.QUALITY_CHANGE_RENDERED, onQualityChangeRendered, this);
+        if (type == 'video') setElementSize();
     }
 
     function setConfig(config) {
@@ -465,16 +470,28 @@ function AbrController() {
         return Math.min( idx , Math.round(maxIdx * maxRepresentationRatio) );
     }
 
+    function setWindowResizeEventCalled(value) {
+        windowResizeEventCalled = value;
+    }
+
+    function setElementSize() {
+        var element = videoModel.getElement();
+        if( element !== undefined ){
+            var hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
+            var pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
+            elementWidth = element.clientWidth * pixelRatio;
+            elementHeight = element.clientHeight * pixelRatio;
+            console.log('Portal resize: ' + elementWidth + ' ' + elementHeight);
+        }
+    }
+
     function checkPortalSize(idx, type) {
         if (type !== 'video' || !limitBitrateByPortal || !streamProcessorDict[type]) {
             return idx;
         }
 
-        var hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
-        var pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
-        var element = videoModel.getElement();
-        var elementWidth = element.clientWidth * pixelRatio;
-        var elementHeight = element.clientHeight * pixelRatio;
+        if(!windowResizeEventCalled) setElementSize();
+
         var manifest = manifestModel.getValue();
         var representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
         var newIdx = idx;
@@ -562,6 +579,8 @@ function AbrController() {
         getPlaybackQuality: getPlaybackQuality,
         setAverageThroughput: setAverageThroughput,
         getTopQualityIndexFor: getTopQualityIndexFor,
+        setElementSize: setElementSize,
+        setWindowResizeEventCalled: setWindowResizeEventCalled,
         initialize: initialize,
         setConfig: setConfig,
         reset: reset
