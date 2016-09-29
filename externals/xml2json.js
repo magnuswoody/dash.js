@@ -375,9 +375,17 @@ function X2JS(matchers, attrPrefix, ignoreRoot) {
 			if (xmlDocStr.indexOf("<?") == 0) {
 				xmlDocStr = xmlDocStr.substr(xmlDocStr.indexOf("?>") + 2);
 			}
-			xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
-			xmlDoc.async = "false";
-			xmlDoc.loadXML(xmlDocStr);
+			try {
+				xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+				xmlDoc.async = "false";
+				xmlDoc.loadXML(xmlDocStr);
+			} catch (e) {
+				// if we're sandboxed IE11 the above will fail so back to the original again
+				try {
+					xmlDoc = parser.parseFromString(xmlDocStr, "application/xml");
+				} catch (e) {
+				}
+			}
 		}
 
 		return xmlDoc;
