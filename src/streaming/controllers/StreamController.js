@@ -443,11 +443,11 @@ function StreamController() {
         log('MediaSource attached to element.  Waiting on open...');
     }
 
-    function setMediaDuration() {
+    function setMediaDuration(override) {
         var manifestDuration,
             mediaDuration;
 
-        manifestDuration = activeStream.getStreamInfo().manifestInfo.duration;
+        manifestDuration = override || activeStream.getStreamInfo().manifestInfo.duration;
         mediaDuration = mediaSourceController.setDuration(mediaSource, manifestDuration);
         log('Duration successfully set to: ' + mediaDuration);
     }
@@ -779,6 +779,7 @@ function StreamController() {
         initialize: initialize,
         getAutoPlay: getAutoPlay,
         getActiveStreamInfo: getActiveStreamInfo,
+        setMediaDuration: setMediaDuration,
         isStreamActive: isStreamActive,
         isVideoTrackPresent: isVideoTrackPresent,
         getStreamById: getStreamById,
