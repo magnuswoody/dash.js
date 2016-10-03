@@ -31,6 +31,7 @@
 
 import FragmentModel from '../models/FragmentModel';
 import MediaPlayerModel from '../models/MediaPlayerModel';
+import VideoModel from '../models/VideoModel';
 import SourceBufferController from './SourceBufferController';
 import AbrController from './AbrController';
 import PlaybackController from './PlaybackController';
@@ -83,6 +84,7 @@ function BufferController(config) {
         abrController,
         scheduleController,
         mediaPlayerModel,
+        videoModel,
         initCache;
 
     function setup() {
@@ -111,6 +113,7 @@ function BufferController(config) {
         initCache = InitCache(context).getInstance();
         scheduleController = streamProcessor.getScheduleController();
         requiredQuality = abrController.getQualityFor(type, streamProcessor.getStreamInfo());
+        videoModel = VideoModel(context).getInstance();
 
         eventBus.on(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, this);
         eventBus.on(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, this);
@@ -284,10 +287,15 @@ function BufferController(config) {
 
     function checkIfSufficientBuffer() {
         if (bufferLevel < STALL_THRESHOLD && !isBufferingCompleted) {
-            notifyBufferStateChanged(BUFFER_EMPTY);
-        } else {
-            notifyBufferStateChanged(BUFFER_LOADED);
+            var videoElement = videoModel.getElement();
+            var t = videoElement.currentTime;
+            var d = videoElement.duration;
+            if ( d - t > STALL_THRESHOLD ) {
+                notifyBufferStateChanged(BUFFER_EMPTY);
+                return;
+            }
         }
+        notifyBufferStateChanged(BUFFER_LOADED);
     }
 
     function notifyBufferStateChanged(state) {
