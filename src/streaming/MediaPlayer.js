@@ -444,6 +444,21 @@ function MediaPlayer() {
     }
 
     /**
+     * Override duration of the media's playback, in seconds.
+     * Example use: force early payback end if last fragment fails
+     *
+     * @param {string} d - duration in seconds
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setDuration(d) {
+        if (!playbackInitialized) {
+            throw PLAYBACK_NOT_INITIALIZED_ERROR;
+        }
+        streamController.setMediaDuration(d);
+    }
+
+    /**
      * Use this method to get the current playhead time as an absolute value, the time in seconds since midnight UTC, Jan 1 1970.
      * Note - this property only has meaning for live streams. If called before play() has begun, it will return a value of NaN.
      *
@@ -1951,6 +1966,7 @@ function MediaPlayer() {
         getVolume: getVolume,
         time: time,
         duration: duration,
+        setDuration: setDuration,
         timeAsUTC: timeAsUTC,
         durationAsUTC: durationAsUTC,
         getActiveStream: getActiveStream,
