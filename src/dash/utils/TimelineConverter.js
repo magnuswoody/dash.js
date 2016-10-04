@@ -137,7 +137,7 @@ function TimelineConverter() {
         return wallTime;
     }
 
-    function calcSegmentAvailabilityRange(representation, isDynamic, disableSnapToSegmentBoundary) {
+    function calcSegmentAvailabilityRange(representation, isDynamic/*, disableSnapToSegmentBoundary*/) {
         var start = representation.adaptation.period.start;
         var end = start + representation.adaptation.period.duration;
         var range = { start: start, end: end };
@@ -145,9 +145,9 @@ function TimelineConverter() {
         var d = representation.segmentDuration || (hasSegments ? representation.segments[representation.segments.length - 1].duration : 0);
 
         var checkTime,
-            now,
-            availableSegmentsStartTime,
-            availableSegmentsEndTime;
+            now;
+        //availableSegmentsStartTime,
+        //availableSegmentsEndTime;
 
         if (!isDynamic) return range;
 
@@ -166,37 +166,39 @@ function TimelineConverter() {
         var periodEnd = representation.adaptation.period.start + representation.adaptation.period.duration;
         end = (timeAnchor >= periodEnd  && (timeAnchor - d) < periodEnd ? periodEnd : timeAnchor) - d;
 
+        // ** Disabled by MP-2887 support dash-2.9-streams
+        // ** When the segment list is not updated, the availableSegments window will be too short.
         // We have approximate numbers now, but we need to adjust this based on when segments actually
         // appear and disappear from the server - restrict the range to the first one which is still available,
         // and the last one which is available.
-        if (hasSegments) {
-            for (let i = 0; i < representation.segments.length - 1; i++) {
-                let segmentAvailabilityEnd = representation.segments[i].availabilityEndTime.getTime() / 1000;
-                let segmentMediaStart = representation.segments[i].presentationStartTime;
-                if (segmentAvailabilityEnd >= start) {
-                    availableSegmentsStartTime = segmentMediaStart;
-                    break;
-                }
-            }
-
-            for (let i = representation.segments.length - 1; i > 0; i--) {
-                let segmentAvailabilityStart = representation.segments[i].availabilityStartTime.getTime() / 1000;
-                let segmentMediaStart = representation.segments[i].presentationStartTime;
-                if (segmentAvailabilityStart <= now) {
-                    availableSegmentsEndTime = segmentMediaStart + representation.segments[i].duration;
-                    break;
-                }
-            }
-        }
-
-        if (!disableSnapToSegmentBoundary) {
-            if (availableSegmentsEndTime && end > availableSegmentsEndTime) {
-                end = availableSegmentsEndTime;
-            }
-            if (availableSegmentsStartTime && start < availableSegmentsStartTime) {
-                start = availableSegmentsStartTime;
-            }
-        }
+        //if (hasSegments) {
+        //    for (let i = 0; i < representation.segments.length - 1; i++) {
+        //        let segmentAvailabilityEnd = representation.segments[i].availabilityEndTime.getTime() / 1000;
+        //        let segmentMediaStart = representation.segments[i].presentationStartTime;
+        //        if (segmentAvailabilityEnd >= start) {
+        //            availableSegmentsStartTime = segmentMediaStart;
+        //            break;
+        //        }
+        //    }
+        //
+        //    for (let i = representation.segments.length - 1; i > 0; i--) {
+        //        let segmentAvailabilityStart = representation.segments[i].availabilityStartTime.getTime() / 1000;
+        //        let segmentMediaStart = representation.segments[i].presentationStartTime;
+        //        if (segmentAvailabilityStart <= now) {
+        //            availableSegmentsEndTime = segmentMediaStart + representation.segments[i].duration;
+        //            break;
+        //        }
+        //    }
+        //}
+        //
+        //if (!disableSnapToSegmentBoundary) {
+        //    if (availableSegmentsEndTime && end > availableSegmentsEndTime) {
+        //        end = availableSegmentsEndTime;
+        //    }
+        //    if (availableSegmentsStartTime && start < availableSegmentsStartTime) {
+        //        start = availableSegmentsStartTime;
+        //    }
+        //}
         //end = (isNaN(checkTime) ? now : Math.min(checkTime, now)) - d;
         range = {start: start, end: end};
 
