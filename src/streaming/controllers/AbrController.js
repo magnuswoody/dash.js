@@ -92,7 +92,9 @@ function AbrController() {
         streamProcessorDict = {};
         limitBitrateByPortal = false;
         usePixelRatioInLimitBitrateByPortal = false;
-        if (windowResizeEventCalled === undefined) windowResizeEventCalled = false;
+        if (windowResizeEventCalled === undefined) {
+            windowResizeEventCalled = false;
+        }
         domStorage = DOMStorage(context).getInstance();
         mediaPlayerModel = MediaPlayerModel(context).getInstance();
         manifestModel = ManifestModel(context).getInstance();
@@ -106,7 +108,9 @@ function AbrController() {
         abandonmentStateDict[type].state = ALLOW_LOAD;
         eventBus.on(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
         eventBus.on(MediaPlayerEvents.QUALITY_CHANGE_RENDERED, onQualityChangeRendered, this);
-        if (type == 'video') setElementSize();
+        if (type == 'video') {
+            setElementSize();
+        }
     }
 
     function setConfig(config) {
@@ -489,7 +493,9 @@ function AbrController() {
             return idx;
         }
 
-        if (!windowResizeEventCalled) setElementSize();
+        if (!windowResizeEventCalled) {
+            setElementSize();
+        }
 
         var manifest = manifestModel.getValue();
         var representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
