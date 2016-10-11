@@ -217,6 +217,11 @@ class MediaPlayerEvents extends EventsBase {
          * @event MediaPlayerEvents#PLAYBACK_TIME_UPDATED
          */
         this.PLAYBACK_TIME_UPDATED = 'playbackTimeUpdated';
+        /**
+         * A new media fragment has been loaded.
+         * @event MediaPlayerEvents#MEDIA_FRAGMENT_LOADED
+         */
+        this.MEDIA_FRAGMENT_LOADED = 'mediaFragmentLoaded';
     }
 }
 
