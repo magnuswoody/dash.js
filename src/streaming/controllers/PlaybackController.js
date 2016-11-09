@@ -517,7 +517,8 @@ function PlaybackController() {
         pause: pause,
         isSeeking: isSeeking,
         seek: seek,
-        reset: reset
+        reset: reset,
+        getActualPresentationTime: getActualPresentationTime
     };
 
     setup();
