@@ -30,11 +30,13 @@
  */
 import Debug from '../../../core/Debug';
 import FactoryMaker from '../../../core/FactoryMaker';
+import PlaybackController from '../../controllers/PlaybackController';
 
 function NextFragmentRequestRule(config) {
 
     const context = this.context;
     const log = Debug(context).getInstance().log;
+    const playbackController = PlaybackController(context).getInstance();
     const adapter = config.adapter;
     const sourceBufferController = config.sourceBufferController;
     const textSourceBuffer = config.textSourceBuffer;
@@ -48,6 +50,7 @@ function NextFragmentRequestRule(config) {
         const seekTarget = scheduleController.getSeekTarget();
         const hasSeekTarget = !isNaN(seekTarget);
         const buffer = streamProcessor.getBuffer();
+        const isDynamic = streamProcessor.isDynamic();
 
         let time = hasSeekTarget ? seekTarget : adapter.getIndexHandlerTime(streamProcessor);
 
@@ -57,6 +60,15 @@ function NextFragmentRequestRule(config) {
 
         if (hasSeekTarget) {
             scheduleController.setSeekTarget(NaN);
+        }
+
+        if (isDynamic) {
+            // In case we buffer outside of the rewind window, get nearest valid time within window and seek
+            let validTime = playbackController.getActualPresentationTime(time);
+            if (time < validTime) {
+                log('We\'ve drifted out the availability window. Seeking to ' + validTime);
+                playbackController.seek(validTime);
+            }
         }
 
         /**

@@ -36,7 +36,6 @@ import EventBus from '../core/EventBus';
 import FactoryMaker from '../core/FactoryMaker';
 import Debug from '../core/Debug';
 import URLUtils from '../streaming/utils/URLUtils';
-import PlaybackController from '../streaming/controllers/PlaybackController';
 
 import {replaceTokenForTemplate, getTimeBasedSegment, getSegmentByIndex} from './utils/SegmentsUtils';
 import SegmentsGetter from './utils/SegmentsGetter';
@@ -64,8 +63,7 @@ function DashHandler(config) {
         currentTime,
         earliestTime,
         streamProcessor,
-        segmentsGetter,
-        playbackController;
+        segmentsGetter;
 
     function setup() {
         index = -1;
@@ -81,7 +79,6 @@ function DashHandler(config) {
         isDynamic = streamProcessor.isDynamic();
 
         segmentsGetter = SegmentsGetter(context).create(config, isDynamic);
-        playbackController = PlaybackController(context).getInstance();
     }
 
     function getStreamProcessor() {
@@ -354,8 +351,7 @@ function DashHandler(config) {
     function getSegmentRequestForTime(representation, time, options) {
         var request,
             segment,
-            finished,
-            validTime;
+            finished;
 
         var idx = index;
 
@@ -365,15 +361,6 @@ function DashHandler(config) {
 
         if (!representation) {
             return null;
-        }
-
-        if (isDynamic) {
-            // In case we buffer outside of the rewind window, get nearest valid time within window and seek
-            validTime = playbackController.getActualPresentationTime(time);
-            if (time < validTime) {
-                console.log('We\'ve drifted out the availability window. Seeking to ' + validTime);
-                playbackController.seek(validTime);
-            }
         }
 
         if ( requestedTime !== time ) { // When playing at live edge with 0 delay we may loop back with same time and index until it is available. Reduces verboseness of logs.
