@@ -38,6 +38,7 @@ import DOMStorage from '../utils/DOMStorage';
 const TRACK_SWITCH_MODE_NEVER_REPLACE = 'neverReplace';
 const TRACK_SWITCH_MODE_ALWAYS_REPLACE = 'alwaysReplace';
 const TRACK_SELECTION_MODE_HIGHEST_BITRATE = 'highestBitrate';
+const TRACK_SELECTION_MODE_LOWEST_BITRATE = 'lowestBitrate';
 const TRACK_SELECTION_MODE_WIDEST_RANGE = 'widestRange';
 const DEFAULT_INIT_TRACK_SELECTION_MODE = TRACK_SELECTION_MODE_HIGHEST_BITRATE;
 
@@ -63,6 +64,7 @@ function MediaController() {
 
     const validTrackSelectionModes = [
         TRACK_SELECTION_MODE_HIGHEST_BITRATE,
+        TRACK_SELECTION_MODE_LOWEST_BITRATE,
         TRACK_SELECTION_MODE_WIDEST_RANGE
     ];
 
@@ -373,49 +375,58 @@ function MediaController() {
         };
     }
 
+    function getTracksWithBitrate(trackArr, highest) {
+        let result = [];
+        let last;
+
+        trackArr.forEach(function (track) {
+            const bitrates = track.bitrateList.map(function (obj) { return obj.bandwidth; });
+            const compare = highest ? Math.max.apply(Math, bitrates) : Math.min.apply(Math, bitrates);
+
+            if (last === undefined || (highest ? compare > last : compare < last)) {
+                last = compare;
+                result = [track];
+            } else if (compare === last) {
+                result.push(track);
+            }
+        });
+
+        return result;
+    }
+
+    function getTracksWithWidestRange(trackArr) {
+        var max = 0;
+        var result = [];
+        var tmp;
+
+        trackArr.forEach(function (track) {
+            tmp = track.representationCount;
+
+            if (tmp > max) {
+                max = tmp;
+                result = [track];
+            } else if (tmp === max) {
+                result.push(track);
+            }
+        });
+
+        return result;
+    }
+
     function selectInitialTrack(tracks) {
         var mode = getSelectionModeForInitialTrack();
         var tmpArr = [];
-        var getTracksWithHighestBitrate = function (trackArr) {
-            var max = 0;
-            var result = [];
-            var tmp;
-
-            trackArr.forEach(function (track) {
-                tmp = Math.max.apply(Math, track.bitrateList.map(function (obj) { return obj.bandwidth; }));
-
-                if (tmp > max) {
-                    max = tmp;
-                    result = [track];
-                } else if (tmp === max) {
-                    result.push(track);
-                }
-            });
-
-            return result;
-        };
-        var getTracksWithWidestRange = function (trackArr) {
-            var max = 0;
-            var result = [];
-            var tmp;
-
-            trackArr.forEach(function (track) {
-                tmp = track.representationCount;
-
-                if (tmp > max) {
-                    max = tmp;
-                    result = [track];
-                } else if (tmp === max) {
-                    result.push(track);
-                }
-            });
-
-            return result;
-        };
 
         switch (mode) {
             case TRACK_SELECTION_MODE_HIGHEST_BITRATE:
-                tmpArr = getTracksWithHighestBitrate(tracks);
+                tmpArr = getTracksWithBitrate(tracks, true);
+
+                if (tmpArr.length > 1) {
+                    tmpArr = getTracksWithWidestRange(tmpArr);
+                }
+                break;
+            case TRACK_SELECTION_MODE_LOWEST_BITRATE:
+                tmpArr = getTracksWithBitrate(tracks, false);
 
                 if (tmpArr.length > 1) {
                     tmpArr = getTracksWithWidestRange(tmpArr);
@@ -425,7 +436,7 @@ function MediaController() {
                 tmpArr = getTracksWithWidestRange(tracks);
 
                 if (tmpArr.length > 1) {
-                    tmpArr = getTracksWithHighestBitrate(tracks);
+                    tmpArr = getTracksWithBitrate(tracks, true);
                 }
                 break;
             default:
@@ -489,6 +500,7 @@ let factory = FactoryMaker.getSingletonFactory(MediaController);
 factory.TRACK_SWITCH_MODE_NEVER_REPLACE = TRACK_SWITCH_MODE_NEVER_REPLACE;
 factory.TRACK_SWITCH_MODE_ALWAYS_REPLACE = TRACK_SWITCH_MODE_ALWAYS_REPLACE;
 factory.TRACK_SELECTION_MODE_HIGHEST_BITRATE = TRACK_SELECTION_MODE_HIGHEST_BITRATE;
+factory.TRACK_SELECTION_MODE_LOWEST_BITRATE = TRACK_SELECTION_MODE_LOWEST_BITRATE;
 factory.TRACK_SELECTION_MODE_WIDEST_RANGE = TRACK_SELECTION_MODE_WIDEST_RANGE;
 factory.DEFAULT_INIT_TRACK_SELECTION_MODE = DEFAULT_INIT_TRACK_SELECTION_MODE;
 export default factory;

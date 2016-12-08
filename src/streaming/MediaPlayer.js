@@ -1160,6 +1160,9 @@ function MediaPlayer() {
      * MediaController.TRACK_SELECTION_MODE_HIGHEST_BITRATE
      * this mode makes the player select the track with a highest bitrate. This mode is a default mode.
      *
+     * MediaController.TRACK_SELECTION_MODE_LOWEST_BITRATE
+     * this mode makes the player select the track with the lowest bitrate.
+     *
      * MediaController.TRACK_SELECTION_MODE_WIDEST_RANGE
      * this mode makes the player select the track with a widest range of bitrates
      *
