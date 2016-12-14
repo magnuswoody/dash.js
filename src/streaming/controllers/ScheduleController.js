@@ -200,13 +200,18 @@ function ScheduleController(config) {
                     lastInitQuality = currentRepresentationInfo.quality;
                     bufferController.switchInitData(streamProcessor.getStreamInfo().id, currentRepresentationInfo.quality);
                 } else {
+                    const replacement = replaceRequestArray.shift();
 
-                    const request = nextFragmentRequestRule.execute(streamProcessor, replaceRequestArray.shift());
-                    if (request) {
-                        fragmentModel.executeRequest(request);
-                    } else { //Use case - Playing at the bleeding live edge and frag is not available yet. Cycle back around.
-                        isFragmentProcessingInProgress = false;
-                        startScheduleTimer(250);
+                    if (fragmentController.isInitializationRequest(replacement)) {
+                        getInitRequest(replacement.quality);
+                    } else {
+                        const request = nextFragmentRequestRule.execute(streamProcessor, replacement);
+                        if (request) {
+                            fragmentModel.executeRequest(request);
+                        } else { //Use case - Playing at the bleeding live edge and frag is not available yet. Cycle back around.
+                            isFragmentProcessingInProgress = false;
+                            startScheduleTimer(500);
+                        }
                     }
                 }
             };
@@ -318,8 +323,10 @@ function ScheduleController(config) {
             isFragmentProcessingInProgress = false;
         }
 
-        if (e.error && e.serviceLocation && !isStopped) {
+        if (e.error && e.request.serviceLocation && !isStopped) {
             replaceRequest(e.request);
+            isFragmentProcessingInProgress = false;
+            startScheduleTimer(0);
         }
     }
 
