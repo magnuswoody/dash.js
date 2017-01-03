@@ -31,14 +31,12 @@
 import RulesContext from './RulesContext';
 import SwitchRequest from './SwitchRequest';
 import ABRRulesCollection from './abr/ABRRulesCollection';
-import SynchronizationRulesCollection from './synchronization/SynchronizationRulesCollection';
 import SwitchRequestHistory from './SwitchRequestHistory.js';
 import SwitchHistoryRule from './abr/SwitchHistoryRule.js';
 import DroppedFramesRule from './abr/DroppedFramesRule.js';
 import FactoryMaker from '../../core/FactoryMaker';
 
 const ABR_RULE = 0;
-const SYNC_RULE = 1;
 
 function RulesController() {
 
@@ -60,10 +58,6 @@ function RulesController() {
 
         if (config.abrRulesCollection) {
             rules[ABR_RULE] = config.abrRulesCollection;
-        }
-
-        if (config.synchronizationRulesCollection) {
-            rules[SYNC_RULE] = config.synchronizationRulesCollection;
         }
     }
 
@@ -152,11 +146,7 @@ function RulesController() {
 
     function reset() {
         var abrRules = rules[ABR_RULE];
-        var synchronizationRules = rules[SYNC_RULE];
-        var allRules = (abrRules.getRules(ABRRulesCollection.QUALITY_SWITCH_RULES) || []).
-            concat(abrRules.getRules(ABRRulesCollection.ABANDON_FRAGMENT_RULES) || []).
-            concat(synchronizationRules.getRules(SynchronizationRulesCollection.TIME_SYNCHRONIZED_RULES) || []).
-            concat(synchronizationRules.getRules(SynchronizationRulesCollection.BEST_GUESS_RULES) || []);
+        var allRules = (abrRules.getRules(ABRRulesCollection.QUALITY_SWITCH_RULES) || []).concat(abrRules.getRules(ABRRulesCollection.ABANDON_FRAGMENT_RULES) || []);
         var ln = allRules.length;
 
         var rule,
@@ -196,5 +186,4 @@ function RulesController() {
 RulesController.__dashjs_factory_name = 'RulesController';
 let factory =  FactoryMaker.getSingletonFactory(RulesController);
 factory.ABR_RULE = ABR_RULE;
-factory.SYNC_RULE = SYNC_RULE;
 export default factory;

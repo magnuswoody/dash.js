@@ -48,8 +48,6 @@ function TimelineConverter() {
         clientServerTimeShift = 0;
         isClientServerTimeSyncCompleted = false;
         expectedLiveEdge = NaN;
-
-        eventBus.on(Events.LIVE_EDGE_SEARCH_COMPLETED, onLiveEdgeSearchCompleted, this);
         eventBus.on(Events.TIME_SYNCHRONIZATION_COMPLETED, onTimeSyncComplete, this);
     }
 
@@ -106,6 +104,7 @@ function TimelineConverter() {
     }
 
     function calcPresentationTimeFromWallTime(wallTime, period) {
+        //console.log("XXX", wallTime.getTime() - period.mpd.availabilityStartTime.getTime(), clientServerTimeShift * 1000, clientServerTimeShift, period.mpd.availabilityStartTime.getTime())
         return ((wallTime.getTime() - period.mpd.availabilityStartTime.getTime() + clientServerTimeShift * 1000) / 1000);
     }
 
@@ -137,79 +136,24 @@ function TimelineConverter() {
         return wallTime;
     }
 
-    function calcSegmentAvailabilityRange(representation, isDynamic, disableSnapToSegmentBoundary) {
-        var start = representation.adaptation.period.start;
-        var end = start + representation.adaptation.period.duration;
-        var range = { start: start, end: end };
-        var hasSegments = representation.segments && representation.segments.length;
-        var d = representation.segmentDuration || (hasSegments ? representation.segments[representation.segments.length - 1].duration : 0);
+    function calcSegmentAvailabilityRange(representation, isDynamic) {
 
-        var checkTime,
-            now,
-            availableSegmentsStartTime,
-            availableSegmentsEndTime;
-
+        // Static Range Finder
+        const period = representation.adaptation.period;
+        const range = { start: period.start, end: period.start + period.duration };
         if (!isDynamic) return range;
 
         if (!isClientServerTimeSyncCompleted && representation.segmentAvailabilityRange) {
             return representation.segmentAvailabilityRange;
         }
 
-        checkTime = representation.adaptation.period.mpd.checkTime;
-        now = calcPresentationTimeFromWallTime(new Date(), representation.adaptation.period);
+        //Dyanmic Range Finder
+        const d = representation.segmentDuration || (representation.segments && representation.segments.length ? representation.segments[representation.segments.length - 1].duration : 0);
+        const now = calcPresentationTimeFromWallTime(new Date(), period);
+        const periodEnd = period.start + period.duration;
+        range.start = Math.max((now - period.mpd.timeShiftBufferDepth), period.start);
+        range.end = now >= periodEnd && now - d < periodEnd ? periodEnd - d : now - d;
 
-        // the Media Segment list is further restricted by the CheckTime together with the MPD attribute
-        // MPD@timeShiftBufferDepth such that only Media Segments for which the sum of the start time of the
-        // Media Segment and the Period start time falls in the interval [NOW- MPD@timeShiftBufferDepth - @duration, min(CheckTime, NOW)] are included.
-        start = Math.max((now - representation.adaptation.period.mpd.timeShiftBufferDepth), representation.adaptation.period.start);
-        var timeAnchor = (isNaN(checkTime) ? now : Math.min(checkTime, now));
-        var periodEnd = representation.adaptation.period.start + representation.adaptation.period.duration;
-        end = (timeAnchor >= periodEnd  && (timeAnchor - d) < periodEnd ? periodEnd : timeAnchor) - d;
-
-        // We have approximate times now, but we need to adjust this based on when segments actually
-        // appear and disappear from the server - restrict the range to the first and last segments
-        // available within the range calculated above.
-        if (hasSegments) {
-
-            // Find segment that straddles START time and save its end time (ie: the start of the following segment which is within range)
-            // loop becasue we don't assume constant segment duration or sequential ordering
-            for (let i = 0; i <= representation.segments.length - 1; i++) {
-                let segmentAvailabilityEnd = representation.segments[i].availabilityEndTime.getTime() / 1000;
-                let segmentMediaStart = representation.segments[i].presentationStartTime;
-                let segmentDuration = representation.segments[i].duration;
-                if ( (segmentAvailabilityEnd - segmentDuration <= start) && (segmentAvailabilityEnd >= start) ) {
-                    availableSegmentsStartTime = segmentMediaStart + segmentDuration;
-                    break;
-                }
-            }
-
-            // Find segment that straddles END time and save its start time (ie: the end of the previous segment which is within range)
-            // loop becasue we don't assume constant segment duration or sequential ordering
-            for (let i = representation.segments.length - 1; i >= 0; i--) {
-                let segmentAvailabilityStart = representation.segments[i].availabilityStartTime.getTime() / 1000;
-                let segmentMediaStart = representation.segments[i].presentationStartTime;
-                let segmentDuration = representation.segments[i].duration;
-                if ( (segmentAvailabilityStart <= now) && (segmentAvailabilityStart + segmentDuration >= now) ) {
-                    availableSegmentsEndTime = segmentMediaStart;
-                    break;
-                }
-            }
-
-            // Update range based on newly found segments
-            // except we don't want to strip segments during a representation update so RepresentationController.updateAvailabilityWindow
-            // passes disableSnapToSegmentBoundary as false
-            if (!disableSnapToSegmentBoundary) {
-                if (availableSegmentsEndTime && end > availableSegmentsEndTime) {
-                    end = availableSegmentsEndTime;
-                }
-                if (availableSegmentsStartTime && start < availableSegmentsStartTime) {
-                    start = availableSegmentsStartTime;
-                }
-            }
-
-        }
-
-        range = {start: start, end: end};
         return range;
     }
 
@@ -224,22 +168,9 @@ function TimelineConverter() {
         return periodRelativeTime + periodStartTime;
     }
 
-    function onLiveEdgeSearchCompleted(e) {
-        if (isClientServerTimeSyncCompleted || e.error) return;
-
-        // the difference between expected and actual live edge time is supposed to be a difference between client
-        // and server time as well
-        clientServerTimeShift += e.liveEdge - (expectedLiveEdge + e.searchTime);
-        isClientServerTimeSyncCompleted = true;
-    }
-
     function onTimeSyncComplete(e) {
-        if (isClientServerTimeSyncCompleted || e.error) {
-            return;
-        }
-
+        if (e.error) return;
         clientServerTimeShift = e.offset / 1000;
-
         isClientServerTimeSyncCompleted = true;
     }
 
@@ -251,7 +182,6 @@ function TimelineConverter() {
     }
 
     function reset() {
-        eventBus.off(Events.LIVE_EDGE_SEARCH_COMPLETED, onLiveEdgeSearchCompleted, this);
         eventBus.off(Events.TIME_SYNCHRONIZATION_COMPLETED, onTimeSyncComplete, this);
         clientServerTimeShift = 0;
         isClientServerTimeSyncCompleted = false;
