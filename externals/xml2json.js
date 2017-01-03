@@ -540,9 +540,9 @@
                 return null;
             }
             var xmlDoc;
+            var parsererrorNS = null;
             if (window.DOMParser) {
                 var parser=new window.DOMParser();
-                var parsererrorNS = null;
                 // IE9+ now is here
                 if(!isIEParser) {
                     try {
@@ -553,7 +553,7 @@
                     }
                 }
                 try {
-                    xmlDoc = parser.parseFromString( xmlDocStr, "text/xml" );
+                    xmlDoc = parser.parseFromString( xmlDocStr, "application/xml" );
                     if( parsererrorNS!= null && xmlDoc.getElementsByTagNameNS(parsererrorNS, "parsererror").length > 0) {
                         //throw new Error('Error parsing XML: '+xmlDocStr);
                         xmlDoc = null;
@@ -563,14 +563,21 @@
                     xmlDoc = null;
                 }
             }
-            else {
+            if (!parsererrorNS) {
                 // IE :(
                 if(xmlDocStr.indexOf("<?")==0) {
                     xmlDocStr = xmlDocStr.substr( xmlDocStr.indexOf("?>") + 2 );
                 }
-                xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
-                xmlDoc.async="false";
-                xmlDoc.loadXML(xmlDocStr);
+                try {
+                    xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+                    xmlDoc.async = "false";
+                    xmlDoc.loadXML(xmlDocStr);
+                } catch (e) {
+                    try {
+                        xmlDoc = parser.parseFromString( xmlDocStr, "application/xml" );
+                    } catch (e) {
+                    }
+                }
             }
             return xmlDoc;
         };
