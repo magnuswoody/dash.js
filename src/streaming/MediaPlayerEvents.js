@@ -47,6 +47,11 @@ class MediaPlayerEvents extends EventsBase {
          */
         this.AST_IN_FUTURE = 'astInFuture';
         /**
+         * Triggered when a new baseUrl has been selected.
+         * @event MediaPlayerEvents#BASEURL_SELECTED
+         */
+        this.BASEURL_SELECTED = 'baseUrlSelected';
+        /**
          * Triggered when the video element's buffer state changes to stalled.
          * Check mediaType in payload to determine type (Video, Audio, FragmentedText).
          * @event MediaPlayerEvents#BUFFER_EMPTY
@@ -238,6 +243,16 @@ class MediaPlayerEvents extends EventsBase {
          * @event MediaPlayerEvents#MEDIA_FRAGMENT_LOADED
          */
         this.MEDIA_FRAGMENT_LOADED = 'mediaFragmentLoaded';
+        /**
+         * A service location has been blacklisted.
+         * @event MediaPlayerEvents#SERVICE_LOCATION_BLACKLIST_CHANGED
+         */
+        this.SERVICE_LOCATION_BLACKLIST_CHANGED = 'serviceLocationBlacklistChanged';
+        /**
+         * URL resolution failed
+         * @event MediaPlayerEvents#URL_RESOLUTION_FAILED
+         */
+        this.URL_RESOLUTION_FAILED = 'urlResolutionFailed';
     }
 }
 
