@@ -1,55 +1,43 @@
 
 import FactoryMaker from '../../../core/FactoryMaker.js';
-import DroppedFramesHistory from '../DroppedFramesHistory.js';
-import VideoModel from '../../models/VideoModel.js';
+import SwitchRequest from '../SwitchRequest.js';
 import Debug from '../../../core/Debug';
 
 function DroppedFramesRule() {
-    const log = Debug(this.context).getInstance().log;
+    const context = this.context;
+    const log = Debug(context).getInstance().log;
 
     const DROPPED_PERCENTAGE_FORBID = 0.15;
     const GOOD_SAMPLE_SIZE = 375; //Don't apply the rule until this many frames have been rendered(and counted under those indices).
 
-    let videoModel = VideoModel(this.context).getInstance();
-    let droppedFramesHistory = DroppedFramesHistory(this.context).create();
 
-    function execute(rulesContext, playbackIndex) {
-        if (playbackIndex) {
-            if (videoModel.getElement()) {
-                let playbackQuality = videoModel.getPlaybackQuality();
-                droppedFramesHistory.push(playbackIndex, playbackQuality);
+    function getMaxIndex(rulesContext) {
+        let droppedFramesHistory = rulesContext.getDroppedFramesHistory();
+        if (droppedFramesHistory) {
+            let dfh = droppedFramesHistory.getFrameHistory();
+            let droppedFrames = 0;
+            let totalFrames = 0;
+            let maxIndex = SwitchRequest.NO_CHANGE;
+            for (let i = 1; i < dfh.length; i++) { //No point in measuring dropped frames for the zeroeth index.
+                if (dfh[i]) {
+                    droppedFrames = dfh[i].droppedVideoFrames;
+                    totalFrames = dfh[i].totalVideoFrames;
 
-                let dfh = droppedFramesHistory.getFrameHistory();
-                let droppedFrames = 0;
-                let totalFrames = 0;
-                let maxIndex = -1;
-                for (let i = 1; i < dfh.length; i++) { //No point in measuring dropped frames for the zeroeth index.
-                    if (dfh[i]) {
-                        droppedFrames = dfh[i].droppedVideoFrames;
-                        totalFrames = dfh[i].totalVideoFrames;
-
-                        if (totalFrames > GOOD_SAMPLE_SIZE && droppedFrames / totalFrames > DROPPED_PERCENTAGE_FORBID) {
-                            maxIndex = i - 1;
-                            log('DroppedFramesRule, index: ' + maxIndex + ' Dropped Frames: ' + droppedFrames + ' Total Frames: ' + totalFrames);
-                            break;
-                        }
+                    if (totalFrames > GOOD_SAMPLE_SIZE && droppedFrames / totalFrames > DROPPED_PERCENTAGE_FORBID) {
+                        maxIndex = i - 1;
+                        log('DroppedFramesRule, index: ' + maxIndex + ' Dropped Frames: ' + droppedFrames + ' Total Frames: ' + totalFrames);
+                        break;
                     }
                 }
-                return maxIndex;
             }
+            return SwitchRequest(context).create(maxIndex, {droppedFrames: droppedFrames});
         }
 
-        return -1;
-    }
-
-    function reset() {
-        let playbackQuality = videoModel.getPlaybackQuality();
-        droppedFramesHistory.reset(playbackQuality);
+        return SwitchRequest(context).create();
     }
 
     return {
-        execute: execute,
-        reset: reset
+        getMaxIndex: getMaxIndex
     };
 }
 

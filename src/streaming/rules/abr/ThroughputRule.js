@@ -28,13 +28,13 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-import SwitchRequest from '../SwitchRequest';
 import BufferController from '../../controllers/BufferController';
 import AbrController from '../../controllers/AbrController';
 import MediaPlayerModel from '../../models/MediaPlayerModel';
 import {HTTPRequest} from '../../vo/metrics/HTTPRequest';
 import FactoryMaker from '../../../core/FactoryMaker';
 import Debug from '../../../core/Debug';
+import SwitchRequest from '../SwitchRequest.js';
 
 function ThroughputRule(config) {
 
@@ -123,7 +123,9 @@ function ThroughputRule(config) {
 
         if (latency < CACHE_LOAD_THRESHOLD_LATENCY) {
             ret = true;
-        } else {
+        }
+
+        if (!ret) {
             switch (mediaType) {
                 case 'video':
                     ret = downloadTime < CACHE_LOAD_THRESHOLD_VIDEO;
@@ -139,22 +141,20 @@ function ThroughputRule(config) {
         return ret;
     }
 
-    function execute (rulesContext, callback) {
-
+    function getMaxIndex(rulesContext) {
         const mediaInfo = rulesContext.getMediaInfo();
         const mediaType = mediaInfo.type;
-        const currentQuality = rulesContext.getCurrentValue();
         const metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
         const streamProcessor = rulesContext.getStreamProcessor();
         const abrController = streamProcessor.getABRController();
         const isDynamic = streamProcessor.isDynamic();
         const lastRequest = dashMetrics.getCurrentHttpRequest(metrics);
         const bufferStateVO = (metrics.BufferState.length > 0) ? metrics.BufferState[metrics.BufferState.length - 1] : null;
-        const switchRequest = SwitchRequest(context).create(SwitchRequest.NO_CHANGE, SwitchRequest.WEAK, {name: ThroughputRule.__dashjs_factory_name});
+        const hasRichBuffer = rulesContext.hasRichBuffer();
+        const switchRequest = SwitchRequest(context).create();
 
-        if (!metrics || !lastRequest || lastRequest.type !== HTTPRequest.MEDIA_SEGMENT_TYPE || !bufferStateVO ) {
-            callback(switchRequest);
-            return;
+        if (!metrics || !lastRequest || lastRequest.type !== HTTPRequest.MEDIA_SEGMENT_TYPE || !bufferStateVO || hasRichBuffer) {
+            return switchRequest;
         }
 
         let downloadTimeInMilliseconds;
@@ -162,8 +162,8 @@ function ThroughputRule(config) {
 
         if (lastRequest.trace && lastRequest.trace.length) {
 
-            latencyTimeInMilliseconds = lastRequest.tresponse.getTime() - lastRequest.trequest.getTime() || 1;
-            downloadTimeInMilliseconds = lastRequest._tfinish.getTime() - lastRequest.tresponse.getTime() || 1; //Make sure never 0 we divide by this value. Avoid infinity!
+            latencyTimeInMilliseconds = (lastRequest.tresponse.getTime() - lastRequest.trequest.getTime()) || 1;
+            downloadTimeInMilliseconds = (lastRequest._tfinish.getTime() - lastRequest.tresponse.getTime()) || 1; //Make sure never 0 we divide by this value. Avoid infinity!
 
             const bytes = lastRequest.trace.reduce((a, b) => a + b.b[0], 0);
 
@@ -173,8 +173,13 @@ function ThroughputRule(config) {
             let latency;
             //Prevent cached fragment loads from skewing the average throughput value - allow first even if cached to set allowance for ABR rules..
             if (isCachedResponse(latencyTimeInMilliseconds, downloadTimeInMilliseconds, mediaType)) {
-                throughput = lastRequestThroughput / 1000;
-                latency = latencyTimeInMilliseconds;
+                if (!throughputArray[mediaType] || !latencyArray[mediaType]) {
+                    throughput = lastRequestThroughput / 1000;
+                    latency = latencyTimeInMilliseconds;
+                } else {
+                    throughput = getAverageThroughput(mediaType, isDynamic);
+                    latency = getAverageLatency(mediaType);
+                }
             } else {
                 storeLastRequestThroughputByType(mediaType, lastRequestThroughput);
                 throughput = getAverageThroughput(mediaType, isDynamic);
@@ -187,22 +192,14 @@ function ThroughputRule(config) {
             if (abrController.getAbandonmentStateFor(mediaType) !== AbrController.ABANDON_LOAD) {
 
                 if (bufferStateVO.state === BufferController.BUFFER_LOADED || isDynamic) {
-                    const newQuality = abrController.getQualityForBitrate(mediaInfo, throughput, latency);
+                    switchRequest.value = abrController.getQualityForBitrate(mediaInfo, throughput, latency);
                     streamProcessor.getScheduleController().setTimeToLoadDelay(0);
-                    switchRequest.value = newQuality;
-                    switchRequest.priority = SwitchRequest.DEFAULT;
-                    switchRequest.reason.throughput = throughput;
-                    switchRequest.reason.latency = latency;
-                }
-
-                if (switchRequest.value !== SwitchRequest.NO_CHANGE && switchRequest.value !== currentQuality) {
-                    log('ThroughputRule requesting switch to index: ', switchRequest.value, 'type: ', mediaType, ' Priority: ',
-                        switchRequest.priority === SwitchRequest.DEFAULT ? 'Default' :
-                            switchRequest.priority === SwitchRequest.STRONG ? 'Strong' : 'Weak', 'Average throughput', Math.round(throughput), 'kbps; Average latency', Math.round(latency), 'ms');
+                    log('ThroughputRule requesting switch to index: ', switchRequest.value, 'type: ',mediaType, 'Average throughput', Math.round(throughput), 'kbps');
+                    switchRequest.reason = {throughput: throughput, latency: latency};
                 }
             }
-            callback(switchRequest);
         }
+        return switchRequest;
     }
 
     function reset() {
@@ -210,7 +207,7 @@ function ThroughputRule(config) {
     }
 
     const instance = {
-        execute: execute,
+        getMaxIndex: getMaxIndex,
         reset: reset
     };
 
