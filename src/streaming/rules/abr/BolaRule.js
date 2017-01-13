@@ -339,11 +339,12 @@ function BolaRule(config) {
         }
     }
 
-    function getMaxIndex(rulesContext) {
+    function execute(rulesContext, callback) {
         const streamProcessor = rulesContext.getStreamProcessor();
         streamProcessor.getScheduleController().setTimeToLoadDelay(0);
 
-        const switchRequest = SwitchRequest(context).create(SwitchRequest.NO_CHANGE, {name: BolaRule.__dashjs_factory_name});
+        let switchRequest = SwitchRequest(context).create(SwitchRequest.NO_CHANGE, SwitchRequest.WEAK, {name: BolaRule.__dashjs_factory_name});
+
         const mediaInfo = rulesContext.getMediaInfo();
         const mediaType = mediaInfo.type;
         const metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
@@ -369,17 +370,20 @@ function BolaRule(config) {
                 if (initThroughput === 0) {
                     // We don't have information about any download yet - let someone else decide quality.
                     if (BOLA_DEBUG) log('BolaDebug ' + mediaType + ' BolaRule quality unchanged for INITIALIZE');
-                    return switchRequest;
+                    callback(switchRequest);
+                    return;
                 }
                 q = getQualityFromThroughput(initState, initThroughput * initState.bandwidthSafetyFactor);
                 initState.lastQuality = q;
                 switchRequest.value = q;
+                switchRequest.priority = SwitchRequest.DEFAULT;
                 switchRequest.reason.state = initState.state;
                 switchRequest.reason.throughput = initThroughput;
             }
 
             if (BOLA_DEBUG) log('BolaDebug ' + mediaType + ' BolaRule quality ' + q + ' for INITIALIZE');
-            return switchRequest;
+            callback(switchRequest);
+            return;
         } // initialization
 
         // metrics.BolaState.length > 0
@@ -388,7 +392,8 @@ function BolaRule(config) {
 
         if (bolaState.state === BOLA_STATE_ONE_BITRATE) {
             if (BOLA_DEBUG) log('BolaDebug ' + mediaType + ' BolaRule quality 0 for ONE_BITRATE');
-            return switchRequest;
+            callback(switchRequest);
+            return;
         }
 
         let bitrates = bolaState.bitrates;
@@ -448,9 +453,11 @@ function BolaRule(config) {
             bolaState.lastQuality = q;
             metricsModel.updateBolaState(mediaType, bolaState);
             switchRequest.value = q;
+            switchRequest.priority = SwitchRequest.DEFAULT;
             switchRequest.reason.state = BOLA_STATE_STARTUP;
             switchRequest.reason.throughput = recentThroughput;
-            return switchRequest;
+            callback(switchRequest);
+            return;
         }
 
         // steady state
@@ -513,12 +520,13 @@ function BolaRule(config) {
         metricsModel.updateBolaState(mediaType, bolaState);
 
         switchRequest.value = bolaQuality;
+        switchRequest.priority = SwitchRequest.DEFAULT;
         switchRequest.reason.state = bolaState.state;
         switchRequest.reason.throughput = recentThroughput;
         switchRequest.reason.bufferLevel = bufferLevel;
 
         if (BOLA_DEBUG) log('BolaDebug ' + mediaType + ' BolaRule quality ' + bolaQuality + ' delay=' + delaySeconds.toFixed(3) + ' for STEADY');
-        return switchRequest;
+        callback(switchRequest);
     }
 
     function reset() {
@@ -530,7 +538,7 @@ function BolaRule(config) {
     }
 
     instance = {
-        getMaxIndex: getMaxIndex,
+        execute: execute,
         reset: reset
     };
 

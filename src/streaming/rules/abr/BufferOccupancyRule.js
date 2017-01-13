@@ -29,81 +29,75 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 import SwitchRequest from '../SwitchRequest';
-import BufferController from '../../controllers/BufferController';
-import EventBus from '../../../core/EventBus';
-import Events from '../../../core/events/Events';
+import MediaPlayerModel from '../../models/MediaPlayerModel';
+import AbrController from '../../controllers/AbrController';
 import FactoryMaker from '../../../core/FactoryMaker';
 import Debug from '../../../core/Debug';
 
-function InsufficientBufferRule(config) {
+function BufferOccupancyRule(config) {
 
+    let instance;
     let context = this.context;
     let log = Debug(context).getInstance().log;
-    let eventBus = EventBus(context).getInstance();
 
     let metricsModel = config.metricsModel;
+    let dashMetrics = config.dashMetrics;
 
-    let instance,
-        bufferStateDict,
-        lastSwitchTime,
-        waitToSwitchTime;
+    let lastSwitchTime,
+        mediaPlayerModel;
 
     function setup() {
-        bufferStateDict = {};
         lastSwitchTime = 0;
-        waitToSwitchTime = 1000;
-        eventBus.on(Events.PLAYBACK_SEEKING, onPlaybackSeeking, instance);
+        mediaPlayerModel = MediaPlayerModel(context).getInstance();
     }
 
     function execute (rulesContext, callback) {
-        var now = new Date().getTime();
-        var mediaType = rulesContext.getMediaInfo().type;
+        var now = new Date().getTime() / 1000;
+        var mediaInfo = rulesContext.getMediaInfo();
+        var representationInfo = rulesContext.getTrackInfo();
+        var mediaType = mediaInfo.type;
+        var waitToSwitchTime = !isNaN(representationInfo.fragmentDuration) ? representationInfo.fragmentDuration / 2 : 2;
         var current = rulesContext.getCurrentValue();
+        var streamProcessor = rulesContext.getStreamProcessor();
+        var abrController = streamProcessor.getABRController();
         var metrics = metricsModel.getReadOnlyMetricsFor(mediaType);
+        var lastBufferLevel = dashMetrics.getCurrentBufferLevel(metrics);
         var lastBufferStateVO = (metrics.BufferState.length > 0) ? metrics.BufferState[metrics.BufferState.length - 1] : null;
-        var switchRequest = SwitchRequest(context).create(SwitchRequest.NO_CHANGE, SwitchRequest.WEAK, {name: InsufficientBufferRule.__dashjs_factory_name});
+        var isBufferRich = false;
+        var maxIndex = mediaInfo.representationCount - 1;
+        var switchRequest = SwitchRequest(context).create(SwitchRequest.NO_CHANGE, SwitchRequest.WEAK, {name: BufferOccupancyRule.__dashjs_factory_name});
 
         if (now - lastSwitchTime < waitToSwitchTime ||
-            lastBufferStateVO === null) {
+            abrController.getAbandonmentStateFor(mediaType) === AbrController.ABANDON_LOAD) {
             callback(switchRequest);
             return;
         }
 
-        setBufferInfo(mediaType, lastBufferStateVO.state);
-        // After the sessions first buffer loaded event , if we ever have a buffer empty event we want to switch all the way down.
-        if (lastBufferStateVO.state === BufferController.BUFFER_EMPTY && bufferStateDict[mediaType].firstBufferLoadedEvent !== undefined) {
-            switchRequest.value = 0;
-            switchRequest.priority = SwitchRequest.STRONG;
-            switchRequest.reason.bufferState = lastBufferStateVO.state;
+        if (lastBufferStateVO !== null) {
+            // This will happen when another rule tries to switch from top to any other.
+            // If there is enough buffer why not try to stay at high level.
+            if (lastBufferLevel > lastBufferStateVO.target) {
+                isBufferRich = (lastBufferLevel - lastBufferStateVO.target) > mediaPlayerModel.getRichBufferThreshold();
 
-            switchRequest = SwitchRequest(context).create(0, SwitchRequest.STRONG);
+                if (isBufferRich && mediaInfo.representationCount > 1) {
+                    switchRequest.value = maxIndex;
+                    switchRequest.priority = SwitchRequest.STRONG;
+                    switchRequest.reason.bufferLevel = lastBufferLevel;
+                    switchRequest.reason.bufferTarget = lastBufferStateVO.target;
+                }
+            }
         }
 
         if (switchRequest.value !== SwitchRequest.NO_CHANGE && switchRequest.value !== current) {
-            log('InsufficientBufferRule requesting switch to index: ', switchRequest.value, 'type: ',mediaType, ' Priority: ',
+            log('BufferOccupancyRule requesting switch to index: ', switchRequest.value, 'type: ',mediaType, ' Priority: ',
                 switchRequest.priority === SwitchRequest.DEFAULT ? 'Default' :
                     switchRequest.priority === SwitchRequest.STRONG ? 'Strong' : 'Weak');
         }
 
-        lastSwitchTime = now;
         callback(switchRequest);
     }
 
-    function setBufferInfo(type, state) {
-        bufferStateDict[type] = bufferStateDict[type] || {};
-        bufferStateDict[type].state = state;
-        if (state === BufferController.BUFFER_LOADED && !bufferStateDict[type].firstBufferLoadedEvent) {
-            bufferStateDict[type].firstBufferLoadedEvent = true;
-        }
-    }
-
-    function onPlaybackSeeking() {
-        bufferStateDict = {};
-    }
-
     function reset() {
-        eventBus.off(Events.PLAYBACK_SEEKING, onPlaybackSeeking, instance);
-        bufferStateDict = {};
         lastSwitchTime = 0;
     }
 
@@ -117,5 +111,5 @@ function InsufficientBufferRule(config) {
     return instance;
 }
 
-InsufficientBufferRule.__dashjs_factory_name = 'InsufficientBufferRule';
-export default FactoryMaker.getClassFactory(InsufficientBufferRule);
+BufferOccupancyRule.__dashjs_factory_name = 'BufferOccupancyRule';
+export default FactoryMaker.getClassFactory(BufferOccupancyRule);
