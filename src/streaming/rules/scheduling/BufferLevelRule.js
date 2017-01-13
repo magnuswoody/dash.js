@@ -66,8 +66,29 @@ function BufferLevelRule(config) {
             if (abrController.isPlayingAtTopQuality(streamInfo)) {
                 const isLongFormContent = streamInfo.manifestInfo.duration >= mediaPlayerModel.getLongFormContentDurationThreshold();
                 bufferTarget = isLongFormContent ? mediaPlayerModel.getBufferTimeAtTopQualityLongForm() : mediaPlayerModel.getBufferTimeAtTopQuality();
-            }else {
-                bufferTarget = mediaPlayerModel.getStableBufferTime();
+            } else {
+                if (mediaPlayerModel.getFastSwitchEnabled()) {
+                    bufferTarget = mediaPlayerModel.getStableBufferTime();
+                } else {
+                    const switchRequests = abrController.getSwitchHistory(type).getSwitches();
+                    if (switchRequests.length >= 6) {
+                        let stableBuffer = true;
+                        const now = Date.now();
+                        for (let i = switchRequests.length - 1; i >= switchRequests.length - 4; i--) {
+                            if (switchRequests[i].oldValue != switchRequests[i].newValue && now - switchRequests[i].time.getTime() < 20 * 1000) {
+                                stableBuffer = false;
+                                break;
+                            }
+                        }
+                        if (stableBuffer) {
+                            bufferTarget = 60;
+                        } else {
+                            bufferTarget = mediaPlayerModel.getStableBufferTime(); //This is really like the unstable buffer time.
+                        }
+                    } else { //In the absence of a switch history, assume stable; for one-quality tracks, this makes sense
+                        bufferTarget = 60;
+                    }
+                }
             }
         }
 
