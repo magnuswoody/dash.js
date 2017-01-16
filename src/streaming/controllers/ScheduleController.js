@@ -194,18 +194,23 @@ function ScheduleController(config) {
     }
 
     function isAheadOfPair(type) {
-        const videoBufferList = metricsModel.getReadOnlyMetricsFor('video')[adapter.metricsList.BUFFER_LEVEL];
-        const audioBufferList = metricsModel.getReadOnlyMetricsFor('audio')[adapter.metricsList.BUFFER_LEVEL];
+        const videoMetrics = metricsModel.getReadOnlyMetricsFor('video');
+        const audioMetrics = metricsModel.getReadOnlyMetricsFor('audio');
 
-        if (videoBufferList && videoBufferList.length > 0 && audioBufferList && audioBufferList.length > 0) {
-            const videoBuffer = videoBufferList[videoBufferList.length - 1].level;
-            const audioBuffer = audioBufferList[audioBufferList.length - 1].level;
+        if (videoMetrics && audioMetrics) {
+            const videoBufferList = videoMetrics[adapter.metricsList.BUFFER_LEVEL];
+            const audioBufferList = audioMetrics[adapter.metricsList.BUFFER_LEVEL];
 
-            if (type == 'audio') {
-                return audioBuffer > videoBuffer + 15000; //Extract to const? Number of segments?
-            }
-            if (type == 'video') {
-                return videoBuffer > audioBuffer + 15000;
+            if (videoBufferList && videoBufferList.length > 0 && audioBufferList && audioBufferList.length > 0) {
+                const videoBuffer = videoBufferList[videoBufferList.length - 1].level;
+                const audioBuffer = audioBufferList[audioBufferList.length - 1].level;
+
+                if (type == 'audio') {
+                    return audioBuffer > videoBuffer + 15000; //Extract to const? Number of segments?
+                }
+                if (type == 'video') {
+                    return videoBuffer > audioBuffer + 15000;
+                }
             }
         }
 
