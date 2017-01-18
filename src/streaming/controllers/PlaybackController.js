@@ -313,8 +313,6 @@ function PlaybackController() {
             return currentTime;
         }
 
-        actualTime = Math.max(DVRWindow.end - streamInfo.manifestInfo.minBufferTime * 2, DVRWindow.start);
-
         return actualTime;
     }
 
