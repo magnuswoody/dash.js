@@ -193,16 +193,41 @@ function ScheduleController(config) {
 
     }
 
-    function schedule() {
+    function isAheadOfPair(type) {
+        const videoMetrics = metricsModel.getReadOnlyMetricsFor('video');
+        const audioMetrics = metricsModel.getReadOnlyMetricsFor('audio');
 
+        if (videoMetrics && audioMetrics) {
+            const videoBufferList = videoMetrics[adapter.metricsList.BUFFER_LEVEL];
+            const audioBufferList = audioMetrics[adapter.metricsList.BUFFER_LEVEL];
+
+            if (videoBufferList && videoBufferList.length > 0 && audioBufferList && audioBufferList.length > 0) {
+                const videoBuffer = videoBufferList[videoBufferList.length - 1].level;
+                const audioBuffer = audioBufferList[audioBufferList.length - 1].level;
+
+                if (type == 'audio') {
+                    return audioBuffer > videoBuffer + 15000; //Extract to const? Number of segments?
+                }
+                if (type == 'video') {
+                    return videoBuffer > audioBuffer + 15000;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function schedule() {
         if (isStopped || isFragmentProcessingInProgress || !bufferController || playbackController.isPaused() && !scheduleWhilePaused) return;
 
         validateExecutedFragmentRequest();
 
+        const type = currentRepresentationInfo.mediaInfo.type;
         const isReplacement = replaceRequestArray.length > 0;
-        if ( isReplacement ||
-             hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamProcessor.getStreamInfo().id) ||
-             bufferLevelRule.execute(streamProcessor, type, streamController.isVideoTrackPresent())
+        if ( !isAheadOfPair(type) && (
+            isReplacement ||
+             hasTopQualityChanged(type, streamProcessor.getStreamInfo().id) ||
+             bufferLevelRule.execute(streamProcessor, type, streamController.isVideoTrackPresent()))
            ) {
 
             const getNextFragment = function () {
@@ -230,7 +255,8 @@ function ScheduleController(config) {
             if (isReplacement) {
                 getNextFragment();
             } else {
-                abrController.getPlaybackQuality(streamProcessor, getNextFragment);
+                abrController.getPlaybackQuality(streamProcessor);
+                getNextFragment();
             }
 
         } else {
