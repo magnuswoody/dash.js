@@ -54,7 +54,7 @@ function RulesController() {
         }
     }
 
-    function applyRules(rulesArr, streamProcessor, callback, current, overrideFunc) {
+    function applyRules(rulesArr, streamProcessor, callback, current, playbackQuality, overrideFunc) {
         var values = {};
         var reasons = {};
         var rule,

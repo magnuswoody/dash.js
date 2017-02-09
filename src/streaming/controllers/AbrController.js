@@ -296,7 +296,8 @@ function AbrController() {
             if (newQuality > topQualityIdx) {
                 newQuality = topQualityIdx;
             }
-            switchHistoryDict[type].push({oldValue: oldQuality, newValue: newQuality, time: new Date()});
+
+            switchHistoryDict[type].push({oldValue: oldQuality, newValue: newQuality});
 
             if (newQuality > SwitchRequest.NO_CHANGE && newQuality != oldQuality) {
                 if (abandonmentStateDict[type].state === ALLOW_LOAD || newQuality > oldQuality) {
@@ -545,6 +546,7 @@ function AbrController() {
             });
             const switchRequest = abrRulesCollection.shouldAbandonFragment(rulesContext);
 
+
             if (switchRequest.value > SwitchRequest.NO_CHANGE) {
                 const fragmentModel = scheduleController.getFragmentModel();
                 const request = fragmentModel.getRequests({state: FragmentModel.FRAGMENT_MODEL_LOADING, index: e.request.index})[0];
@@ -554,6 +556,7 @@ function AbrController() {
                     setAbandonmentStateFor(type, ABANDON_LOAD);
                     switchHistoryDict[type].reset();
                     switchHistoryDict[type].push({oldValue: getQualityFor(type, streamController.getActiveStreamInfo()), newValue: switchRequest.value, confidence: 1, reason: switchRequest.reason, time: new Date()});
+
                     setPlaybackQuality(type, streamController.getActiveStreamInfo(), switchRequest.value, switchRequest.reason);
                     eventBus.trigger(Events.FRAGMENT_LOADING_ABANDONED, {streamProcessor: streamProcessorDict[type], request: request, mediaType: type});
 
