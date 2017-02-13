@@ -62,7 +62,7 @@ function EventController() {
         activeEvents = {};
         eventInterval = null;
         refreshDelay = 100;
-        presentationTimeThreshold = refreshDelay / 1000;
+        presentationTimeThreshold = refreshDelay / 1500;
         playbackController = PlaybackController(context).getInstance();
     }
 
@@ -173,12 +173,28 @@ function EventController() {
                         if (curr.duration > 0) {
                             activeEvents[eventId] = curr;
                         }
+
                         if (curr.eventStream.schemeIdUri == MPD_RELOAD_SCHEME && curr.eventStream.value == MPD_RELOAD_VALUE) {
+                            // ISO 23009-1 2014, section 5.10.4.2:
+                            // "the event duration expresses the remaining duration of Media Presentation from the event
+                            // time. If the event duration is 0, Media Presentation ends at the event time. If 0xFFFF,
+                            // the media presentation duration is unknown. In the case in which both
+                            // presentation_time_delta and event_duration are zero, then the Media Presentation is
+                            // ended."
+                            if (curr.duration === 0) {
+                                console.warn("Time has ended. Soz.");
+                                playbackController.pause();
+                            }
                             refreshManifest();
                         } else {
                             eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
                         }
                         delete events[eventId];
+                    } else {
+                        if (presentationTime <= currentVideoTime) {
+                            console.error('missed scheduled event trigger');
+                            debugger;
+                        }
                     }
                 }
             }
