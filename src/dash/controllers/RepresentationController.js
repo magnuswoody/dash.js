@@ -38,7 +38,6 @@ import ManifestModel from '../../streaming/models/ManifestModel';
 import MetricsModel from '../../streaming/models/MetricsModel';
 import MediaPlayerModel from '../../streaming/models/MediaPlayerModel';
 import DOMStorage from '../../streaming/utils/DOMStorage';
-import LiveEdgeFinder from '../../streaming/Utils/LiveEdgeFinder';
 import Error from '../../streaming/vo/Error';
 import EventBus from '../../core/EventBus';
 import Events from '../../core/events/Events';

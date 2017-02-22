@@ -350,9 +350,7 @@ function ScheduleController(config) {
 
     function setLiveEdgeSeekTarget() {
         const liveEdge = LiveEdgeFinder(context).getInstance().getLiveEdge();
-        const dvrWindowSize = currentRepresentationInfo.mediaInfo.streamInfo.manifestInfo.DVRWindowSize / 2;
-        const startTime = liveEdge;//const startTime = liveEdge - playbackController.computeLiveDelay(currentRepresentationInfo.fragmentDuration, dvrWindowSize);
-        const request = adapter.getFragmentRequestForTime(streamProcessor, currentRepresentationInfo, startTime, {ignoreIsFinished: true});
+        const request = adapter.getFragmentRequestForTime(streamProcessor, currentRepresentationInfo, liveEdge, {ignoreIsFinished: true});
         seekTarget = playbackController.getLiveStartTime();
         if (isNaN(seekTarget) || request.startTime > seekTarget) {
             playbackController.setLiveStartTime(request.startTime);
