@@ -81,7 +81,8 @@ function StreamController() {
         isPaused,
         initialPlayback,
         playListMetrics,
-        videoTrackDetected;
+        videoTrackDetected,
+        alreadyTimeSynced;
 
     function setup() {
         protectionController = null;
@@ -95,6 +96,7 @@ function StreamController() {
         playListMetrics = null;
         hasMediaError = false;
         hasInitialisationError = false;
+        alreadyTimeSynced = false;
     }
 
     function initialize(autoPl, protData) {
@@ -444,47 +446,50 @@ function StreamController() {
 
     function onManifestUpdated(e) {
         if (!e.error) {
-            //Since streams are not composed yet , need to manually look up useCalculatedLiveEdgeTime to detect if stream
-            //is SegmentTimeline to avoid using time source
             var manifest = e.manifest;
-            var streamInfo = adapter.getStreamsInfo(manifest)[0];
-            var mediaInfo = (
-                adapter.getMediaInfoForType(manifest, streamInfo, 'video') ||
-                adapter.getMediaInfoForType(manifest, streamInfo, 'audio')
-            );
-
-            var adaptation,
-                useCalculatedLiveEdgeTime;
-
-            if (mediaInfo) {
-                adaptation = adapter.getDataForMedia(mediaInfo);
-                useCalculatedLiveEdgeTime = dashManifestModel.getRepresentationsForAdaptation(manifest, adaptation)[0].useCalculatedLiveEdgeTime;
-
-                if (useCalculatedLiveEdgeTime) {
-                    log('SegmentTimeline detected using calculated Live Edge Time');
-                    mediaPlayerModel.setUseManifestDateHeaderTimeSource(false);
-                }
-            }
-
-            var manifestUTCTimingSources = dashManifestModel.getUTCTimingSources(e.manifest);
-            var allUTCTimingSources = (!dashManifestModel.getIsDynamic(manifest) || useCalculatedLiveEdgeTime) ? manifestUTCTimingSources : manifestUTCTimingSources.concat(mediaPlayerModel.getUTCTimingSources());
-            var isHTTPS = URIQueryAndFragmentModel(context).getInstance().isManifestHTTPS();
-
-            //If https is detected on manifest then lets apply that protocol to only the default time source(s). In the future we may find the need to apply this to more then just default so left code at this level instead of in MediaPlayer.
-            allUTCTimingSources.forEach(function (item) {
-                if (item.value.replace(/.*?:\/\//g, '') === MediaPlayerModel.DEFAULT_UTC_TIMING_SOURCE.value.replace(/.*?:\/\//g, '')) {
-                    item.value = item.value.replace(isHTTPS ? new RegExp(/^(http:)?\/\//i) : new RegExp(/^(https:)?\/\//i), isHTTPS ? 'https://' : 'http://');
-                    log('Matching default timing source protocol to manifest protocol: ', item.value);
-                }
-            });
-
             baseURLController.initialize(manifest);
 
-            timeSyncController.setConfig({
-                metricsModel: metricsModel,
-                dashMetrics: dashMetrics
-            });
-            timeSyncController.initialize(allUTCTimingSources, mediaPlayerModel.getUseManifestDateHeaderTimeSource());
+            if (!alreadyTimeSynced) {
+                //Since streams are not composed yet , need to manually look up useCalculatedLiveEdgeTime to detect if stream
+                //is SegmentTimeline to avoid using time source
+                var streamInfo = adapter.getStreamsInfo(manifest)[0];
+                var mediaInfo = (
+                    adapter.getMediaInfoForType(manifest, streamInfo, 'video') ||
+                    adapter.getMediaInfoForType(manifest, streamInfo, 'audio')
+                );
+
+                var adaptation,
+                    useCalculatedLiveEdgeTime;
+
+                if (mediaInfo) {
+                    adaptation = adapter.getDataForMedia(mediaInfo);
+                    useCalculatedLiveEdgeTime = dashManifestModel.getRepresentationsForAdaptation(manifest, adaptation)[0].useCalculatedLiveEdgeTime;
+
+                    if (useCalculatedLiveEdgeTime) {
+                        log('SegmentTimeline detected using calculated Live Edge Time');
+                        mediaPlayerModel.setUseManifestDateHeaderTimeSource(false);
+                    }
+                }
+
+                var manifestUTCTimingSources = dashManifestModel.getUTCTimingSources(e.manifest);
+                var allUTCTimingSources = (!dashManifestModel.getIsDynamic(manifest) || useCalculatedLiveEdgeTime) ? manifestUTCTimingSources : manifestUTCTimingSources.concat(mediaPlayerModel.getUTCTimingSources());
+                var isHTTPS = URIQueryAndFragmentModel(context).getInstance().isManifestHTTPS();
+
+                //If https is detected on manifest then lets apply that protocol to only the default time source(s). In the future we may find the need to apply this to more then just default so left code at this level instead of in MediaPlayer.
+                allUTCTimingSources.forEach(function (item) {
+                    if (item.value.replace(/.*?:\/\//g, '') === MediaPlayerModel.DEFAULT_UTC_TIMING_SOURCE.value.replace(/.*?:\/\//g, '')) {
+                        item.value = item.value.replace(isHTTPS ? new RegExp(/^(http:)?\/\//i) : new RegExp(/^(https:)?\/\//i), isHTTPS ? 'https://' : 'http://');
+                        log('Matching default timing source protocol to manifest protocol: ', item.value);
+                    }
+                });
+
+                timeSyncController.setConfig({
+                    metricsModel: metricsModel,
+                    dashMetrics: dashMetrics
+                });
+                timeSyncController.initialize(allUTCTimingSources, mediaPlayerModel.getUseManifestDateHeaderTimeSource());
+                alreadyTimeSynced = true;
+            }
         } else {
             hasInitialisationError = true;
             reset();
@@ -702,6 +707,7 @@ function StreamController() {
         videoTrackDetected = undefined;
         initialPlayback = true;
         isPaused = false;
+        alreadyTimeSynced = false;
 
         if (mediaSource) {
             mediaSourceController.detachMediaSource(videoModel);
