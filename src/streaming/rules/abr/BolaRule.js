@@ -50,8 +50,8 @@ const BOLA_STATE_STARTUP        = 1;
 const BOLA_STATE_STEADY         = 2;
 const BOLA_DEBUG = false; // TODO: remove
 
-const MINIMUM_BUFFER_S = 15; // BOLA should never add artificial delays if buffer is less than MINIMUM_BUFFER_S.
-const BUFFER_TARGET_S = 45; // If Schedule Controller does not allow buffer level to reach BUFFER_TARGET_S, this can be a placeholder buffer level.
+const MINIMUM_BUFFER_S = 10; // BOLA should never add artificial delays if buffer is less than MINIMUM_BUFFER_S.
+const BUFFER_TARGET_S = 60; // If Schedule Controller does not allow buffer level to reach BUFFER_TARGET_S, this can be a placeholder buffer level.
 const REBUFFER_SAFETY_FACTOR = 0.5; // Used when buffer level is dangerously low, might happen often in live streaming.
 
 function BolaRule(config) {
