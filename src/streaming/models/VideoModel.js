@@ -81,6 +81,14 @@ function VideoModel() {
                 }, 400);
             }
         }
+
+        // on Safari 10.1 on MacOS 10.12.4 Safari fails to seek at the beginnig of the live stream without throw an exception.
+        // after a delay element.currentTime becomes NaN
+        setTimeout(function () {
+            if (isNaN(element.currentTime)) {
+                element.currentTime = currentTime;     
+            }
+        }, 2000);
     }
 
     function getElement() {
