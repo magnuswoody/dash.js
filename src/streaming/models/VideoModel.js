@@ -86,7 +86,7 @@ function VideoModel() {
         // after a delay element.currentTime becomes NaN
         setTimeout(function () {
             if (isNaN(element.currentTime)) {
-                element.currentTime = currentTime;     
+                element.currentTime = currentTime;
             }
         }, 2000);
     }
