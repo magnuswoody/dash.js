@@ -170,24 +170,58 @@ function ProtectionModel_21Jan2015(config) {
         });
     }
 
-    function createKeySession(initData, sessionType) {
+    function createKeySession(initData, sessionType, sessionId) {
 
         if (!keySystem || !mediaKeys) {
             throw new Error('Can not create sessions until you have selected a key system');
         }
 
-        var session = mediaKeys.createSession(sessionType);
-        var sessionToken = createSessionToken(session, initData, sessionType);
+        if (sessionId !== undefined) {
+            loadPersistedLicence(sessionId);
+        }
+        else {
+            var session = mediaKeys.createSession(sessionType);
+            var sessionToken = createSessionToken(session, initData, sessionType);
 
-        // Generate initial key request
-        session.generateRequest('cenc', initData).then(function () {
-            log('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
-            eventBus.trigger(Events.KEY_SESSION_CREATED, {data: sessionToken});
-        }).catch(function (error) {
-            // TODO: Better error string
-            removeSession(sessionToken);
-            eventBus.trigger(Events.KEY_SESSION_CREATED, {data: null, error: 'Error generating key request -- ' + error.name});
-        });
+            // Generate initial key request
+            session.generateRequest('cenc', initData).then(function () {
+                log('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
+                eventBus.trigger(Events.KEY_SESSION_CREATED, {data: sessionToken});
+            }).catch(function (error) {
+                // TODO: Better error string
+                removeSession(sessionToken);
+                eventBus.trigger(Events.KEY_SESSION_CREATED, {data: null, error: 'Error generating key request -- ' + error.name});
+            });
+        }
+    }
+
+    function loadPersistedLicence(sessionId) {
+
+        // seesionType needs to be peristent rather for new and stored licenses
+        var session = mediaKeys.createSession('persistent-license');
+
+        return session.load(sessionId).then(
+            function (success) {
+                var sessionToken = createSessionToken(session);
+                if (success) {
+                    log('Successfully loaded stored session with sessionID ', sessionId);
+
+                    if (sessionToken.getExpirationTime() < new Date()) {
+                        // The token/license has expired!  We should probably remove the stored license.
+                        log('The token has expired on ' + new Date(sessionToken.getExpirationTime()));
+                        removeKeySession(sessionToken);
+                    }
+                }
+                else {
+                    // The application should remove its record of sessionId.
+                    console.error('No stored session with the ID ' + sessionId + ' was found.');
+                    removeKeySession(sessionToken);
+                    return;
+                }
+            }
+        ).catch(function () {
+                console.error.bind(console, 'Unable to load or initialize the stored session with the ID ' + sessionId);
+            });
     }
 
     function updateKeySession(sessionToken, message) {

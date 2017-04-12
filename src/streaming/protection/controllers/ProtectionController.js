@@ -151,7 +151,13 @@ function ProtectionController(config) {
                 }
             }
             try {
-                protectionModel.createKeySession(initDataForKS, sessionType);
+                var protData = getProtData(keySystem);
+                if (protData.sessionId) {
+                    protectionModel.createKeySession(initDataForKS, sessionType, protData.sessionId);
+                }
+                else {
+                    protectionModel.createKeySession(initDataForKS, sessionType);
+                }
             } catch (error) {
                 eventBus.trigger(Events.KEY_SESSION_CREATED, {data: null, error: 'Error creating key session! ' + error.message});
             }

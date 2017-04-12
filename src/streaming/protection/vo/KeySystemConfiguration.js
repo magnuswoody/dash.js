@@ -60,6 +60,8 @@ class KeySystemConfiguration {
         }
         this.distinctiveIdentifier = distinctiveIdentifier;
         this.persistentState = persistentState;
+        // adding persistent-license to sessionTypes to allow offline playback
+        sessionTypes.push('persistent-license');
         this.sessionTypes = sessionTypes;
     }
 }
