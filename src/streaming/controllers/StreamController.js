@@ -40,6 +40,7 @@ import FactoryMaker from '../../core/FactoryMaker';
 import {PlayList, PlayListTrace} from '../vo/metrics/PlayList';
 import Debug from '../../core/Debug';
 import InitCache from '../utils/InitCache';
+import MediaPlayerEvents from '../MediaPlayerEvents';
 
 function StreamController() {
 
@@ -135,6 +136,7 @@ function StreamController() {
         eventBus.on(Events.PLAYBACK_PAUSED, onPlaybackPaused, this);
         eventBus.on(Events.MANIFEST_UPDATED, onManifestUpdated, this);
         eventBus.on(Events.STREAM_BUFFERING_COMPLETED, onStreamBufferingCompleted, this);
+        eventBus.on(MediaPlayerEvents.METRIC_ADDED, onMetricAdded, this);
     }
 
     /*
@@ -689,6 +691,7 @@ function StreamController() {
         eventBus.off(Events.PLAYBACK_ENDED, onEnded, this);
         eventBus.off(Events.MANIFEST_UPDATED, onManifestUpdated, this);
         eventBus.off(Events.STREAM_BUFFERING_COMPLETED, onStreamBufferingCompleted, this);
+        eventBus.off(MediaPlayerEvents.METRIC_ADDED, onMetricAdded, this);
 
         baseURLController.reset();
         manifestUpdater.reset();
@@ -724,6 +727,16 @@ function StreamController() {
         }
 
         eventBus.trigger(Events.STREAM_TEARDOWN_COMPLETE);
+    }
+
+    function onMetricAdded(e) {
+        if (e.metric === 'DVRInfo') {
+            //Match media type? How can DVR window be different for media types?
+            //Should we normalize and union the two?
+            if (e.mediaType === 'audio') {
+                mediaSourceController.setSeekable(mediaSource, e.value.range.start, e.value.range.end);
+            }
+        }
     }
 
     instance = {
