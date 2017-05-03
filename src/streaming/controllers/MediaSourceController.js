@@ -70,7 +70,7 @@ function MediaSourceController() {
     }
 
     function setSeekable(source, start, end) {
-        if (typeof source.setLiveSeekableRange === 'function' && typeof source.clearLiveSeekableRange === 'function') {
+        if (typeof source.setLiveSeekableRange === 'function' && typeof source.clearLiveSeekableRange === 'function' && source.readyState === 'open') {
             source.clearLiveSeekableRange();
             source.setLiveSeekableRange(start, end);
         }
