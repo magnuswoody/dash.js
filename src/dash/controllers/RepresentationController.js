@@ -92,6 +92,7 @@ function RepresentationController() {
         eventBus.on(Events.REPRESENTATION_UPDATED, onRepresentationUpdated, instance);
         eventBus.on(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, instance);
         eventBus.on(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, instance);
+        eventBus.on(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, onManifestValidityChanged, instance);
     }
 
     function setConfig(config) {
@@ -132,6 +133,7 @@ function RepresentationController() {
         eventBus.off(Events.REPRESENTATION_UPDATED, onRepresentationUpdated, instance);
         eventBus.off(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, instance);
         eventBus.off(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, instance);
+        eventBus.off(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, onManifestValidityChanged, instance);
 
         data = null;
         dataIndex = -1;
@@ -354,6 +356,33 @@ function RepresentationController() {
             currentRepresentation = getRepresentationForQuality(e.newQuality);
             domStorage.setSavedBitrateSettings(e.mediaType, currentRepresentation.bandwidth);
             addRepresentationSwitch();
+        }
+    }
+
+    //function refreshManifest() {
+    //var manifest = manifestModel.getValue();
+    //     var url = manifest.url;
+    //      if (manifest.hasOwnProperty('Location')) {
+    //         url = manifest.Location;
+    //     }
+    //     log('Refresh manifest @ ' + url);
+    //     manifestUpdater.getManifestLoader().load(url);
+    // }
+
+    function onManifestValidityChanged(e) {
+        const representation = getCurrentRepresentation();
+        const newDuration = e.validUntil + e.remainingDuration;
+        if (representation && representation.adaptation.period) {
+            const period = representation.adaptation.period;
+            console.log('#a set periodDuration: ' + e.validUntil + ' mediaDuration: ' + newDuration);
+            period.duration = e.validUntil;
+            //setMediaDuration(newDuration);
+
+            //if (e.remainingDuration > 0) {
+            //TODO: Schedule to occur at or after e.newManifestValidAfter.
+            //TODO: Provide postManifestUpdateCallback to verify that the new manifest has a publish date after e.newManifestValidAfter.
+            //    refreshManifest();
+            //}
         }
     }
 

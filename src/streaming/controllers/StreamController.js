@@ -40,7 +40,7 @@ import FactoryMaker from '../../core/FactoryMaker';
 import {PlayList, PlayListTrace} from '../vo/metrics/PlayList';
 import Debug from '../../core/Debug';
 import InitCache from '../utils/InitCache';
-import MediaPlayerEvents from '../MediaPlayerEvents';
+import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
 
 function StreamController() {
 

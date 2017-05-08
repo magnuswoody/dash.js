@@ -33,6 +33,7 @@ import PlaybackController from '../controllers/PlaybackController';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import EventBus from '../../core/EventBus';
+import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
 
 function EventController() {
 
@@ -107,12 +108,53 @@ function EventController() {
         for (var i = 0; i < values.length; i++) {
             var event = values[i];
             if (!(event.id in inbandEvents)) {
-                inbandEvents[event.id] = event;
+                if (event.eventStream.schemeIdUri == MPD_RELOAD_SCHEME) {
+                    handleManifestReloadEvent(event);
+                }
+                else {
+                    inbandEvents[event.id] = event;
+                }
                 log('Add inband event with id ' + event.id);
             } else {
                 log('Repeated event with id ' + event.id);
             }
         }
+    }
+
+    //setTimeout(mockEvent, 25000);
+    //function mockEvent() {
+    //    log('#a Send mock manifest reload event');
+    //    handleManifestReloadEvent({"duration":0,"presentationTime":30*48000,"id":1819112295,"messageData":{},"eventStream":{"adaptionSet":null,"representation":null,"period":null,"timescale":48000,"value":"1","schemeIdUri":"urn:mpeg:dash:event:2012"},"presentationTimeDelta":0});
+    //}
+
+    function handleManifestReloadEvent(event) {
+        //At this point
+        //Truncate current MPD validity time to event time
+        //Event time is a delta from the presenation time of the containing segment.
+        //The source fragment id needs to be brought in with the inband event.
+        //
+        //Memorise id and don't act on the same ID twice.
+        if (event.eventStream.value == MPD_RELOAD_VALUE) {
+            const timescale = event.eventStream.timescale || 1;
+            log('#a Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
+            eventBus.trigger(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, {
+                id: event.id,
+                validUntil: event.presentationTime / timescale,
+                remainingDuration: event.duration / timescale,
+                newManifestValidAfter: NaN //event.message_data - decode arraybuffer zulu time string first
+            });
+        }
+        //If event duration == 0, video ends at this time. Mark stream as ended?
+
+        //If event duration > 0
+        //Reload manifest with conditional
+        //If new manifest publish time is not greater than messageData(MPD publish time)
+        //Truncate current MPD validity time to event time
+        //Await some timeout (to be decided relative to closeness of MPD expiry) and reload (max number of reloads?)
+        //Consider applicability of minimum update period in the MPD spec to this.
+
+        //Event duration value should set
+        //Event duration 0xffff is 'unknown' - this should read 0xffffffff, make note is deliberately against spec.
     }
 
     /**
@@ -144,17 +186,6 @@ function EventController() {
         removeEvents();
     }
 
-    function refreshManifest() {
-        var manifest = manifestModel.getValue();
-        var url = manifest.url;
-
-        if (manifest.hasOwnProperty('Location')) {
-            url = manifest.Location;
-        }
-        log('Refresh manifest @ ' + url);
-        manifestUpdater.getManifestLoader().load(url);
-    }
-
     function triggerEvents(events) {
         var currentVideoTime = playbackController.getTime();
         var presentationTime;
@@ -173,11 +204,8 @@ function EventController() {
                         if (curr.duration > 0) {
                             activeEvents[eventId] = curr;
                         }
-                        if (curr.eventStream.schemeIdUri == MPD_RELOAD_SCHEME && curr.eventStream.value == MPD_RELOAD_VALUE) {
-                            refreshManifest();
-                        } else {
-                            eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
-                        }
+
+                        eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
                         delete events[eventId];
                     }
                 }
