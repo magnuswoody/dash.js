@@ -108,12 +108,10 @@ function EventController() {
         for (var i = 0; i < values.length; i++) {
             var event = values[i];
             if (!(event.id in inbandEvents)) {
-                if (event.eventStream.schemeIdUri == MPD_RELOAD_SCHEME) {
+                if (event.eventStream.schemeIdUri === MPD_RELOAD_SCHEME && inbandEvents[event.id] === undefined) {
                     handleManifestReloadEvent(event);
                 }
-                else {
-                    inbandEvents[event.id] = event;
-                }
+                inbandEvents[event.id] = event;
                 log('Add inband event with id ' + event.id);
             } else {
                 log('Repeated event with id ' + event.id);
@@ -131,9 +129,6 @@ function EventController() {
         //At this point
         //Truncate current MPD validity time to event time
         //Event time is a delta from the presenation time of the containing segment.
-        //The source fragment id needs to be brought in with the inband event.
-        //
-        //Memorise id and don't act on the same ID twice.
         if (event.eventStream.value == MPD_RELOAD_VALUE) {
             const timescale = event.eventStream.timescale || 1;
             log('#a Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
