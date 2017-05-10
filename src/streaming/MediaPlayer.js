@@ -1832,6 +1832,16 @@ function MediaPlayer() {
     }
 
     /**
+     *  Reload the manifest that the player is currently using.
+     *
+     *  @memberof module:MediaPlayer
+     *  @instance
+     */
+    function refreshManifest() {
+        streamController.refreshManifest();
+    }
+
+    /**
      * Sets the MPD source and the video element to null. You can also reset the MediaPlayer by
      * calling attachSource with a new source file.
      *
@@ -2129,6 +2139,7 @@ function MediaPlayer() {
         attachVideoContainer: attachVideoContainer,
         attachTTMLRenderingDiv: attachTTMLRenderingDiv,
         getCurrentTextTrackIndex: getCurrentTextTrackIndex,
+        refreshManifest: refreshManifest,
         reset: reset
     };
 

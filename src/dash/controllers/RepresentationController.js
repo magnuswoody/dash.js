@@ -359,16 +359,6 @@ function RepresentationController() {
         }
     }
 
-    //function refreshManifest() {
-    //var manifest = manifestModel.getValue();
-    //     var url = manifest.url;
-    //      if (manifest.hasOwnProperty('Location')) {
-    //         url = manifest.Location;
-    //     }
-    //     log('Refresh manifest @ ' + url);
-    //     manifestUpdater.getManifestLoader().load(url);
-    // }
-
     function onManifestValidityChanged(e) {
         const representation = getCurrentRepresentation();
         const newDuration = e.validUntil + e.remainingDuration;
@@ -381,7 +371,7 @@ function RepresentationController() {
             //if (e.remainingDuration > 0) {
             //TODO: Schedule to occur at or after e.newManifestValidAfter.
             //TODO: Provide postManifestUpdateCallback to verify that the new manifest has a publish date after e.newManifestValidAfter.
-            //    refreshManifest();
+            //    streamController.refreshManifest();
             //}
         }
     }

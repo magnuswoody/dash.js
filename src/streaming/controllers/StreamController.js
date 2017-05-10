@@ -739,6 +739,16 @@ function StreamController() {
         }
     }
 
+    function refreshManifest() {
+        var manifest = manifestModel.getValue();
+        var url = manifest.url;
+        if (manifest.hasOwnProperty('Location')) {
+            url = manifest.Location;
+        }
+        log('Refresh manifest @ ' + url);
+        manifestUpdater.getManifestLoader().load(url);
+    }
+
     instance = {
         initialize: initialize,
         getAutoPlay: getAutoPlay,
@@ -752,6 +762,7 @@ function StreamController() {
         loadWithManifest: loadWithManifest,
         getActiveStreamCommonEarliestTime: getActiveStreamCommonEarliestTime,
         setConfig: setConfig,
+        refreshManifest: refreshManifest,
         reset: reset
     };
 
