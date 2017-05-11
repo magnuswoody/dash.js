@@ -124,8 +124,7 @@ function TextController() {
         var fragmentedTracks = config.fragmentedTracks;
         var allTracksAreDisabled = config.allTracksAreDisabled;
 
-        var el = videoModel.getElement();
-        var tracks = el.textTracks;
+        var tracks = videoModel.getTextTracks();
         var ln = tracks.length;
         var nrNonEmbeddedTracks = ln - embeddedTracks.length;
         var oldTrackIdx = textTracks.getCurrentTrackIdx();
