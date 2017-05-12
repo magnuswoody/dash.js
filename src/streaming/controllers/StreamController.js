@@ -40,7 +40,7 @@ import FactoryMaker from '../../core/FactoryMaker';
 import {PlayList, PlayListTrace} from '../vo/metrics/PlayList';
 import Debug from '../../core/Debug';
 import InitCache from '../utils/InitCache';
-import MediaPlayerEvents from '../MediaPlayerEvents';
+import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
 
 function StreamController() {
 
@@ -739,6 +739,10 @@ function StreamController() {
         }
     }
 
+    function refreshManifest() {
+        manifestUpdater.refreshManifest();
+    }
+
     instance = {
         initialize: initialize,
         getAutoPlay: getAutoPlay,
@@ -752,6 +756,7 @@ function StreamController() {
         loadWithManifest: loadWithManifest,
         getActiveStreamCommonEarliestTime: getActiveStreamCommonEarliestTime,
         setConfig: setConfig,
+        refreshManifest: refreshManifest,
         reset: reset
     };
 

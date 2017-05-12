@@ -253,6 +253,11 @@ class MediaPlayerEvents extends EventsBase {
          * @event MediaPlayerEvents#URL_RESOLUTION_FAILED
          */
         this.URL_RESOLUTION_FAILED = 'urlResolutionFailed';
+        /**
+         * Manifest validity changed - As a result of an MPD validity expiration event.
+         * @event MediaPlayerEvents#MANIFEST_VALIDITY_CHANGED
+         */
+        this.MANIFEST_VALIDITY_CHANGED = 'manifestValidityChanged';
     }
 }
 
