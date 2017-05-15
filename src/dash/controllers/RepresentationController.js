@@ -361,10 +361,8 @@ function RepresentationController() {
 
     function onManifestValidityChanged(e) {
         const representation = getCurrentRepresentation();
-        const newDuration = e.validUntil + e.remainingDuration;
         if (representation && representation.adaptation.period) {
             const period = representation.adaptation.period;
-            console.log('#a set periodDuration: ' + e.validUntil + ' mediaDuration: ' + newDuration);
             period.duration = e.validUntil;
             //setMediaDuration(newDuration);
 

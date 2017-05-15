@@ -119,19 +119,13 @@ function EventController() {
         }
     }
 
-    //setTimeout(mockEvent, 25000);
-    //function mockEvent() {
-    //    log('#a Send mock manifest reload event');
-    //    handleManifestReloadEvent({"duration":0,"presentationTime":30*48000,"id":1819112295,"messageData":{},"eventStream":{"adaptionSet":null,"representation":null,"period":null,"timescale":48000,"value":"1","schemeIdUri":"urn:mpeg:dash:event:2012"},"presentationTimeDelta":0});
-    //}
-
     function handleManifestReloadEvent(event) {
         //At this point
         //Truncate current MPD validity time to event time
         //Event time is a delta from the presenation time of the containing segment.
         if (event.eventStream.value == MPD_RELOAD_VALUE) {
             const timescale = event.eventStream.timescale || 1;
-            log('#a Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
+            log('Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
             eventBus.trigger(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, {
                 id: event.id,
                 validUntil: event.presentationTime / timescale,
