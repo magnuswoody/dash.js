@@ -88,7 +88,8 @@ function AbrController() {
         droppedFramesHistory,
         metricsModel,
         dashMetrics,
-        lastSwitchTime;
+        lastSwitchTime,
+        useLatency;
 
     function setup() {
         autoSwitchBitrate = {video: true, audio: true};
@@ -101,6 +102,7 @@ function AbrController() {
         streamProcessorDict = {};
         switchHistoryDict = {};
         limitBitrateByPortal = false;
+        useLatency = true;
         usePixelRatioInLimitBitrateByPortal = false;
         if (windowResizeEventCalled === undefined) {
             windowResizeEventCalled = false;
@@ -282,6 +284,14 @@ function AbrController() {
         usePixelRatioInLimitBitrateByPortal = value;
     }
 
+    function getUseLatency() {
+        return useLatency;
+    }
+
+    function setUseLatency(value) {
+        useLatency = value;
+    }
+
     function getPlaybackQuality(streamProcessor) {
         const type = streamProcessor.getType();
         const streamInfo = streamProcessor.getStreamInfo();
@@ -359,7 +369,7 @@ function AbrController() {
      * @memberof AbrController#
      */
     function getQualityForBitrate(mediaInfo, bitrate, latency) {
-        if (latency && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo() && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration) {
+        if (useLatency && latency && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo() && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration) {
             latency = latency / 1000;
             let fragmentDuration = streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration;
             if (latency > fragmentDuration) {
@@ -614,6 +624,8 @@ function AbrController() {
         setInitialRepresentationRatioFor: setInitialRepresentationRatioFor,
         setAutoSwitchBitrateFor: setAutoSwitchBitrateFor,
         getAutoSwitchBitrateFor: getAutoSwitchBitrateFor,
+        getUseLatency: getUseLatency,
+        setUseLatency: setUseLatency,
         setLimitBitrateByPortal: setLimitBitrateByPortal,
         getLimitBitrateByPortal: getLimitBitrateByPortal,
         getUsePixelRatioInLimitBitrateByPortal: getUsePixelRatioInLimitBitrateByPortal,

@@ -1870,6 +1870,30 @@ function MediaPlayer() {
     }
 
     /**
+     * Get the value of useLatency in AbrController. If true, the bitrate chosen will be reduced by the latency of the connection.
+     *
+     * @returns {boolean=}
+     *
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getUseLatencyForAbr() {
+        return abrController.getUseLatency();
+    }
+
+    /**
+     * Set the value of useLatency in AbrController. If true, the bitrate chosen will be reduced by the latency of the connection.
+     *
+     * @param {boolean=} useLatency - True or false flag.
+     *
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setUseLatencyForAbr(useLatency) {
+        abrController.setUseLatency(useLatency);
+    }
+
+    /**
      *  Reload the manifest that the player is currently using.
      *
      *  @memberof module:MediaPlayer
@@ -2199,6 +2223,8 @@ function MediaPlayer() {
         attachVideoContainer: attachVideoContainer,
         attachTTMLRenderingDiv: attachTTMLRenderingDiv,
         getCurrentTextTrackIndex: getCurrentTextTrackIndex,
+        getUseLatencyForAbr: getUseLatencyForAbr,
+        setUseLatencyForAbr: setUseLatencyForAbr,
         refreshManifest: refreshManifest,
         reset: reset
     };
