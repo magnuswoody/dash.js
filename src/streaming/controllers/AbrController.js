@@ -89,7 +89,7 @@ function AbrController() {
         metricsModel,
         dashMetrics,
         lastSwitchTime,
-        useLatency;
+        useDeadTimeLatency;
 
     function setup() {
         autoSwitchBitrate = {video: true, audio: true};
@@ -102,7 +102,7 @@ function AbrController() {
         streamProcessorDict = {};
         switchHistoryDict = {};
         limitBitrateByPortal = false;
-        useLatency = true;
+        useDeadTimeLatency = true;
         usePixelRatioInLimitBitrateByPortal = false;
         if (windowResizeEventCalled === undefined) {
             windowResizeEventCalled = false;
@@ -284,12 +284,12 @@ function AbrController() {
         usePixelRatioInLimitBitrateByPortal = value;
     }
 
-    function getUseLatency() {
-        return useLatency;
+    function getUseDeadTimeLatency() {
+        return useDeadTimeLatency;
     }
 
-    function setUseLatency(value) {
-        useLatency = value;
+    function setUseDeadTimeLatency(value) {
+        useDeadTimeLatency = value;
     }
 
     function getPlaybackQuality(streamProcessor) {
@@ -369,7 +369,7 @@ function AbrController() {
      * @memberof AbrController#
      */
     function getQualityForBitrate(mediaInfo, bitrate, latency) {
-        if (useLatency && latency && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo() && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration) {
+        if (useDeadTimeLatency && latency && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo() && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration) {
             latency = latency / 1000;
             let fragmentDuration = streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration;
             if (latency > fragmentDuration) {
@@ -624,8 +624,8 @@ function AbrController() {
         setInitialRepresentationRatioFor: setInitialRepresentationRatioFor,
         setAutoSwitchBitrateFor: setAutoSwitchBitrateFor,
         getAutoSwitchBitrateFor: getAutoSwitchBitrateFor,
-        getUseLatency: getUseLatency,
-        setUseLatency: setUseLatency,
+        getUseDeadTimeLatency: getUseDeadTimeLatency,
+        setUseDeadTimeLatency: setUseDeadTimeLatency,
         setLimitBitrateByPortal: setLimitBitrateByPortal,
         getLimitBitrateByPortal: getLimitBitrateByPortal,
         getUsePixelRatioInLimitBitrateByPortal: getUsePixelRatioInLimitBitrateByPortal,

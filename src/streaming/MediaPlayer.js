@@ -1870,27 +1870,30 @@ function MediaPlayer() {
     }
 
     /**
-     * Get the value of useLatency in AbrController. If true, the bitrate chosen will be reduced by the latency of the connection.
+     * Get the value of useDeadTimeLatency in AbrController. @see setUseDeadTimeLatencyForAbr
      *
      * @returns {boolean=}
      *
      * @memberof module:MediaPlayer
      * @instance
      */
-    function getUseLatencyForAbr() {
-        return abrController.getUseLatency();
+    function getUseDeadTimeLatencyForAbr() {
+        return abrController.getUseDeadTimeLatency();
     }
 
     /**
-     * Set the value of useLatency in AbrController. If true, the bitrate chosen will be reduced by the latency of the connection.
+     * Set the value of useDeadTimeLatency in AbrController. If true, only the download
+     * portion will be considered part of the download bitrate and latency will be
+     * regarded as static. If false, the reciprocal of the whole transfer time will be used.
+     * Defaults to true.
      *
      * @param {boolean=} useLatency - True or false flag.
      *
      * @memberof module:MediaPlayer
      * @instance
      */
-    function setUseLatencyForAbr(useLatency) {
-        abrController.setUseLatency(useLatency);
+    function setUseDeadTimeLatencyForAbr(useDeadTimeLatency) {
+        abrController.setUseDeadTimeLatency(useDeadTimeLatency);
     }
 
     /**
@@ -2223,8 +2226,8 @@ function MediaPlayer() {
         attachVideoContainer: attachVideoContainer,
         attachTTMLRenderingDiv: attachTTMLRenderingDiv,
         getCurrentTextTrackIndex: getCurrentTextTrackIndex,
-        getUseLatencyForAbr: getUseLatencyForAbr,
-        setUseLatencyForAbr: setUseLatencyForAbr,
+        getUseDeadTimeLatencyForAbr: getUseDeadTimeLatencyForAbr,
+        setUseDeadTimeLatencyForAbr: setUseDeadTimeLatencyForAbr,
         refreshManifest: refreshManifest,
         reset: reset
     };
