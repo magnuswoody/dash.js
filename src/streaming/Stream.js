@@ -41,7 +41,6 @@ import Events from '../core/events/Events';
 import Debug from '../core/Debug';
 import FactoryMaker from '../core/FactoryMaker';
 import TextController from './text/TextController';
-import TextSourceBuffer from './TextSourceBuffer';
 
 function Stream(config) {
 
@@ -75,7 +74,6 @@ function Stream(config) {
         eventController,
         abrController,
         textController,
-        textSourceBuffer,
         videoModel;
 
     function setup() {
@@ -93,7 +91,6 @@ function Stream(config) {
         mediaController = MediaController(context).getInstance();
         fragmentController = FragmentController(context).create();
         textController = TextController(context).getInstance();
-        textSourceBuffer = TextSourceBuffer(context).getInstance();
         videoModel = VideoModel(context).getInstance();
 
         eventBus.on(Events.BUFFERING_COMPLETED, onBufferingCompleted, instance);
@@ -380,8 +377,6 @@ function Stream(config) {
         initializeMediaForType('muxed', mediaSource);
 
         createBuffers();
-
-        //TODO. Consider initialization of TextSourceBuffer here if embeddedText, but no sideloadedText.
 
         isMediaInitialized = true;
         isUpdating = false;
