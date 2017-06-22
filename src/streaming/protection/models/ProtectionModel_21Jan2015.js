@@ -215,12 +215,14 @@ function ProtectionModel_21Jan2015(config) {
                 else {
                     // The application should remove its record of sessionId.
                     console.error('No stored session with the ID ' + sessionId + ' was found.');
+                    eventBus.trigger(Events.KEY_ERROR, {data: null, error: 'Could not load session! Invalid Session ID (' + sessionId + ')'});
                     removeKeySession(sessionToken);
                     return;
                 }
             }
-        ).catch(function () {
+        ).catch(function (e) {
                 console.error.bind(console, 'Unable to load or initialize the stored session with the ID ' + sessionId);
+                eventBus.trigger(Events.KEY_ERROR, { data: null, error: 'Could not load session (' + sessionId + ')! ' + e.name + ': ' + e.message});
             });
     }
 
