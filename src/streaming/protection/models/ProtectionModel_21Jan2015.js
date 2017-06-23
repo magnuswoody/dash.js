@@ -221,8 +221,7 @@ function ProtectionModel_21Jan2015(config) {
                 }
             }
         ).catch(function (e) {
-                console.error.bind(console, 'Unable to load or initialize the stored session with the ID ' + sessionId);
-                eventBus.trigger(Events.KEY_ERROR, { data: null, error: 'Could not load session (' + sessionId + ')! ' + e.name + ': ' + e.message});
+                console.error.bind(console, 'Unable to load or initialize the stored session with the ID ' + sessionId + '. Error ' + e.name + ': ' + e.message );
             });
     }
 
