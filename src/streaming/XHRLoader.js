@@ -103,7 +103,8 @@ function XHRLoader(cfg) {
                     xhr.status,
                     request.duration,
                     xhr.getAllResponseHeaders(),
-                    success ? traces : null
+                    success ? traces : null,
+                    request.quality
                 );
             }
         };
