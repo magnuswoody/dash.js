@@ -65,7 +65,8 @@ function ProtectionController(config) {
         protDataSet,
         initialized,
         sessionType,
-        robustnessLevel,
+        audioRobustness,
+        videoRobustness,
         keySystem;
 
     function setup() {
@@ -73,7 +74,8 @@ function ProtectionController(config) {
         pendingNeedKeyData = [];
         initialized = false;
         sessionType = 'temporary';
-        robustnessLevel = '';
+        audioRobustness = '';
+        videoRobustness = '';
 
         Events.extend(Protection.events);
     }
@@ -157,6 +159,12 @@ function ProtectionController(config) {
                 }
                 else {
                     protectionModel.createKeySession(initDataForKS, sessionType);
+                }
+                if (protData.audioRobustness) {
+                    audioRobustness = protData.audioRobustness;
+                }
+                if (protData.videoRobustness) {
+                    videoRobustness = protData.videoRobustness;
                 }
             } catch (error) {
                 eventBus.trigger(Events.KEY_SESSION_CREATED, {data: null, error: 'Error creating key session! ' + error.message});
@@ -267,7 +275,8 @@ function ProtectionController(config) {
      * @instance
      */
     function setRobustnessLevel(level) {
-        robustnessLevel = level;
+        audioRobustness = level;
+        videoRobustness = level;
     }
 
     /**
@@ -326,10 +335,10 @@ function ProtectionController(config) {
         var videoCapabilities = [];
 
         if (videoInfo) {
-            videoCapabilities.push(new MediaCapability(videoInfo.codec, robustnessLevel));
+            videoCapabilities.push(new MediaCapability(videoInfo.codec, videoRobustness));
         }
         if (audioInfo) {
-            audioCapabilities.push(new MediaCapability(audioInfo.codec, robustnessLevel));
+            audioCapabilities.push(new MediaCapability(audioInfo.codec, audioRobustness));
         }
         var ksConfig = new KeySystemConfiguration(
                 audioCapabilities, videoCapabilities, 'optional',
