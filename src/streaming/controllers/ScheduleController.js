@@ -38,7 +38,6 @@ import BufferLevelRule from '../rules/scheduling/BufferLevelRule';
 import NextFragmentRequestRule from '../rules/scheduling/NextFragmentRequestRule';
 import TextController from '../text/TextController';
 import FragmentModel from '../models/FragmentModel';
-import SourceBufferController from '../controllers/SourceBufferController';
 import LiveEdgeFinder from '../utils/LiveEdgeFinder';
 import EventBus from '../../core/EventBus';
 import Events from '../../core/events/Events';
@@ -124,7 +123,6 @@ function ScheduleController(config) {
 
         nextFragmentRequestRule = NextFragmentRequestRule(context).create({
             adapter: adapter,
-            sourceBufferController: SourceBufferController(context).getInstance(),
             textController: TextController(context).getInstance()
         });
 

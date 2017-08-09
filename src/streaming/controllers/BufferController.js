@@ -652,6 +652,7 @@ function BufferController(config) {
         setStreamProcessor: setStreamProcessor,
         getBuffer: getBuffer,
         getBufferLevel: getBufferLevel,
+        getRangeAt: getRangeAt,
         setMediaSource: setMediaSource,
         getMediaSource: getMediaSource,
         getIsBufferingCompleted: getIsBufferingCompleted,

@@ -32,13 +32,15 @@ import EventBus from '../../core/EventBus';
 import Events from '../../core/events/Events';
 import FactoryMaker from '../../core/FactoryMaker';
 import InitCache from '../utils/InitCache';
+import SourceBufferSink from '../SourceBufferSink';
+import TextController from '../../Streaming/Text/TextController';
 
 function NotFragmentedTextBufferController(config) {
 
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
+    const textController = TextController(context).getInstance();
 
-    let sourceBufferController = config.sourceBufferController;
     let errHandler = config.errHandler;
 
     let instance,
@@ -75,24 +77,21 @@ function NotFragmentedTextBufferController(config) {
 
     /**
      * @param {MediaInfo }mediaInfo
-     * @returns {Object} SourceBuffer object
      * @memberof BufferController#
      */
     function createBuffer(mediaInfo) {
         try {
-            buffer = sourceBufferController.createSourceBuffer(mediaSource, mediaInfo);
-
-            if (!initialized) {
-                if (buffer.hasOwnProperty('initialize')) {
-                    buffer.initialize(type, this);
-                }
-                initialized = true;
-            }
+            buffer = SourceBufferSink(context).create(mediaSource, mediaInfo);
         } catch (e) {
-            errHandler.mediaSourceError('Error creating ' + type + ' source buffer.');
+            try {
+                if ((mediaInfo.isText) || (mediaInfo.codec.indexOf('codecs="stpp') !== -1) || (mediaInfo.codec.indexOf('codecs="wvtt') !== -1)) {
+                    buffer = textController.getTextSourceBuffer();
+                }
+            } catch (e) {
+                errHandler.mediaSourceError('Error creating ' + type + ' source buffer.');
+            }
         }
 
-        return buffer;
     }
 
     function getType() {
@@ -132,13 +131,12 @@ function NotFragmentedTextBufferController(config) {
     }
 
     function reset(errored) {
-
         eventBus.off(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, this);
         eventBus.off(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, this);
 
         if (!errored) {
-            sourceBufferController.abort(mediaSource, buffer);
-            sourceBufferController.removeSourceBuffer(mediaSource, buffer);
+            buffer.abort(mediaSource, buffer);
+            buffer.reset();
         }
     }
 
@@ -158,17 +156,18 @@ function NotFragmentedTextBufferController(config) {
             return;
         }
 
-        sourceBufferController.append(buffer, e.chunk);
+        buffer.append(e.chunk);
     }
 
     function getIsBufferingCompleted() {
         return isBufferingCompleted;
     }
 
+    //TODO: Looks unused. Verify if ever executed. Append was to the wrong interface so probably not.
     function switchInitData(streamId, quality) {
         const chunk = initCache.extract(streamId, type, quality);
         if (chunk) {
-            sourceBufferController.append(chunk);
+            buffer.append(chunk);
         } else {
             eventBus.trigger(Events.INIT_REQUESTED, {
                 sender: instance

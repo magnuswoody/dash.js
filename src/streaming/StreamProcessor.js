@@ -39,7 +39,6 @@ import MediaPlayerModel from './models/MediaPlayerModel';
 import MetricsModel from './models/MetricsModel';
 import FragmentLoader from './FragmentLoader';
 import RequestModifier from './utils/RequestModifier';
-import SourceBufferController from './controllers/SourceBufferController';
 import TextController from './text/TextController';
 import DashManifestModel from '../dash/models/DashManifestModel';
 import DashMetrics from '../dash/DashMetrics';
@@ -263,7 +262,6 @@ function StreamProcessor(config) {
             controller = BufferController(context).create({
                 metricsModel: MetricsModel(context).getInstance(),
                 manifestModel: manifestModel,
-                sourceBufferController: SourceBufferController(context).getInstance(),
                 errHandler: ErrorHandler(context).getInstance(),
                 streamController: StreamController(context).getInstance(),
                 mediaController: MediaController(context).getInstance(),
@@ -275,7 +273,6 @@ function StreamProcessor(config) {
                 type: type,
                 metricsModel: MetricsModel(context).getInstance(),
                 manifestModel: manifestModel,
-                sourceBufferController: SourceBufferController(context).getInstance(),
                 errHandler: ErrorHandler(context).getInstance(),
                 streamController: StreamController(context).getInstance(),
                 mediaController: MediaController(context).getInstance(),
