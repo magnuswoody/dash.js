@@ -108,7 +108,7 @@ function Stream(config) {
             isStreamActivated = true;
         }
         //else { // TODO Check track change mode but why is this here. commented it out for now to check.
-        //    createBuffers();
+        createBuffers();
         //}
     }
 
@@ -135,6 +135,12 @@ function Stream(config) {
         streamInfo = null;
         updateError = {};
         isUpdating = false;
+    }
+
+    function setMediaSource(mediaSource) {
+        for (let i = 0; i < streamProcessors.length; i++) {
+            streamProcessors[i].setMediaSource(mediaSource);
+        }
     }
 
     function reset() {
@@ -226,7 +232,7 @@ function Stream(config) {
         return mediaInfo.type === Constants.TEXT ? mediaInfo.mimeType : mediaInfo.type;
     }
 
-    function isMediaSupported(mediaInfo) {
+    /*function isMediaSupported(mediaInfo) {
         const type = mediaInfo.type;
         let codec,
             msg;
@@ -255,7 +261,7 @@ function Stream(config) {
 
         return true;
     }
-
+*/
     function onCurrentTrackChanged(e) {
         if (e.newMediaInfo.streamInfo.id !== streamInfo.id) return;
 
@@ -353,9 +359,9 @@ function Stream(config) {
             if (type === Constants.EMBEDDED_TEXT) {
                 textController.addEmbeddedTrack(mediaInfo);
             } else {
-                if (!isMediaSupported(mediaInfo)) {
-                    continue;
-                }
+                //TODO Perform this check before sourcebuffer creation but after prebuffer.
+                //if (!isMediaSupported(mediaInfo, mediaSource, manifest)) continue;
+
                 if (mediaController.isMultiTrackSupportedByType(mediaInfo.type)) {
                     mediaController.addTrack(mediaInfo, streamInfo);
                 }
@@ -594,7 +600,8 @@ function Stream(config) {
         startEventController: startEventController,
         updateData: updateData,
         reset: reset,
-        getProcessors: getProcessors
+        getProcessors: getProcessors,
+        setMediaSource: setMediaSource
     };
 
     setup();

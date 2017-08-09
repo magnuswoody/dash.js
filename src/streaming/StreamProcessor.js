@@ -262,6 +262,10 @@ function StreamProcessor(config) {
         return bufferController.getMediaSource();
     }
 
+    function setMediaSource(mediaSource) {
+        bufferController.setMediaSource(mediaSource, getMediaInfo());
+    }
+
     function getScheduleController() {
         return scheduleController;
     }
@@ -364,6 +368,7 @@ function StreamProcessor(config) {
         getMediaInfoArr: getMediaInfoArr,
         getMediaInfo: getMediaInfo,
         getMediaSource: getMediaSource,
+        setMediaSource: setMediaSource,
         getBuffer: getBuffer,
         setBuffer: setBuffer,
         registerExternalController: registerExternalController,

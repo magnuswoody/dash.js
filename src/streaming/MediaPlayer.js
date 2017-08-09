@@ -45,7 +45,6 @@ import ManifestModel from './models/ManifestModel';
 import MediaPlayerModel from './models/MediaPlayerModel';
 import MetricsModel from './models/MetricsModel';
 import AbrController from './controllers/AbrController';
-import SourceBufferController from './controllers/SourceBufferController';
 import VideoModel from './models/VideoModel';
 import DOMStorage from './utils/DOMStorage';
 import Debug from './../core/Debug';
@@ -280,7 +279,7 @@ function MediaPlayer() {
      * @instance
      */
     function isReady() {
-        return (!!videoModel && !!source);
+        return (!!source);
     }
 
     /**
@@ -1786,7 +1785,7 @@ function MediaPlayer() {
             videoModel = VideoModel(context).getInstance();
             videoModel.initialize();
             videoModel.setElement(element);
-            detectProtection();
+            //detectProtection();
             detectMetricsReporting();
             detectMss();
         }
@@ -2307,10 +2306,6 @@ function MediaPlayer() {
         // creates or get objects instances
         let manifestLoader = createManifestLoader();
 
-        let sourceBufferController = SourceBufferController(context).getInstance({
-            textController: textController
-        });
-
         if (!streamController) {
             streamController = StreamController(context).getInstance();
         }
@@ -2339,7 +2334,6 @@ function MediaPlayer() {
             abrController: abrController,
             mediaController: mediaController,
             textController: textController,
-            sourceBufferController: sourceBufferController
         });
 
         playbackController.setConfig({
