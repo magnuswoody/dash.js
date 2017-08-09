@@ -184,7 +184,7 @@ function MediaPlayer() {
      * @instance
      */
     function isReady() {
-        return (!!videoModel && !!source);
+        return (!!source);
     }
 
     /**
@@ -1795,7 +1795,7 @@ function MediaPlayer() {
             videoModel = VideoModel(context).getInstance();
             videoModel.initialize();
             videoModel.setElement(element);
-            detectProtection();
+            //detectProtection();
             detectMetricsReporting();
             detectMss();
         }

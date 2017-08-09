@@ -34,7 +34,7 @@ import MediaController from './controllers/MediaController';
 import EventController from './controllers/EventController';
 import FragmentController from './controllers/FragmentController';
 import AbrController from './controllers/AbrController';
-import VideoModel from './models/VideoModel';
+//import VideoModel from './models/VideoModel';
 import MetricsModel from './models/MetricsModel';
 import PlaybackController from './controllers/PlaybackController';
 import DashHandler from '../dash/DashHandler';
@@ -125,7 +125,7 @@ function Stream(config) {
             isStreamActivated = true;
         }
         //else { // TODO Check track change mode but why is this here. commented it out for now to check.
-        //    createBuffers();
+        createBuffers();
         //}
     }
 
@@ -143,6 +143,12 @@ function Stream(config) {
         isMediaInitialized = false;
         clearEventController();
         eventBus.off(Events.CURRENT_TRACK_CHANGED, onCurrentTrackChanged, instance);
+    }
+
+    function setMediaSource(mediaSource) {
+        for (let i = 0; i < streamProcessors.length; i++) {
+            streamProcessors[i].setMediaSource(mediaSource);
+        }
     }
 
     function reset() {
@@ -245,7 +251,7 @@ function Stream(config) {
         return mediaInfo.type === 'text' ? mediaInfo.mimeType : mediaInfo.type;
     }
 
-    function isMediaSupported(mediaInfo, mediaSource, manifest) {
+    /*function isMediaSupported(mediaInfo, mediaSource, manifest) {
         var type = mediaInfo.type;
         var codec,
             msg;
@@ -273,7 +279,7 @@ function Stream(config) {
 
         return true;
     }
-
+*/
     function onCurrentTrackChanged(e) {
         if (e.newMediaInfo.streamInfo.id !== streamInfo.id) return;
 
@@ -376,7 +382,8 @@ function Stream(config) {
             if (type === 'embeddedText') {
                 textController.addEmbeddedTrack(mediaInfo);
             } else {
-                if (!isMediaSupported(mediaInfo, mediaSource, manifest)) continue;
+                //TODO Perform this check before sourcebuffer creation but after prebuffer.
+                //if (!isMediaSupported(mediaInfo, mediaSource, manifest)) continue;
 
                 if (mediaController.isMultiTrackSupportedByType(mediaInfo.type)) {
                     mediaController.addTrack(mediaInfo, streamInfo);
@@ -570,7 +577,8 @@ function Stream(config) {
         isInitialized: isInitialized,
         updateData: updateData,
         reset: reset,
-        getProcessors: getProcessors
+        getProcessors: getProcessors,
+        setMediaSource: setMediaSource
     };
 
     setup();
