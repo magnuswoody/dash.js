@@ -46,7 +46,7 @@ function NextFragmentRequestRule(config) {
         const scheduleController = streamProcessor.getScheduleController();
         const seekTarget = scheduleController.getSeekTarget();
         const hasSeekTarget = !isNaN(seekTarget);
-        const buffer = streamProcessor.getBuffer();
+        const bufferController = streamProcessor.getBufferController();
 
         let time = hasSeekTarget ? seekTarget : adapter.getIndexHandlerTime(streamProcessor);
 
@@ -61,8 +61,8 @@ function NextFragmentRequestRule(config) {
         /**
          * This is critical for IE/Safari/EDGE
          * */
-        if (buffer) {
-            const range = streamProcessor.getBuffer().getRangeAt(time);
+        if (bufferController) {
+            const range = bufferController.getRangeAt(time);
             if (range !== null) {
                 log('Prior to making a request for time, NextFragmentRequestRule is aligning index handler\'s currentTime with bufferedRange.end.', time, ' was changed to ', range.end);
                 time = range.end;

@@ -302,9 +302,12 @@ function StreamController() {
         activeStream = newStream;
         playbackController.initialize(activeStream.getStreamInfo());
 
-        preloadStream(seekTime);
-        //TODO detect if we should close jump to activateStream.
-        setTimeout(function () { openMediaSource(seekTime); }, 10000);
+        if (videoModel.getElement()) {
+            //TODO detect if we should close jump to activateStream.
+            openMediaSource(seekTime);
+        } else {
+            preloadStream(seekTime);
+        }
     }
 
     function preloadStream(seekTime) {
