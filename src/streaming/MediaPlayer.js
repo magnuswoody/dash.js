@@ -1797,8 +1797,13 @@ function MediaPlayer() {
             //detectProtection();
             detectMetricsReporting();
             detectMss();
+
+            if (streamController) {
+                streamController.switchToVideoElement();
+            }
         }
-        resetAndInitializePlayback();
+        //TODO Maintain reset for non-preload cases.
+        //resetAndInitializePlayback();
     }
 
     /**

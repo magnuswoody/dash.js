@@ -300,10 +300,10 @@ function StreamController() {
 
         if (oldStream) oldStream.deactivate();
         activeStream = newStream;
-        playbackController.initialize(activeStream.getStreamInfo());
 
         if (videoModel.getElement()) {
             //TODO detect if we should close jump to activateStream.
+            playbackController.initialize(activeStream.getStreamInfo());
             openMediaSource(seekTime);
         } else {
             preloadStream(seekTime);
@@ -312,6 +312,11 @@ function StreamController() {
 
     function preloadStream(seekTime) {
         activateStream(seekTime);
+    }
+
+    function switchToVideoElement(seekTime) {
+        playbackController.initialize(activeStream.getStreamInfo());
+        openMediaSource(seekTime);
     }
 
     function openMediaSource(seekTime) {
@@ -760,6 +765,7 @@ function StreamController() {
         setMediaDuration: setMediaDuration,
         isStreamActive: isStreamActive,
         isVideoTrackPresent: isVideoTrackPresent,
+        switchToVideoElement: switchToVideoElement,
         getStreamById: getStreamById,
         getTimeRelativeToStreamId: getTimeRelativeToStreamId,
         load: load,
