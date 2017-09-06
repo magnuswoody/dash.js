@@ -97,7 +97,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
                         </goals>
                         <configuration>
                             <nodeVersion>v0.10.26</nodeVersion>
-                            <npmVersion>1.4.3</npmVersion>
+                            <npmVersion>3.8.6</npmVersion>
                         </configuration>
                     </execution>
                     <execution>
