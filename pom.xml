@@ -96,7 +96,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
                             <goal>install-node-and-npm</goal>
                         </goals>
                         <configuration>
-                            <nodeVersion>v0.10.26</nodeVersion>
+                            <nodeVersion>v5.12.0</nodeVersion>
                             <npmVersion>3.8.6</npmVersion>
                         </configuration>
                     </execution>
