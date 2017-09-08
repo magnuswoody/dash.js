@@ -28,6 +28,7 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
+import Constants from '../../constants/Constants';
 import Debug from '../../../core/Debug';
 import FactoryMaker from '../../../core/FactoryMaker';
 
@@ -50,7 +51,7 @@ function NextFragmentRequestRule(config) {
 
         let time = hasSeekTarget ? seekTarget : adapter.getIndexHandlerTime(streamProcessor);
 
-        if (isNaN(time) || (mediaType === 'fragmentedText' && textController.getAllTracksAreDisabled())) {
+        if (isNaN(time) || (mediaType === Constants.FRAGMENTED_TEXT && textController.getAllTracksAreDisabled())) {
             return null;
         }
 
@@ -71,11 +72,18 @@ function NextFragmentRequestRule(config) {
 
         let request;
         if (requestToReplace) {
+            // log('requestToReplace :' + requestToReplace.url);
             time = requestToReplace.startTime + (requestToReplace.duration / 2);
-            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {timeThreshold: 0, ignoreIsFinished: true});
+            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {
+                timeThreshold: 0,
+                ignoreIsFinished: true
+            });
         } else {
-            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {keepIdx: !hasSeekTarget});
-            if (request && streamProcessor.getFragmentModel().isFragmentLoaded(request)) {
+            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {
+                keepIdx: !hasSeekTarget
+            });
+            while ( streamProcessor.getFragmentModel().isFragmentLoaded(request)) {
+                // loop until we found not loaded fragment, or no fragment
                 request = adapter.getNextFragmentRequest(streamProcessor, representationInfo);
             }
             if (request) {
@@ -84,6 +92,13 @@ function NextFragmentRequestRule(config) {
                 scheduleController.setTimeToLoadDelay(0);
             }
         }
+
+        /*
+        if (request) {
+            log('Return request :' + request.url);
+        } else {
+            log('no request');
+        }*/
 
         return request;
     }

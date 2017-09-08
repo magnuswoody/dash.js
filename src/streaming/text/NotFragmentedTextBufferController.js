@@ -35,6 +35,7 @@ import InitCache from '../utils/InitCache';
 import SourceBufferSink from '../SourceBufferSink';
 import TextController from '../../Streaming/Text/TextController';
 
+const BUFFER_CONTROLLER_TYPE = 'NotFragmentedTextBufferController';
 function NotFragmentedTextBufferController(config) {
 
     let context = this.context;
@@ -42,14 +43,15 @@ function NotFragmentedTextBufferController(config) {
     const textController = TextController(context).getInstance();
 
     let errHandler = config.errHandler;
+    let type = config.type;
+    let streamProcessor = config.streamProcessor;
 
     let instance,
         isBufferingCompleted,
         initialized,
         mediaSource,
         buffer,
-        type,
-        streamProcessor,
+        seekStartTime,
         representationController,
         initCache;
 
@@ -58,8 +60,6 @@ function NotFragmentedTextBufferController(config) {
         initialized = false;
         mediaSource = null;
         buffer = null;
-        type = null;
-        streamProcessor = null;
         representationController = null;
         isBufferingCompleted = false;
 
@@ -67,10 +67,12 @@ function NotFragmentedTextBufferController(config) {
         eventBus.on(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, this);
     }
 
-    function initialize(Type, source, StreamProcessor) {
-        type = Type;
+    function getBufferControllerType() {
+        return BUFFER_CONTROLLER_TYPE;
+    }
+
+    function initialize(source) {
         setMediaSource(source);
-        streamProcessor = StreamProcessor;
         representationController = streamProcessor.getRepresentationController();
         initCache = InitCache(context).getInstance();
     }
@@ -114,20 +116,24 @@ function NotFragmentedTextBufferController(config) {
         return mediaSource;
     }
 
-    function setStreamProcessor(value) {
-        streamProcessor = value;
-    }
-
     function getStreamProcessor() {
         return streamProcessor;
+    }
+
+    function setSeekStartTime(value) {
+        seekStartTime = value;
+    }
+
+    function getSeekStartTime() {
+        return seekStartTime;
     }
 
     function getBufferLevel() {
         return 0;
     }
 
-    function getCriticalBufferLevel() {
-        return 0;
+    function getIsBufferingCompleted() {
+        return isBufferingCompleted;
     }
 
     function reset(errored) {
@@ -156,16 +162,13 @@ function NotFragmentedTextBufferController(config) {
             return;
         }
 
+        initCache.save(e.chunk);
         buffer.append(e.chunk);
     }
 
-    function getIsBufferingCompleted() {
-        return isBufferingCompleted;
-    }
-
-    //TODO: Looks unused. Verify if ever executed. Append was to the wrong interface so probably not.
-    function switchInitData(streamId, quality) {
-        const chunk = initCache.extract(streamId, type, quality);
+    //TODO: Looks unused. Verify if ever executed. Append was to the wrong interface so probably not. ||| See latest upstream commit history.
+    function switchInitData(streamId, representationId) {
+        const chunk = initCache.extract(streamId, representationId);
         if (chunk) {
             buffer.append(chunk);
         } else {
@@ -176,15 +179,16 @@ function NotFragmentedTextBufferController(config) {
     }
 
     instance = {
+        getBufferControllerType: getBufferControllerType,
         initialize: initialize,
         createBuffer: createBuffer,
         getType: getType,
         getStreamProcessor: getStreamProcessor,
-        setStreamProcessor: setStreamProcessor,
+        setSeekStartTime: setSeekStartTime,
+        getSeekStartTime: getSeekStartTime,
         getBuffer: getBuffer,
         setBuffer: setBuffer,
         getBufferLevel: getBufferLevel,
-        getCriticalBufferLevel: getCriticalBufferLevel,
         setMediaSource: setMediaSource,
         getMediaSource: getMediaSource,
         getIsBufferingCompleted: getIsBufferingCompleted,
@@ -197,5 +201,5 @@ function NotFragmentedTextBufferController(config) {
     return instance;
 }
 
-NotFragmentedTextBufferController.__dashjs_factory_name = 'NotFragmentedTextBufferController';
+NotFragmentedTextBufferController.__dashjs_factory_name = BUFFER_CONTROLLER_TYPE;
 export default FactoryMaker.getClassFactory(NotFragmentedTextBufferController);

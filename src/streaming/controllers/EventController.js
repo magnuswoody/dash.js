@@ -28,8 +28,6 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-
-import PlaybackController from '../controllers/PlaybackController';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import EventBus from '../../core/EventBus';
@@ -51,7 +49,6 @@ function EventController() {
         eventInterval, // variable holding the setInterval
         refreshDelay, // refreshTime for the setInterval
         presentationTimeThreshold,
-        manifestModel,
         manifestUpdater,
         playbackController,
         isStarted;
@@ -64,7 +61,12 @@ function EventController() {
         eventInterval = null;
         refreshDelay = 100;
         presentationTimeThreshold = refreshDelay / 1000;
-        playbackController = PlaybackController(context).getInstance();
+    }
+
+    function checkSetConfigCall() {
+        if (!manifestUpdater || !playbackController) {
+            throw new Error('setConfig function has to be called previously');
+        }
     }
 
     function clear() {
@@ -76,6 +78,7 @@ function EventController() {
     }
 
     function start() {
+        checkSetConfigCall();
         log('Start Event Controller');
         if (!isStarted && !isNaN(refreshDelay)) {
             isStarted = true;
@@ -88,6 +91,8 @@ function EventController() {
      * @param {Array.<Object>} values
      */
     function addInlineEvents(values) {
+        checkSetConfigCall();
+
         inlineEvents = {};
 
         if (values) {
@@ -105,6 +110,8 @@ function EventController() {
      * @param {Array.<Object>} values
      */
     function addInbandEvents(values) {
+        checkSetConfigCall();
+
         for (var i = 0; i < values.length; i++) {
             var event = values[i];
             if (!(event.id in inbandEvents)) {
@@ -205,12 +212,12 @@ function EventController() {
     function setConfig(config) {
         if (!config) return;
 
-        if (config.manifestModel) {
-            manifestModel = config.manifestModel;
-        }
-
         if (config.manifestUpdater) {
             manifestUpdater = config.manifestUpdater;
+        }
+
+        if (config.playbackController) {
+            playbackController = config.playbackController;
         }
     }
 
@@ -236,4 +243,4 @@ function EventController() {
 }
 
 EventController.__dashjs_factory_name = 'EventController';
-export default FactoryMaker.getSingletonFactory(EventController);
+export default FactoryMaker.getClassFactory(EventController);

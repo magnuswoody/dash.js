@@ -29,7 +29,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 import Debug from '../core/Debug';
-import Error from './vo/Error';
+import DashJSError from './vo/DashJSError';
 import EventBus from '../core/EventBus';
 import Events from '../core/events/Events';
 import FactoryMaker from '../core/FactoryMaker';
@@ -77,7 +77,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
             // - currently no browser does, so check for it and use our own
             // implementation. The same is true for codecs="wvtt".
             if (codec.match(/application\/mp4;\s*codecs="(stpp|wvtt).*"/i)) {
-                throw new Error('not really supported');
+                throw new DashJSError('not really supported');
             }
 
             buffer = mediaSource.addSourceBuffer(codec);
@@ -130,7 +130,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
                 eventBus.trigger(Events.SOURCEBUFFER_APPEND_COMPLETED, {
                     buffer: sourceBufferSink,
                     bytes: bytes,
-                    error: new Error(err.code, err.message, null)
+                    error: new DashJSError(err.code, err.message, null)
                 });
             }
         });
@@ -157,13 +157,13 @@ function SourceBufferSink(mediaSource, mediaInfo) {
                     buffer: sourceBufferSink,
                     from: start,
                     to: end,
-                    error: new Error(err.code, err.message, null)
+                    error: new DashJSError(err.code, err.message, null)
                 });
             }
         });
     }
 
-    function abort(mediaSource, buffer) {
+    function abort(mediaSource) {
         try {
             if (mediaSource.readyState === 'open') {
                 buffer.abort();

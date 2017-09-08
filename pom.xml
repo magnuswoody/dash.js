@@ -32,7 +32,7 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
         <!-- git revision -->
         <revision>${git.commitsCount}</revision>
 
-        <version.number>2.5.0-3-SNAPSHOT</version.number>
+        <version.number>2.6.0-1-SNAPSHOT</version.number>
         <version.suffix></version.suffix>
         <version.artifact>${version.number}${version.suffix}</version.artifact>
         <version.token>${version.number}-${revision}${version.suffix}</version.token>
@@ -96,8 +96,8 @@ http://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
                             <goal>install-node-and-npm</goal>
                         </goals>
                         <configuration>
-                            <nodeVersion>v0.10.26</nodeVersion>
-                            <npmVersion>1.4.3</npmVersion>
+                            <nodeVersion>v5.12.0</nodeVersion>
+                            <npmVersion>3.8.6</npmVersion>
                         </configuration>
                     </execution>
                     <execution>
