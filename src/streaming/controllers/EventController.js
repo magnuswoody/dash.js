@@ -28,11 +28,10 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-
-import PlaybackController from '../controllers/PlaybackController';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import EventBus from '../../core/EventBus';
+import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
 
 function EventController() {
 
@@ -50,7 +49,6 @@ function EventController() {
         eventInterval, // variable holding the setInterval
         refreshDelay, // refreshTime for the setInterval
         presentationTimeThreshold,
-        manifestModel,
         manifestUpdater,
         playbackController,
         isStarted;
@@ -63,7 +61,12 @@ function EventController() {
         eventInterval = null;
         refreshDelay = 100;
         presentationTimeThreshold = refreshDelay / 1000;
-        playbackController = PlaybackController(context).getInstance();
+    }
+
+    function checkSetConfigCall() {
+        if (!manifestUpdater || !playbackController) {
+            throw new Error('setConfig function has to be called previously');
+        }
     }
 
     function clear() {
@@ -75,6 +78,7 @@ function EventController() {
     }
 
     function start() {
+        checkSetConfigCall();
         log('Start Event Controller');
         if (!isStarted && !isNaN(refreshDelay)) {
             isStarted = true;
@@ -87,6 +91,8 @@ function EventController() {
      * @param {Array.<Object>} values
      */
     function addInlineEvents(values) {
+        checkSetConfigCall();
+
         inlineEvents = {};
 
         if (values) {
@@ -104,15 +110,47 @@ function EventController() {
      * @param {Array.<Object>} values
      */
     function addInbandEvents(values) {
+        checkSetConfigCall();
+
         for (var i = 0; i < values.length; i++) {
             var event = values[i];
             if (!(event.id in inbandEvents)) {
+                if (event.eventStream.schemeIdUri === MPD_RELOAD_SCHEME && inbandEvents[event.id] === undefined) {
+                    handleManifestReloadEvent(event);
+                }
                 inbandEvents[event.id] = event;
                 log('Add inband event with id ' + event.id);
             } else {
                 log('Repeated event with id ' + event.id);
             }
         }
+    }
+
+    function handleManifestReloadEvent(event) {
+        //At this point
+        //Truncate current MPD validity time to event time
+        //Event time is a delta from the presenation time of the containing segment.
+        if (event.eventStream.value == MPD_RELOAD_VALUE) {
+            const timescale = event.eventStream.timescale || 1;
+            log('Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
+            eventBus.trigger(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, {
+                id: event.id,
+                validUntil: event.presentationTime / timescale,
+                remainingDuration: event.duration / timescale,
+                newManifestValidAfter: NaN //event.message_data - decode arraybuffer zulu time string first
+            });
+        }
+        //If event duration == 0, video ends at this time. Mark stream as ended?
+
+        //If event duration > 0
+        //Reload manifest with conditional
+        //If new manifest publish time is not greater than messageData(MPD publish time)
+        //Truncate current MPD validity time to event time
+        //Await some timeout (to be decided relative to closeness of MPD expiry) and reload (max number of reloads?)
+        //Consider applicability of minimum update period in the MPD spec to this.
+
+        //Event duration value should set
+        //Event duration 0xffff is 'unknown' - this should read 0xffffffff, make note is deliberately against spec.
     }
 
     /**
@@ -144,17 +182,6 @@ function EventController() {
         removeEvents();
     }
 
-    function refreshManifest() {
-        var manifest = manifestModel.getValue();
-        var url = manifest.url;
-
-        if (manifest.hasOwnProperty('Location')) {
-            url = manifest.Location;
-        }
-        log('Refresh manifest @ ' + url);
-        manifestUpdater.getManifestLoader().load(url);
-    }
-
     function triggerEvents(events) {
         var currentVideoTime = playbackController.getTime();
         var presentationTime;
@@ -173,11 +200,8 @@ function EventController() {
                         if (curr.duration > 0) {
                             activeEvents[eventId] = curr;
                         }
-                        if (curr.eventStream.schemeIdUri == MPD_RELOAD_SCHEME && curr.eventStream.value == MPD_RELOAD_VALUE) {
-                            refreshManifest();
-                        } else {
-                            eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
-                        }
+
+                        eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
                         delete events[eventId];
                     }
                 }
@@ -188,12 +212,12 @@ function EventController() {
     function setConfig(config) {
         if (!config) return;
 
-        if (config.manifestModel) {
-            manifestModel = config.manifestModel;
-        }
-
         if (config.manifestUpdater) {
             manifestUpdater = config.manifestUpdater;
+        }
+
+        if (config.playbackController) {
+            playbackController = config.playbackController;
         }
     }
 
@@ -219,4 +243,4 @@ function EventController() {
 }
 
 EventController.__dashjs_factory_name = 'EventController';
-export default FactoryMaker.getSingletonFactory(EventController);
+export default FactoryMaker.getClassFactory(EventController);
