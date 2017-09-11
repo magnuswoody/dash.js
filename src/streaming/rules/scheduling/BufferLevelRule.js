@@ -74,7 +74,7 @@ function BufferLevelRule(config) {
                         let stableBuffer = true;
                         const now = Date.now();
                         for (let i = switchRequests.length - 1; i >= switchRequests.length - 4; i--) {
-                            if (switchRequests[i].oldValue != switchRequests[i].newValue && now - switchRequests[i].time.getTime() < 20 * 1000) {
+                            if (switchRequests[i] && switchRequests[i].oldValue != switchRequests[i].newValue && now - switchRequests[i].time.getTime() < 20 * 1000) {
                                 stableBuffer = false;
                                 break;
                             }
