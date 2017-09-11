@@ -355,13 +355,15 @@ function BufferController(config) {
 
         if (bufferLevel < STALL_THRESHOLD && !isBufferingCompleted) {
             var videoElement = videoModel.getElement();
-            var t = videoElement.currentTime;
-            var d = videoElement.duration;
-            if ( d - t > STALL_THRESHOLD ) {
-                notifyBufferStateChanged(BUFFER_EMPTY);
-                return;
+            if (videoElement) {
+                var t = videoElement.currentTime;
+                var d = videoElement.duration;
+                if ( d - t > STALL_THRESHOLD ) {
+                    notifyBufferStateChanged(BUFFER_EMPTY);
+                    return;
+                }
+                notifyBufferStateChanged(BUFFER_LOADED);
             }
-            notifyBufferStateChanged(BUFFER_LOADED);
         }
     }
 
