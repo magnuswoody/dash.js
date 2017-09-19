@@ -306,7 +306,7 @@ function BufferController(config) {
             var videoElement = videoModel.getElement();
             var t = videoElement.currentTime;
             var d = videoElement.duration;
-            if ( d - t > STALL_THRESHOLD ) {
+            if (d - t > STALL_THRESHOLD || isNaN(d)) {
                 notifyBufferStateChanged(BUFFER_EMPTY);
                 return;
             }
