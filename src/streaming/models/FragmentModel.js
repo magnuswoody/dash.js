@@ -68,7 +68,22 @@ function FragmentModel(config) {
         return streamProcessor;
     }
 
-    function isFragmentLoaded(request) {
+    function isFragmentInBuffer(request, bufferRanges) {
+        let intersects = false;
+        for (let i = 0; i < bufferRanges.length; i++) {
+            console.log('#a rst: ' + request.startTime + '; br: ' + bufferRanges.start(i) + '-' + bufferRanges.end(i));
+            if (request.startTime + 0.5 >= bufferRanges.start(i) &&
+                    request.startTime + request.duration - 0.5 <= bufferRanges.end(i)) {
+                intersects = true;
+                break;
+            }
+        }
+
+        console.log('#a isFragmentInBuffer: ' + intersects);
+        return intersects;
+    }
+
+    function isFragmentLoaded(request, bufferRanges) {
         const isEqualComplete = function (req1, req2) {
             return ((req1.action === FragmentRequest.ACTION_COMPLETE) && (req1.action === req2.action));
         };
@@ -82,13 +97,13 @@ function FragmentModel(config) {
         };
 
         const check = function (requests) {
-            let isLoaded = false;
-            requests.some(req => {
-                if (isEqualMedia(request, req) || isEqualInit(request, req) || isEqualComplete(request, req)) {
-                    isLoaded = true;
-                    return isLoaded;
+            const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
+            const isLoaded = requests.some(req => {
+                if ((isEqualMedia(request, req) && isInBuffer) || isEqualInit(request, req) || isEqualComplete(request, req)) {
+                    return true;
                 }
             });
+
             return isLoaded;
         };
 
