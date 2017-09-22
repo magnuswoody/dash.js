@@ -77,7 +77,10 @@ function TemplateSegmentsGetter(config, isDynamic) {
             seg.media = url;
 
             segments.push(seg);
-            seg = null;
+        }
+
+        if (seg) { // Should be the last in the segmentList.
+            seg.duration = Math.min(seg.presentationStartTime + seg.duration, availabilityWindow.end) - seg.presentationStartTime;
         }
 
         if (isNaN(duration)) {
