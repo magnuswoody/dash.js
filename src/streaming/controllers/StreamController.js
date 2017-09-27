@@ -315,7 +315,7 @@ function StreamController() {
         activeStream = newStream;
 
         playbackController.initialize(activeStream.getStreamInfo());
-        
+
         if (videoModel.getElement()) {
             //TODO detect if we should close jump to activateStream.
             openMediaSource(seekTime, false);
