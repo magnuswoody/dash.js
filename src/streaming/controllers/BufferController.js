@@ -162,8 +162,19 @@ function BufferController(config) {
             }
 
             let chunks = preBuffer.discharge(0, 9999);//TODO Not very smart.
-            for (let j = 0; j < chunks.length; j++) {//TODO Check the effect of multiple chunks being appended in one go. Does sourcebuffer want a queue rather than a repeated set of callbacks from the sourcebuffer events?
-                buffer.append(chunks[j]);
+            let lastInit = null;
+            for (let j = 0; j < chunks.length; j++) {
+                //TODO Check the effect of multiple chunks being appended in one go.
+                const chunk = chunks[j];
+                const initChunk = initCache.extract(chunk.streamId, chunk.representationId);
+                if (initChunk) {
+                    if (lastInit !== initChunk) {
+                        buffer.append(initChunk);
+                        lastInit = initChunk;
+                    }
+                    buffer.append(chunk);
+                } //TODO else we lost the init(this shouldn't happen)
+                //either drop this chunk and fetch it again through the normal streaming process / get the init chunk and prepare a callback.
             }
         } // else we already had a sourcebuffer, so nothing to discharge.
     }
@@ -215,7 +226,7 @@ function BufferController(config) {
 
     function appendToBuffer(chunk) {
         isAppendingInProgress = true;
-        appendedBytesInfo = chunk;
+        appendedBytesInfo = chunk; //TODO It's async - there's no reason to think this is valid after the return.
         buffer.append(chunk);
 
         if (chunk.mediaInfo.type === Constants.VIDEO) {
@@ -247,13 +258,13 @@ function BufferController(config) {
         // This function returns current working time for buffer (either start time or current time if playback has started)
         let ret = playbackController.getTime();
 
-        if (seekStartTime) {
-            // if there is a seek start time, the first buffer data will be available on maximum value between first buffer range value and seek start time.
-            const ranges = buffer.getAllBufferRanges();
-            if (ranges && ranges.length) {
-                ret = Math.max(ranges.start(0), seekStartTime);
-            }
-        }
+        //if (seekStartTime) {
+        //    // if there is a seek start time, the first buffer data will be available on maximum value between first buffer range value and seek start time.
+        //    const ranges = buffer.getAllBufferRanges();
+        //    if (ranges && ranges.length) {
+        //        ret = Math.max(ranges.start(0), seekStartTime);
+        //    }
+        //}
         return ret;
     }
 
@@ -526,7 +537,7 @@ function BufferController(config) {
     }
 
     function onAppended(e) {
-        if (buffer === e.buffer) {
+        if (buffer === e.buffer) { //TODO: This is entirely local to sourcebuffer/buffercontroller - rewrite as a callback and not an event.
             if (appendedBytesInfo && !isNaN(appendedBytesInfo.index)) {
                 maxAppendedIndex = Math.max(appendedBytesInfo.index, maxAppendedIndex);
                 checkIfBufferingCompleted();
@@ -615,9 +626,15 @@ function BufferController(config) {
         bufferLevel = 0;
         wallclockTicked = 0;
 
+<<<<<<< HEAD
         if (!errored) {
             buffer.abort(mediaSource, buffer);
             buffer.reset(mediaSource);
+=======
+        if (!errored && buffer) {
+            buffer.abort();
+            buffer.reset();
+>>>>>>> 7070887b... WIP on unit tests; pair init fragments in pre-buffer, guarantee append in time order
             buffer = null;
         }
 
