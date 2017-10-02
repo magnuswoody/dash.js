@@ -1783,7 +1783,6 @@ function MediaPlayer() {
         videoModel = null;
         if (element) {
             videoModel = VideoModel(context).getInstance();
-            videoModel.initialize();
             videoModel.setElement(element);
             //detectProtection();
             detectMetricsReporting();
