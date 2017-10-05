@@ -137,21 +137,20 @@ function DOMStorage(config) {
         //Checks local storage to see if there is valid, non-expired media settings
         if (!canStore(STORAGE_TYPE_LOCAL, LAST_MEDIA_SETTINGS)) return null;
 
+        let settings = null;
         let key = LOCAL_STORAGE_SETTINGS_KEY_TEMPLATE.replace(/\?/, type);
-        let obj = {};
         try {
-            obj = JSON.parse(localStorage.getItem(key));
+            let obj = JSON.parse(localStorage.getItem(key));
+            let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
+            settings = obj.settings;
+
+            if (isExpired) {
+                localStorage.removeItem(key);
+                settings = null;
+            }
         } catch (e) {
             return null;
         }
-        let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
-        let settings = obj.settings;
-
-        if (isExpired) {
-            localStorage.removeItem(key);
-            settings = null;
-        }
-
         return settings;
     }
 
@@ -164,20 +163,19 @@ function DOMStorage(config) {
         //hinting from the last play session to use as a starting bit rate.
         if (canStore(STORAGE_TYPE_LOCAL, LAST_BITRATE)) {
             let key = LOCAL_STORAGE_BITRATE_KEY_TEMPLATE.replace(/\?/, type);
-            let obj = {};
             try {
-                obj = JSON.parse(localStorage.getItem(key));
+                let obj = JSON.parse(localStorage.getItem(key));
+                let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
+                let bitrate = parseFloat(obj.bitrate);
+
+                if (!isNaN(bitrate) && !isExpired) {
+                    savedBitrate = bitrate;
+                    log('Last saved bitrate for ' + type + ' was ' + bitrate);
+                } else if (isExpired) {
+                    localStorage.removeItem(key);
+                }
             } catch (e) {
                 return null;
-            }
-            let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastBitrateCachingInfo().ttl || false;
-            let bitrate = parseFloat(obj.bitrate);
-
-            if (!isNaN(bitrate) && !isExpired) {
-                savedBitrate = bitrate;
-                log('Last saved bitrate for ' + type + ' was ' + bitrate);
-            } else if (isExpired) {
-                localStorage.removeItem(key);
             }
         }
         return savedBitrate;

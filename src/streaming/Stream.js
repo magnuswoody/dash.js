@@ -32,7 +32,7 @@ import Constants from './constants/Constants';
 import StreamProcessor from './StreamProcessor';
 import EventController from './controllers/EventController';
 import FragmentController from './controllers/FragmentController';
-//import VideoModel from './models/VideoModel';
+import VideoModel from './models/VideoModel';
 import EventBus from '../core/EventBus';
 import Events from '../core/events/Events';
 import Debug from '../core/Debug';
@@ -238,8 +238,7 @@ function Stream(config) {
         return mediaInfo.type === Constants.TEXT ? mediaInfo.mimeType : mediaInfo.type;
     }
 
-    /*
-     * function isMediaSupported(mediaInfo) {
+    function isMediaSupported(mediaInfo) {
         const type = mediaInfo.type;
         let codec,
             msg;
@@ -268,7 +267,7 @@ function Stream(config) {
 
         return true;
     }
-*/
+
     function onCurrentTrackChanged(e) {
         if (e.newMediaInfo.streamInfo.id !== streamInfo.id) return;
 
@@ -375,9 +374,9 @@ function Stream(config) {
             if (type === Constants.EMBEDDED_TEXT) {
                 textController.addEmbeddedTrack(mediaInfo);
             } else {
-                //if (!isMediaSupported(mediaInfo)) {
-                //    continue;
-                //}
+                if (!isMediaSupported(mediaInfo)) {
+                    continue;
+                }
                 if (mediaController.isMultiTrackSupportedByType(mediaInfo.type)) {
                     mediaController.addTrack(mediaInfo, streamInfo);
                 }
