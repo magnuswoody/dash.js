@@ -122,6 +122,7 @@ function MediaPlayer() {
         adapter = null;
         Events.extend(MediaPlayerEvents);
         mediaPlayerModel = MediaPlayerModel(context).getInstance();
+        videoModel = VideoModel(context).getInstance();
     }
 
     /**
@@ -425,7 +426,7 @@ function MediaPlayer() {
      * @instance
      */
     function setPlaybackRate(value) {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         getVideoElement().playbackRate = value;
@@ -438,7 +439,7 @@ function MediaPlayer() {
      * @instance
      */
     function getPlaybackRate() {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         return getVideoElement().playbackRate;
@@ -451,7 +452,7 @@ function MediaPlayer() {
      * @instance
      */
     function setMute(value) {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         getVideoElement().muted = value;
@@ -464,7 +465,7 @@ function MediaPlayer() {
      * @instance
      */
     function isMuted() {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         return getVideoElement().muted;
@@ -477,7 +478,7 @@ function MediaPlayer() {
      * @instance
      */
     function setVolume(value) {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         getVideoElement().volume = value;
@@ -490,7 +491,7 @@ function MediaPlayer() {
      * @instance
      */
     function getVolume() {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         return getVideoElement().volume;
@@ -1760,7 +1761,7 @@ function MediaPlayer() {
      * @instance
      */
     function getVideoElement() {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         return videoModel.getElement();
@@ -1784,7 +1785,7 @@ function MediaPlayer() {
      * @instance
      */
     function attachVideoContainer(container) {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         videoModel.setVideoContainer(container);
@@ -1801,11 +1802,9 @@ function MediaPlayer() {
         if (!mediaPlayerInitialized) {
             throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
         }
-        videoModel = null;
         if (element) {
-            videoModel = VideoModel(context).getInstance();
             videoModel.setElement(element);
-            //detectProtection();
+            detectProtection();
             detectMetricsReporting();
             detectMss();
 
@@ -1835,7 +1834,7 @@ function MediaPlayer() {
      * @instance
      */
     function attachTTMLRenderingDiv(div) {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         videoModel.setTTMLRenderingDiv(div);
@@ -2250,7 +2249,7 @@ function MediaPlayer() {
      * @instance
      */
     function getVideoModel() {
-        if (!videoModel) {
+        if (!videoModel.getElement()) {
             throw ELEMENT_NOT_ATTACHED_ERROR;
         }
         return videoModel;
@@ -2344,7 +2343,7 @@ function MediaPlayer() {
             dashMetrics: dashMetrics,
             errHandler: errHandler,
             timelineConverter: timelineConverter,
-            videoModel: VideoModel(context).getInstance(),//TODO This is clearly screwed up.
+            videoModel: videoModel,
             playbackController: playbackController,
             domStorage: domStorage,
             abrController: abrController,
@@ -2361,7 +2360,7 @@ function MediaPlayer() {
             mediaPlayerModel: mediaPlayerModel,
             dashManifestModel: dashManifestModel,
             adapter: adapter,
-            videoModel: VideoModel(context).getInstance()
+            videoModel: videoModel
         });
 
         abrController.setConfig({
@@ -2372,7 +2371,7 @@ function MediaPlayer() {
             dashMetrics: dashMetrics,
             dashManifestModel: dashManifestModel,
             manifestModel: manifestModel,
-            videoModel: VideoModel(context).getInstance(),
+            videoModel: videoModel,
             adapter: adapter
         });
         abrController.createAbrRulesCollection();
@@ -2383,7 +2382,7 @@ function MediaPlayer() {
             dashManifestModel: dashManifestModel,
             mediaController: mediaController,
             streamController: streamController,
-            videoModel: VideoModel(context).getInstance()
+            videoModel: videoModel
         });
         // initialises controller
         streamController.initialize(autoPlay, protectionData);
@@ -2414,7 +2413,7 @@ function MediaPlayer() {
             protectionController = protection.createProtectionSystem({
                 log: log,
                 errHandler: errHandler,
-                videoModel: VideoModel(context).getInstance(),
+                videoModel: videoModel,
                 capabilities: capabilities,
                 eventBus: eventBus,
                 adapter: adapter
