@@ -382,10 +382,10 @@ function BufferController(config) {
                     notifyBufferStateChanged(BUFFER_EMPTY);
                     return;
                 }
+                notifyBufferStateChanged(BUFFER_LOADED);
             }
 >>>>>>> 4d515875... Fix buffering issue, make more unit tests work
         }
-        notifyBufferStateChanged(BUFFER_LOADED);
     }
 
     function notifyBufferStateChanged(state) {
