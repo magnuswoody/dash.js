@@ -77,7 +77,6 @@ function BufferController(config) {
         appendedBytesInfo,
         wallclockTicked,
         appendingMediaChunk,
-        isAppendingInProgress,
         isPruningInProgress,
         initCache,
         seekStartTime,
@@ -149,7 +148,6 @@ function BufferController(config) {
                 return;
             }
 
-            //Log where new buffer will be added. TODO: Check current time against this to see if it's useful.
             const ranges = preBuffer.getAllBufferRanges();
             if (ranges.length > 0) {
                 let rangeStr = 'Beginning ' + mediaInfo.type + 'PreBuffer discharge, adding buffer for:';
@@ -164,7 +162,6 @@ function BufferController(config) {
             let chunks = preBuffer.discharge();
             let lastInit = null;
             for (let j = 0; j < chunks.length; j++) {
-                //TODO Check the effect of multiple chunks being appended in one go.
                 const chunk = chunks[j];
                 const initChunk = initCache.extract(chunk.streamId, chunk.representationId);
                 if (initChunk) {
@@ -173,8 +170,7 @@ function BufferController(config) {
                         lastInit = initChunk;
                     }
                     buffer.append(chunk); //TODO Think about supressing buffer events the second time round after a discharge?
-                } //TODO else we lost the init(this shouldn't happen)
-                //either drop this chunk and fetch it again through the normal streaming process / get the init chunk and prepare a callback.
+                }
             }
         } // else we already had a sourcebuffer, so nothing to discharge.
     }
@@ -225,7 +221,6 @@ function BufferController(config) {
 
 
     function appendToBuffer(chunk) {
-        isAppendingInProgress = true;
         appendedBytesInfo = chunk; //TODO It's async - there's no reason to think this is valid after the return.
         buffer.append(chunk);
 
@@ -369,22 +364,9 @@ function BufferController(config) {
             eventBus.trigger(Events.BUFFERING_COMPLETED, {sender: instance, streamInfo: streamProcessor.getStreamInfo()});
         }
         if (bufferLevel < STALL_THRESHOLD && !isBufferingCompleted) {
-<<<<<<< HEAD
             notifyBufferStateChanged(BUFFER_EMPTY);
         } else {
             notifyBufferStateChanged(BUFFER_LOADED);
-=======
-            var videoElement = videoModel.getElement();
-            if (videoElement) {
-                var t = videoElement.currentTime;
-                var d = videoElement.duration;
-                if ( d - t > STALL_THRESHOLD ) {
-                    notifyBufferStateChanged(BUFFER_EMPTY);
-                    return;
-                }
-                notifyBufferStateChanged(BUFFER_LOADED);
-            }
->>>>>>> 4d515875... Fix buffering issue, make more unit tests work
         }
     }
 
@@ -427,7 +409,8 @@ function BufferController(config) {
     function pruneBuffer() {
         if (!buffer) return;
         if (type === Constants.FRAGMENTED_TEXT) return;
-        const start = buffer.buffered.length ? buffer.buffered.start(0) : 0;
+        const buffered = buffer.getAllBufferRanges();
+        const start = buffered.length ? buffered.start(0) : 0;
         const bufferToPrune = playbackController.getTime() - start - mediaPlayerModel.getBufferToKeep();
         if (bufferToPrune > 0) {
             log('pruning buffer: ' + bufferToPrune + ' seconds.');
@@ -442,13 +425,15 @@ function BufferController(config) {
         // we need to remove data that is more than one fragment before the video currentTime
         const currentTime = playbackController.getTime();
         const req = streamProcessor.getFragmentModel().getRequests({state: FragmentModel.FRAGMENT_MODEL_EXECUTED, time: currentTime, threshold: threshold})[0];
-        const range = buffer.getBufferRange(currentTime);
+        const range = getRangeAt(currentTime);
+        const buffered = buffer.getAllBufferRanges();
 
         let removeEnd = (req && !isNaN(req.startTime)) ? req.startTime : Math.floor(currentTime);
-        if ((range === null) && (buffer.buffered.length > 0)) {
-            removeEnd = buffer.buffered.end(buffer.buffered.length - 1);
+        if ((range === null) && (buffered.length > 0)) {
+            removeEnd = buffered.end(buffered.length - 1);
         }
-        return {start: buffer.getAllBufferRanges.start(0), end: removeEnd};
+
+        return {start: buffered.start(0), end: removeEnd};
     }
 
     function updateBufferTimestampOffset(MSETimeOffset) {
@@ -481,7 +466,7 @@ function BufferController(config) {
     function onWallclockTimeUpdated() {
         wallclockTicked++;
         const secondsElapsed = (wallclockTicked * (mediaPlayerModel.getWallclockTimeUpdateInterval() / 1000));
-        if ((secondsElapsed >= mediaPlayerModel.getBufferPruningInterval()) && !isAppendingInProgress) {
+        if ((secondsElapsed >= mediaPlayerModel.getBufferPruningInterval())) {
             wallclockTicked = 0;
             pruneBuffer();
         }
@@ -633,30 +618,16 @@ function BufferController(config) {
         appendedBytesInfo = null;
         appendingMediaChunk = false;
         isBufferingCompleted = false;
-        isAppendingInProgress = false;
         isPruningInProgress = false;
         seekClearedBufferingCompleted = false;
         bufferLevel = 0;
         wallclockTicked = 0;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         if (!errored) {
-            buffer.abort(mediaSource, buffer);
-            buffer.reset(mediaSource);
-=======
-        if (!errored && buffer) {
             buffer.abort();
-=======
-        if (buffer) {
-            if (!errored) {
-                buffer.abort();
-            }
->>>>>>> 4d515875... Fix buffering issue, make more unit tests work
-            buffer.reset();
->>>>>>> 7070887b... WIP on unit tests; pair init fragments in pre-buffer, guarantee append in time order
-            buffer = null;
         }
+        buffer.reset();
+        buffer = null;
     }
 
     function reset(errored) {
