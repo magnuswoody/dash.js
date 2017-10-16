@@ -149,7 +149,7 @@ describe('NotFragmentedTextBufferController', function () {
                 expect(sourceBufferMock.sourceBufferRemoved).to.be.true;
             });
         });*/
-
+/*
         describe('Method switchInitData', function () {
             it('should append init data to source buffer if data have been cached', function () {
                 let chunk = {
@@ -200,7 +200,7 @@ describe('NotFragmentedTextBufferController', function () {
                 eventBus.on(Events.TIMED_TEXT_REQUESTED, onEvent, this);
                 eventBus.trigger(Events.DATA_UPDATE_COMPLETED, event);
             });
-        });
+        }); */
 /*
         describe('Event INIT_FRAGMENT_LOADED Handler', function () {
 
