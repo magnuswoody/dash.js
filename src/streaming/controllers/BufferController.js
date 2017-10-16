@@ -145,7 +145,6 @@ function BufferController(config) {
                 return;
             }
 
-            //Log where new buffer will be added. TODO: Check current time against this to see if it's useful.
             const ranges = preBuffer.getAllBufferRanges();
             if (ranges.length > 0) {
                 let rangeStr = 'Beginning ' + mediaInfo.type + 'PreBuffer discharge, adding buffer for:';
@@ -160,7 +159,6 @@ function BufferController(config) {
             let chunks = preBuffer.discharge();
             let lastInit = null;
             for (let j = 0; j < chunks.length; j++) {
-                //TODO Check the effect of multiple chunks being appended in one go.
                 const chunk = chunks[j];
                 const initChunk = initCache.extract(chunk.streamId, chunk.representationId);
                 if (initChunk) {
@@ -169,8 +167,7 @@ function BufferController(config) {
                         lastInit = initChunk;
                     }
                     buffer.append(chunk); //TODO Think about supressing buffer events the second time round after a discharge?
-                } //TODO else we lost the init(this shouldn't happen)
-                //either drop this chunk and fetch it again through the normal streaming process / get the init chunk and prepare a callback.
+                }
             }
         } // else we already had a sourcebuffer, so nothing to discharge.
     }
