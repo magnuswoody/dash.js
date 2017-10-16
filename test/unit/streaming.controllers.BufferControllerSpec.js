@@ -405,14 +405,13 @@ describe("BufferController", function () {
             bufferController.createBuffer(mediaInfo);
         });
 
-        it('should trigger BUFFER_LEVEL_UPDATED event', function (done) {
+        it('should trigger BUFFER_LEVEL_UPDATED event', function () {
             const buffer = mediaSourceMock.buffers[0];
             buffer.addRange({start: 0, end: 20});
             let onBufferLevelUpdated = function (e) {
                 eventBus.off(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, this);
                 expect(e.bufferLevel).to.equal(buffer.buffered.end(0) - buffer.buffered.start(0));
 
-                done();
             }
             eventBus.on(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, this);
 
@@ -420,14 +419,13 @@ describe("BufferController", function () {
             eventBus.trigger(Events.PLAYBACK_SEEKING)
         });
 
-        it('should trigger BUFFER_LEVEL_STATE_CHANGED event', function (done) {
+        it('should trigger BUFFER_LEVEL_STATE_CHANGED event', function () {
             const buffer = mediaSourceMock.buffers[0];
             buffer.addRange({start: 0, end: 20});
             let onBufferStateChanged = function (e) {
                 eventBus.off(Events.BUFFER_LEVEL_STATE_CHANGED, onBufferStateChanged, this);
                 expect(e.state).to.equal('bufferLoaded');
 
-                done();
             }
             eventBus.on(Events.BUFFER_LEVEL_STATE_CHANGED, onBufferStateChanged, this);
 
@@ -435,12 +433,11 @@ describe("BufferController", function () {
             eventBus.trigger(Events.PLAYBACK_SEEKING)
         });
 
-        it('should trigger BUFFER_LOADED event if enough buffer', function (done) {
+        it('should trigger BUFFER_LOADED event if enough buffer', function () {
             const buffer = mediaSourceMock.buffers[0];
             buffer.addRange({start: 0, end: 20});
             let onBufferLoaded = function (e) {
                 eventBus.off(Events.BUFFER_LOADED, onBufferLoaded, this);
-                done();
             }
             eventBus.on(Events.BUFFER_LOADED, onBufferLoaded, this);
 
