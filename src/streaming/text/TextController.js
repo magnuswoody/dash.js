@@ -123,7 +123,6 @@ function TextController() {
     }
 
     function setTextTrack() {
-
         let config = textSourceBuffer.getConfig();
         let fragmentModel = config.fragmentModel;
         let embeddedTracks = config.embeddedTracks;

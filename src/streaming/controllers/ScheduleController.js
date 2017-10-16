@@ -56,7 +56,6 @@ function ScheduleController(config) {
     const mediaController = config.mediaController;
     const streamController = config.streamController;
     const textController = config.textController;
-    const sourceBufferController = config.sourceBufferController;
     const type = config.type;
     let streamProcessor = config.streamProcessor;
 
@@ -103,7 +102,6 @@ function ScheduleController(config) {
 
         nextFragmentRequestRule = NextFragmentRequestRule(context).create({
             adapter: adapter,
-            sourceBufferController: sourceBufferController,
             textController: textController
         });
 

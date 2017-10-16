@@ -327,7 +327,6 @@ function PlaybackController() {
     }
 
     function updateCurrentTime() {
-
         if (isPaused() || !isDynamic || videoModel.getReadyState() === 0) return;
         let currentTime = getTime();
         let actualTime = getActualPresentationTime(currentTime);
