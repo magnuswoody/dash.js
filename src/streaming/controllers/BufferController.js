@@ -78,7 +78,6 @@ function BufferController(config) {
         appendedBytesInfo,
         wallclockTicked,
         appendingMediaChunk,
-        isAppendingInProgress,
         isPruningInProgress,
         videoModel,
         initCache,
@@ -218,7 +217,6 @@ function BufferController(config) {
 
 
     function appendToBuffer(chunk) {
-        isAppendingInProgress = true;
         appendedBytesInfo = chunk; //TODO It's async - there's no reason to think this is valid after the return.
         buffer.append(chunk);
 
@@ -415,7 +413,8 @@ function BufferController(config) {
     function pruneBuffer() {
         if (!buffer) return;
         if (type === Constants.FRAGMENTED_TEXT) return;
-        const start = buffer.buffered.length ? buffer.buffered.start(0) : 0;
+        const buffered = buffer.getAllBufferRanges();
+        const start = buffered.length ? buffered.start(0) : 0;
         const bufferToPrune = playbackController.getTime() - start - mediaPlayerModel.getBufferToKeep();
         if (bufferToPrune > 0) {
             log('pruning buffer: ' + bufferToPrune + ' seconds.');
@@ -430,14 +429,15 @@ function BufferController(config) {
         // we need to remove data that is more than one fragment before the video currentTime
         const currentTime = playbackController.getTime();
         const req = streamProcessor.getFragmentModel().getRequests({state: FragmentModel.FRAGMENT_MODEL_EXECUTED, time: currentTime, threshold: threshold})[0];
-        const range = buffer.getBufferRange(currentTime);
+        const range = getRangeAt(currentTime);
+        const buffered = buffer.getAllBufferRanges();
 
         let removeEnd = (req && !isNaN(req.startTime)) ? req.startTime : Math.floor(currentTime);
-        if ((range === null) && (buffer.buffered.length > 0)) {
-            removeEnd = buffer.buffered.end(buffer.buffered.length - 1);
+        if ((range === null) && (buffered.length > 0)) {
+            removeEnd = buffered.end(buffered.length - 1);
         }
 
-        return {start: buffer.getAllBufferRanges.start(0), end: removeEnd};
+        return {start: buffered.start(0), end: removeEnd};
     }
 
     function updateBufferTimestampOffset(MSETimeOffset) {
@@ -470,7 +470,7 @@ function BufferController(config) {
     function onWallclockTimeUpdated() {
         wallclockTicked++;
         const secondsElapsed = (wallclockTicked * (mediaPlayerModel.getWallclockTimeUpdateInterval() / 1000));
-        if ((secondsElapsed >= mediaPlayerModel.getBufferPruningInterval()) && !isAppendingInProgress) {
+        if ((secondsElapsed >= mediaPlayerModel.getBufferPruningInterval())) {
             wallclockTicked = 0;
             pruneBuffer();
         }
@@ -641,7 +641,6 @@ function BufferController(config) {
         appendedBytesInfo = null;
         appendingMediaChunk = false;
         isBufferingCompleted = false;
-        isAppendingInProgress = false;
         isPruningInProgress = false;
         seekClearedBufferingCompleted = false;
         bufferLevel = 0;
