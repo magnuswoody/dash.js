@@ -2338,6 +2338,7 @@ function MediaPlayer() {
             protectionController = null;
             detectProtection();
         }
+        videoModel.reset();
     }
 
     function resetAndInitializePlayback() {

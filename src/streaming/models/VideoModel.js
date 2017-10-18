@@ -47,6 +47,14 @@ function VideoModel() {
     let eventBus = EventBus(context).getInstance();
     const stalledStreams = [];
 
+    function setup() {
+        eventBus.on(Events.PLAYBACK_PLAYING, onPlaying, this);
+    }
+
+    function reset() {
+        eventBus.off(Events.PLAYBACK_PLAYING, onPlaying, this);
+    }
+
     function onPlaybackCanPlay() {
         if (element) {
             element.playbackRate = previousPlaybackRate || 1;
@@ -194,6 +202,15 @@ function VideoModel() {
         }
     }
 
+    //Calling play on the element will emit playing - even if the stream is stalled. If the stream is stalled, emit a waiting event.
+    function onPlaying() {
+        if (element && isStalled() && element.playbackRate === 0) {
+            const event = document.createEvent('Event');
+            event.initEvent('waiting', true, false);
+            element.dispatchEvent(event);
+        }
+    }
+
     function getPlaybackQuality() {
         if (!element) { return null; }
         let hasWebKit = ('webkitDroppedFrameCount' in element) && ('webkitDecodedFrameCount' in element);
@@ -318,8 +335,11 @@ function VideoModel() {
         getBufferRange: getBufferRange,
         getClientWidth: getClientWidth,
         getClientHeight: getClientHeight,
-        getTextTracks: getTextTracks
+        getTextTracks: getTextTracks,
+        reset: reset
     };
+
+    setup();
 
     return instance;
 }
