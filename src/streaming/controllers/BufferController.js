@@ -74,6 +74,7 @@ function BufferController(config) {
         maxAppendedIndex,
         lastIndex,
         buffer,
+        dischargeBuffer,
         bufferState,
         appendedBytesInfo,
         wallclockTicked,
@@ -132,21 +133,12 @@ function BufferController(config) {
         updateBufferTimestampOffset(streamProcessor.getRepresentationInfoForQuality(requiredQuality).MSETimeOffset);
     }
 
-    function dischargePreBuffer(mediaInfo) {
-        if (buffer && mediaSource && typeof buffer.discharge === 'function') {
-            const preBuffer = buffer;
-            buffer = null;
+    function dischargePreBuffer() {
+        if (buffer && dischargeBuffer && typeof dischargeBuffer.discharge === 'function') {
+            const ranges = dischargeBuffer.getAllBufferRanges();
 
-            //Setup a new buffer
-            createBuffer(mediaInfo);
-            if (!buffer) { //Something went wrong, bail.
-                buffer = preBuffer;
-                return;
-            }
-
-            const ranges = preBuffer.getAllBufferRanges();
             if (ranges.length > 0) {
-                let rangeStr = 'Beginning ' + mediaInfo.type + 'PreBuffer discharge, adding buffer for:';
+                let rangeStr = 'Beginning ' + type + 'PreBuffer discharge, adding buffer for:';
                 for (let i = 0; i < ranges.length; i++) {
                     rangeStr += ' start: ' + ranges.start(i) + ', end: ' + ranges.end(i) + ';';
                 }
@@ -155,7 +147,7 @@ function BufferController(config) {
                 log('PreBuffer discharge requested, but the PreBuffer was empty.');
             }
 
-            let chunks = preBuffer.discharge();
+            let chunks = dischargeBuffer.discharge();
             let lastInit = null;
             for (let j = 0; j < chunks.length; j++) {
                 const chunk = chunks[j];
@@ -168,7 +160,10 @@ function BufferController(config) {
                     buffer.append(chunk); //TODO Think about supressing buffer events the second time round after a discharge?
                 }
             }
-        } // else we already had a sourcebuffer, so nothing to discharge.
+
+            dischargeBuffer.reset();
+            dischargeBuffer = null;
+        }
     }
 
     function isActive() {
@@ -525,11 +520,12 @@ function BufferController(config) {
     }
 
     function setMediaSource(value, mediaInfo) {
-        if (!mediaSource && mediaInfo) {
-            mediaSource = value;
-            dischargePreBuffer(mediaInfo);
-        } else {
-            mediaSource = value;
+        mediaSource = value;
+        if (buffer && mediaInfo) { //if we have a prebuffer, we should prepare to discharge it, and make a new sourceBuffer ready
+            if (typeof buffer.discharge === 'function') {
+                dischargeBuffer = buffer;
+                createBuffer(mediaInfo);
+            }
         }
     }
 
@@ -659,6 +655,7 @@ function BufferController(config) {
         getBufferControllerType: getBufferControllerType,
         initialize: initialize,
         createBuffer: createBuffer,
+        dischargePreBuffer: dischargePreBuffer,
         getType: getType,
         getStreamProcessor: getStreamProcessor,
         setSeekStartTime: setSeekStartTime,
