@@ -133,6 +133,10 @@ function TextBufferController(config) {
         _BufferControllerImpl.switchInitData(streamId, representationId);
     }
 
+    function getRangeAt(time) {
+        return _BufferControllerImpl.getRangeAt(time);
+    }
+
     instance = {
         getBufferControllerType: getBufferControllerType,
         initialize: initialize,
@@ -147,6 +151,7 @@ function TextBufferController(config) {
         getMediaSource: getMediaSource,
         getIsBufferingCompleted: getIsBufferingCompleted,
         switchInitData: switchInitData,
+        getRangeAt: getRangeAt,
         reset: reset
     };
 

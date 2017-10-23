@@ -52,20 +52,19 @@ function NotFragmentedTextBufferController(config) {
         initialized,
         mediaSource,
         buffer,
-        seekStartTime,
         representationController,
-        initCache;
+        initCache,
+        id;
 
     function setup() {
-
+        id = Math.random();
         initialized = false;
         mediaSource = null;
-        buffer = null;
         representationController = null;
         isBufferingCompleted = false;
 
-        eventBus.on(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, this);
-        eventBus.on(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, this);
+        eventBus.on(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, instance);
+        eventBus.on(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, instance);
     }
 
     function getBufferControllerType() {
@@ -86,15 +85,16 @@ function NotFragmentedTextBufferController(config) {
         try {
             buffer = SourceBufferSink(context).create(mediaSource, mediaInfo);
         } catch (e) {
-            try {
-                if ((mediaInfo.isText) || (mediaInfo.codec.indexOf('codecs="stpp') !== -1) || (mediaInfo.codec.indexOf('codecs="wvtt') !== -1)) {
+            if ((mediaInfo.isText) || (mediaInfo.codec.indexOf('codecs="stpp') !== -1) || (mediaInfo.codec.indexOf('codecs="wvtt') !== -1)) {
+                try {
                     buffer = textController.getTextSourceBuffer();
+                } catch (e) {
+                    errHandler.mediaSourceError('Error creating ' + type + ' source buffer.');
                 }
-            } catch (e) {
+            } else {
                 errHandler.mediaSourceError('Error creating ' + type + ' source buffer.');
             }
         }
-
     }
 
     function getType() {
@@ -103,10 +103,6 @@ function NotFragmentedTextBufferController(config) {
 
     function getBuffer() {
         return buffer;
-    }
-
-    function setBuffer(value) {
-        buffer = value;
     }
 
     function setMediaSource(value) {
@@ -121,12 +117,7 @@ function NotFragmentedTextBufferController(config) {
         return streamProcessor;
     }
 
-    function setSeekStartTime(value) {
-        seekStartTime = value;
-    }
-
-    function getSeekStartTime() {
-        return seekStartTime;
+    function setSeekStartTime() { //Unused - TODO Remove need for stub function
     }
 
     function getBufferLevel() {
@@ -138,12 +129,13 @@ function NotFragmentedTextBufferController(config) {
     }
 
     function reset(errored) {
-        eventBus.off(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, this);
-        eventBus.off(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, this);
+        eventBus.off(Events.DATA_UPDATE_COMPLETED, onDataUpdateCompleted, instance);
+        eventBus.off(Events.INIT_FRAGMENT_LOADED, onInitFragmentLoaded, instance);
 
-        if (!errored) {
-            buffer.abort(mediaSource, buffer);
+        if (!errored && buffer) {
+            buffer.abort();
             buffer.reset();
+            buffer = null;
         }
     }
 
@@ -177,6 +169,10 @@ function NotFragmentedTextBufferController(config) {
         }
     }
 
+    function getRangeAt() {
+        return null;
+    }
+
     instance = {
         getBufferControllerType: getBufferControllerType,
         initialize: initialize,
@@ -184,14 +180,13 @@ function NotFragmentedTextBufferController(config) {
         getType: getType,
         getStreamProcessor: getStreamProcessor,
         setSeekStartTime: setSeekStartTime,
-        getSeekStartTime: getSeekStartTime,
         getBuffer: getBuffer,
-        setBuffer: setBuffer,
         getBufferLevel: getBufferLevel,
         setMediaSource: setMediaSource,
         getMediaSource: getMediaSource,
         getIsBufferingCompleted: getIsBufferingCompleted,
         switchInitData: switchInitData,
+        getRangeAt: getRangeAt,
         reset: reset
     };
 
