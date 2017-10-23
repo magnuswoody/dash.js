@@ -97,7 +97,11 @@ function SourceBufferSink(mediaSource, mediaInfo) {
 
     function reset() {
         if (buffer) {
-            mediaSource.removeSourceBuffer(buffer);
+            try {
+                mediaSource.removeSourceBuffer(buffer);
+            } catch (e) {
+                log('Failed to remove source buffer from media source.');
+            }
             isAppendingInProgress = false;
             buffer = null;
         }
