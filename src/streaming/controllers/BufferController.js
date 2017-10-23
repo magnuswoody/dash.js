@@ -46,6 +46,7 @@ const BUFFER_LOADED = 'bufferLoaded';
 const BUFFER_EMPTY = 'bufferStalled';
 const STALL_THRESHOLD = 0.5;
 const QUOTA_EXCEEDED_ERROR_CODE = 22;
+const BUFFER_LENGTH_TO_KEEP_ON_TRACK_CHANGE = 2;
 
 const BUFFER_CONTROLLER_TYPE = 'BufferController';
 
@@ -429,21 +430,46 @@ function BufferController(config) {
         }
     }
 
-    function getClearRange(threshold) {
+    function getBehindRangeToClear(threshold) {
         if (!buffer) return null;
+        const buffered = buffer.getAllBufferRanges();
+        if (!buffered || buffered.length <= 0) return null;
 
         // we need to remove data that is more than one fragment before the video currentTime
         const currentTime = playbackController.getTime();
         const req = streamProcessor.getFragmentModel().getRequests({state: FragmentModel.FRAGMENT_MODEL_EXECUTED, time: currentTime, threshold: threshold})[0];
         const range = getRangeAt(currentTime);
-        const buffered = buffer.getAllBufferRanges();
 
         let removeEnd = (req && !isNaN(req.startTime)) ? req.startTime : Math.floor(currentTime);
         if ((range === null) && (buffered.length > 0)) {
             removeEnd = buffered.end(buffered.length - 1);
         }
 
-        return {start: buffered.start(0), end: removeEnd};
+        return {
+            start: buffered.start(0),
+            end: removeEnd
+        };
+    }
+
+    function getAheadRangeToClear(bufferToKeep) {
+        if (!buffer) return null;
+        const buffered = buffer.getAllBufferRanges();
+        if (!buffered || buffered.length <= 0) return null;
+
+        // we need to remove data that is more than one fragment before the video currentTime
+        const removeStart = playbackController.getTime() + (bufferToKeep > 0 ? bufferToKeep : 0);
+        const removeEnd = buffered.end(buffered.length - 1);
+        if (removeStart >= removeEnd) return null;
+
+        return {
+            start: removeStart,
+            end: removeEnd
+        };
+    }
+
+    function clearBuffer(range, forceRemoval) {
+        if (!range || !buffer) return;
+        buffer.remove(range.start, range.end, mediaSource, forceRemoval);
     }
 
     function updateBufferTimestampOffset(MSETimeOffset) {
@@ -469,7 +495,21 @@ function BufferController(config) {
     function onCurrentTrackChanged(e) {
         if (!buffer || (e.newMediaInfo.type !== type) || (e.newMediaInfo.streamInfo.id !== streamProcessor.getStreamInfo().id)) return;
         if (mediaController.getSwitchMode(type) === MediaController.TRACK_SWITCH_MODE_ALWAYS_REPLACE) {
-            clearBuffer(getClearRange(0));
+            clearPlaybackBuffer(BUFFER_LENGTH_TO_KEEP_ON_TRACK_CHANGE);
+        }
+    }
+
+    function clearPlaybackBuffer(bufferAheadToKeep) {
+        clearBuffer(getBehindRangeToClear(0));
+        const aheadRange = getAheadRangeToClear(bufferAheadToKeep);
+        if (aheadRange) {
+            isBufferingCompleted = false;
+            maxAppendedIndex = 0;
+
+            const currentTime = playbackController.getTime();
+            streamProcessor.getScheduleController().setSeekTarget(currentTime);
+            adapter.setIndexHandlerTime(streamProcessor, currentTime);
+            clearBuffer(aheadRange, true);
         }
     }
 
@@ -578,7 +618,7 @@ function BufferController(config) {
             }
             if (e.error.code === QUOTA_EXCEEDED_ERROR_CODE || !hasEnoughSpaceToAppend()) {
                 eventBus.trigger(Events.QUOTA_EXCEEDED, {sender: instance, criticalBufferLevel: criticalBufferLevel}); //Tells ScheduleController to stop scheduling.
-                clearBuffer(getClearRange()); // Then we clear the buffer and onCleared event will tell ScheduleController to start scheduling again.
+                clearPlaybackBuffer(mediaPlayerModel.getStableBufferTime());
             }
         }
     }
@@ -613,11 +653,6 @@ function BufferController(config) {
     function hasEnoughSpaceToAppend() {
         const totalBufferedTime = getTotalBufferedTime();
         return (totalBufferedTime < criticalBufferLevel);
-    }
-
-    function clearBuffer(range) {
-        if (!range || !buffer) return;
-        buffer.remove(range.start, range.end);
     }
 
     function resetInitialSettings() {
