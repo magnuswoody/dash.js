@@ -44,7 +44,7 @@ function BufferLevelRule(config) {
 
     function execute(streamProcessor, type, videoTrackPresent) {
         const bufferLevel = dashMetrics.getCurrentBufferLevel(metricsModel.getReadOnlyMetricsFor(type));
-        return bufferLevel < getBufferTarget(streamProcessor, type, videoTrackPresent);
+        return bufferLevel <= getBufferTarget(streamProcessor, type, videoTrackPresent);
     }
 
     function getBufferTarget(streamProcessor, type, videoTrackPresent) {
@@ -91,7 +91,7 @@ function BufferLevelRule(config) {
             }
         }
 
-        return bufferTarget;
+        return Math.max(bufferTarget, 2 * representationInfo.fragmentDuration);
     }
 
     const instance = {
