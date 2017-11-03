@@ -82,7 +82,8 @@ function BufferController(config) {
         initCache,
         seekStartTime,
         seekClearedBufferingCompleted,
-        isSafariOnMac;
+        isSafariOnMac,
+        bufferTimestampOffset;
 
     function setup() {
         log = Debug(context).getInstance().log.bind(instance);
@@ -124,12 +125,15 @@ function BufferController(config) {
 
     function createBuffer(mediaInfo) {
         if (!initCache || !mediaInfo || !streamProcessor) return null;
-        
+
         if (mediaSource) {
             try {
                 buffer = SourceBufferSink(context).create(mediaSource, mediaInfo);
                 if (typeof buffer.getBuffer().initialize === 'function') {
                     buffer.getBuffer().initialize(type, streamProcessor);
+                    if (bufferTimestampOffset) {
+                        updateBufferTimestampOffset(bufferTimestampOffset);
+                    }
                 }
             } catch (e) {
                 log('Caught error on create SourceBuffer: ' + e);
@@ -333,7 +337,7 @@ function BufferController(config) {
 
     function updateBufferLevel() {
         if (playbackController) {
-            bufferLevel = getBufferLength(playbackController.getTime() || 0);
+            bufferLevel = getBufferLength(getWorkingTime() || 0);
             eventBus.trigger(Events.BUFFER_LEVEL_UPDATED, {sender: instance, bufferLevel: bufferLevel});
             checkIfSufficientBuffer();
         }
@@ -438,9 +442,12 @@ function BufferController(config) {
     function updateBufferTimestampOffset(MSETimeOffset) {
         // Each track can have its own @presentationTimeOffset, so we should set the offset
         // if it has changed after switching the quality or updating an mpd
-        const sourceBuffer = buffer && buffer.getBuffer ? buffer.getBuffer() : null; //TODO: What happens when we try to set this on a prebuffer. Can we hold on to it and apply on discharge?
+        const sourceBuffer = buffer && buffer.getBuffer ? buffer.getBuffer() : null;
         if (sourceBuffer && sourceBuffer.timestampOffset !== MSETimeOffset && !isNaN(MSETimeOffset)) {
             sourceBuffer.timestampOffset = MSETimeOffset;
+            bufferTimestampOffset = null;
+        } else {
+            bufferTimestampOffset = MSETimeOffset;
         }
     }
 
@@ -622,12 +629,6 @@ function BufferController(config) {
         seekClearedBufferingCompleted = false;
         bufferLevel = 0;
         wallclockTicked = 0;
-
-        if (!errored) {
-            buffer.abort();
-        }
-        buffer.reset();
-        buffer = null;
     }
 
     function reset(errored) {
@@ -647,6 +648,12 @@ function BufferController(config) {
 
         if (isSafariOnMac) {
             eventBus.off(Events.PLAYBACK_SEEKED, onSeeked, this);
+        }
+
+        if (buffer && !errored) {
+            buffer.abort();
+            buffer.reset();
+            buffer = null;
         }
 
         resetInitialSettings();

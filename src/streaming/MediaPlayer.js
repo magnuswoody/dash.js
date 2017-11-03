@@ -2362,7 +2362,7 @@ function MediaPlayer() {
             domStorage: domStorage,
             abrController: abrController,
             mediaController: mediaController,
-            textController: textController,
+            textController: textController
         });
 
         playbackController.setConfig({

@@ -107,9 +107,8 @@ function Stream(config) {
             initializeMedia(mediaSource);
             isStreamActivated = true;
         }
-        //else { // TODO Check track change mode but why is this here. commented it out for now to check.
+
         createBuffers();
-        //}
     }
 
     /**
@@ -159,12 +158,6 @@ function Stream(config) {
         streamInfo = null;
         updateError = {};
         isUpdating = false;
-    }
-
-    function setMediaSource(mediaSource) {
-        for (let i = 0; i < streamProcessors.length; i++) {
-            streamProcessors[i].setMediaSource(mediaSource);
-        }
     }
 
     function reset() {
@@ -257,7 +250,6 @@ function Stream(config) {
     }
 
     function isMediaSupported(mediaInfo) {
-        const element = VideoModel(context).getInstance().getElement();
         const type = mediaInfo.type;
         let codec,
             msg;
@@ -277,7 +269,7 @@ function Stream(config) {
 
         if (!!mediaInfo.contentProtection && !capabilities.supportsEncryptedMedia()) {
             errHandler.capabilityError('encryptedmedia');
-        } else if (element && !capabilities.supportsCodec(element, codec)) {
+        } else if (!capabilities.supportsCodec(codec)) {
             msg = type + 'Codec (' + codec + ') is not supported.';
             errHandler.manifestError(msg, 'codec', manifestModel.getValue());
             log(msg);
@@ -286,7 +278,7 @@ function Stream(config) {
 
         return true;
     }
-    
+
     function onCurrentTrackChanged(e) {
         if (e.newMediaInfo.streamInfo.id !== streamInfo.id) return;
 
@@ -384,8 +376,7 @@ function Stream(config) {
             if (type === Constants.EMBEDDED_TEXT) {
                 textController.addEmbeddedTrack(mediaInfo);
             } else {
-                //TODO Perform this check before sourcebuffer creation but after prebuffer.
-                //if (!isMediaSupported(mediaInfo, mediaSource, manifest)) continue;
+                if (!isMediaSupported(mediaInfo)) continue;
 
                 if (mediaController.isMultiTrackSupportedByType(mediaInfo.type)) {
                     mediaController.addTrack(mediaInfo, streamInfo);
