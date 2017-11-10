@@ -23,7 +23,8 @@ describe("MediaPlayer", function () {
     });
 
     let NOT_INITIALIZED_ERROR_MSG = "MediaPlayer not initialized!";
-    let PLAYBACK_NOT_INITIALIZED_ERROR = 'You must first call initialize() to init playback before calling this method';
+    const STREAMING_NOT_INITIALIZED_ERROR = 'You must first call initialize() and set a source before calling this method';
+    let PLAYBACK_NOT_INITIALIZED_ERROR = 'You must first call initialize() and set a valid source and view before calling this method';
     let ELEMENT_NOT_ATTACHED_ERROR = 'You must first call attachView() to set the video element before calling this method';
 
     const specHelper = new SpecHelper();
@@ -499,15 +500,15 @@ describe("MediaPlayer", function () {
 
         describe("When it is not initialized", function () {
             it("Method getQualityFor should throw an exception", function () {
-                expect(player.getQualityFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getQualityFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method setQualityFor should throw an exception", function () {
-                expect(player.setQualityFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.setQualityFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method getInitialBitrateFor should throw an exception", function () {
-                expect(player.getInitialBitrateFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getInitialBitrateFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
         });
 
@@ -968,27 +969,27 @@ describe("MediaPlayer", function () {
     describe("Stream and Track Management Functions", function () {
         describe("When it is not initialized", function () {
             it("Method getBitrateInfoListFor should throw an exception", function () {
-                expect(player.getBitrateInfoListFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getBitrateInfoListFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method getStreamsFromManifest should throw an exception", function () {
-                expect(player.getStreamsFromManifest).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getStreamsFromManifest).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method getTracksFor should throw an exception", function () {
-                expect(player.getTracksFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getTracksFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method getTracksForTypeFromManifest should throw an exception", function () {
-                expect(player.getTracksForTypeFromManifest).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getTracksForTypeFromManifest).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method getCurrentTrackFor should throw an exception", function () {
-                expect(player.getCurrentTrackFor).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.getCurrentTrackFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it("Method setCurrentTrack should throw an exception", function () {
-                expect(player.setCurrentTrack).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.setCurrentTrack).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
         });
 

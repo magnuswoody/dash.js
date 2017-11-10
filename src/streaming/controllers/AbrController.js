@@ -350,7 +350,10 @@ function AbrController() {
             });
 
             if (droppedFramesHistory) {
-                droppedFramesHistory.push(playbackIndex, videoModel.getPlaybackQuality());
+                const playbackQuality = videoModel.getPlaybackQuality();
+                if (playbackQuality) {
+                    droppedFramesHistory.push(playbackIndex, playbackQuality);
+                }
             }
 
             //log("ABR enabled? (" + autoSwitchBitrate + ")");
@@ -594,10 +597,12 @@ function AbrController() {
     }
 
     function setElementSize() {
-        let hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
-        let pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
-        elementWidth = videoModel.getClientWidth() * pixelRatio;
-        elementHeight = videoModel.getClientHeight() * pixelRatio;
+        if (videoModel) {
+            let hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
+            let pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
+            elementWidth = videoModel.getClientWidth() * pixelRatio;
+            elementHeight = videoModel.getClientHeight() * pixelRatio;
+        }
     }
 
     function checkPortalSize(idx, type) {

@@ -109,7 +109,7 @@ function Stream(config) {
             isStreamActivated = true;
         }
         //else { // TODO Check track change mode but why is this here. commented it out for now to check.
-        //    createBuffers();
+        createBuffers();
         //}
     }
 
@@ -127,6 +127,30 @@ function Stream(config) {
         isMediaInitialized = false;
         clearEventController();
         eventBus.off(Events.CURRENT_TRACK_CHANGED, onCurrentTrackChanged, instance);
+    }
+
+    function setMediaSource(mediaSource) {
+        for (let i = 0; i < streamProcessors.length;) {
+            if (isMediaSupported(streamProcessors[i].getMediaInfo())) {
+                streamProcessors[i].setMediaSource(mediaSource);
+                i++;
+            } else {
+                streamProcessors[i].reset();
+                streamProcessors.splice(i,1);
+            }
+        }
+
+        for (let i = 0; i < streamProcessors.length; i++) {
+            //Adding of new tracks to a stream processor isn't guaranteed by the spec after the METADATA_LOADED state
+            //so do this after the buffers are created above.
+            streamProcessors[i].dischargePreBuffer();
+        }
+
+        if (streamProcessors.length === 0) {
+            let msg = 'No streams to play.';
+            errHandler.manifestError(msg, 'nostreams', manifestModel.getValue());
+            log(msg);
+        }
     }
 
     function resetInitialSettings() {
@@ -233,6 +257,7 @@ function Stream(config) {
     }
 
     function isMediaSupported(mediaInfo) {
+        const element = VideoModel(context).getInstance().getElement();
         const type = mediaInfo.type;
         let codec,
             msg;
@@ -252,7 +277,7 @@ function Stream(config) {
 
         if (!!mediaInfo.contentProtection && !capabilities.supportsEncryptedMedia()) {
             errHandler.capabilityError('encryptedmedia');
-        } else if (!capabilities.supportsCodec(VideoModel(context).getInstance().getElement(), codec)) {
+        } else if (element && !capabilities.supportsCodec(element, codec)) {
             msg = type + 'Codec (' + codec + ') is not supported.';
             errHandler.manifestError(msg, 'codec', manifestModel.getValue());
             log(msg);
@@ -316,7 +341,6 @@ function Stream(config) {
             mediaController: mediaController,
             streamController: config.streamController,
             textController: textController,
-            sourceBufferController: config.sourceBufferController,
             errHandler: errHandler
         });
 
@@ -583,7 +607,8 @@ function Stream(config) {
         startEventController: startEventController,
         updateData: updateData,
         reset: reset,
-        getProcessors: getProcessors
+        getProcessors: getProcessors,
+        setMediaSource: setMediaSource
     };
 
     setup();

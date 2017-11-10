@@ -44,7 +44,7 @@ function BufferLevelRule(config) {
 
     function execute(streamProcessor, type, videoTrackPresent) {
         const bufferLevel = dashMetrics.getCurrentBufferLevel(metricsModel.getReadOnlyMetricsFor(type));
-        return bufferLevel < getBufferTarget(streamProcessor, type, videoTrackPresent);
+        return bufferLevel <= getBufferTarget(streamProcessor, type, videoTrackPresent);
     }
 
     function getBufferTarget(streamProcessor, type, videoTrackPresent) {
@@ -74,7 +74,7 @@ function BufferLevelRule(config) {
                         let stableBuffer = true;
                         const now = Date.now();
                         for (let i = switchRequests.length - 1; i >= switchRequests.length - 4; i--) {
-                            if (switchRequests[i].oldValue != switchRequests[i].newValue && now - switchRequests[i].time.getTime() < 20 * 1000) {
+                            if (switchRequests[i] && switchRequests[i].oldValue != switchRequests[i].newValue && now - switchRequests[i].time.getTime() < 20 * 1000) {
                                 stableBuffer = false;
                                 break;
                             }
@@ -91,7 +91,7 @@ function BufferLevelRule(config) {
             }
         }
 
-        return bufferTarget;
+        return Math.max(bufferTarget, 2 * representationInfo.fragmentDuration);
     }
 
     const instance = {

@@ -40,20 +40,26 @@ function VideoModel() {
         element,
         TTMLRenderingDiv,
         videoContainer,
-        stalledStreams,
         previousPlaybackRate;
 
     let context = this.context;
     let log = Debug(context).getInstance().log;
     let eventBus = EventBus(context).getInstance();
+    const stalledStreams = [];
 
-    function initialize() {
-        stalledStreams = [];
+    function setup() {
+        eventBus.on(Events.PLAYBACK_PLAYING, onPlaying, this);
+    }
+
+    function reset() {
+        eventBus.off(Events.PLAYBACK_PLAYING, onPlaying, this);
     }
 
     function onPlaybackCanPlay() {
-        element.playbackRate = previousPlaybackRate || 1;
-        element.removeEventListener('canplay', onPlaybackCanPlay);
+        if (element) {
+            element.playbackRate = previousPlaybackRate || 1;
+            element.removeEventListener('canplay', onPlaybackCanPlay);
+        }
     }
 
     function setPlaybackRate(value) {
@@ -68,24 +74,26 @@ function VideoModel() {
 
     //TODO Move the DVR window calculations from MediaPlayer to Here.
     function setCurrentTime(currentTime) {
-        //_currentTime = currentTime;
+        if (element) {
+            //_currentTime = currentTime;
 
-        // We don't set the same currentTime because it can cause firing unexpected Pause event in IE11
-        // providing playbackRate property equals to zero.
-        if (element.currentTime == currentTime) return;
+            // We don't set the same currentTime because it can cause firing unexpected Pause event in IE11
+            // providing playbackRate property equals to zero.
+            if (element.currentTime == currentTime) return;
 
-        // TODO Despite the fact that MediaSource 'open' event has been fired IE11 cannot set videoElement.currentTime
-        // immediately (it throws InvalidStateError). It seems that this is related to videoElement.readyState property
-        // Initially it is 0, but soon after 'open' event it goes to 1 and setting currentTime is allowed. Chrome allows to
-        // set currentTime even if readyState = 0.
-        // setTimeout is used to workaround InvalidStateError in IE11
-        try {
-            element.currentTime = currentTime;
-        } catch (e) {
-            if (element.readyState === 0 && e.code === e.INVALID_STATE_ERR) {
-                setTimeout(function () {
-                    element.currentTime = currentTime;
-                }, 400);
+            // TODO Despite the fact that MediaSource 'open' event has been fired IE11 cannot set videoElement.currentTime
+            // immediately (it throws InvalidStateError). It seems that this is related to videoElement.readyState property
+            // Initially it is 0, but soon after 'open' event it goes to 1 and setting currentTime is allowed. Chrome allows to
+            // set currentTime even if readyState = 0.
+            // setTimeout is used to workaround InvalidStateError in IE11
+            try {
+                element.currentTime = currentTime;
+            } catch (e) {
+                if (element.readyState === 0 && e.code === e.INVALID_STATE_ERR) {
+                    setTimeout(function () {
+                        element.currentTime = currentTime;
+                    }, 400);
+                }
             }
         }
     }
@@ -101,16 +109,18 @@ function VideoModel() {
     }
 
     function setSource(source) {
-        if (source) {
-            element.src = source;
-        } else {
-            element.removeAttribute('src');
-            element.load();
+        if (element) {
+            if (source) {
+                element.src = source;
+            } else {
+                element.removeAttribute('src');
+                element.load();
+            }
         }
     }
 
     function getSource() {
-        return element.src;
+        return element ? element.src : null;
     }
 
     function getVideoContainer() {
@@ -153,7 +163,7 @@ function VideoModel() {
         }
 
         stalledStreams.push(type);
-        if (stalledStreams.length === 1) {
+        if (element && stalledStreams.length === 1) {
             // Halt playback until nothing is stalled.
             event = document.createEvent('Event');
             event.initEvent('waiting', true, false);
@@ -174,7 +184,7 @@ function VideoModel() {
             stalledStreams.splice(index, 1);
         }
         // If nothing is stalled resume playback.
-        if (isStalled() === false && element.playbackRate === 0) {
+        if (element && isStalled() === false && element.playbackRate === 0) {
             setPlaybackRate(previousPlaybackRate || 1);
             if (!element.paused) {
                 event = document.createEvent('Event');
@@ -192,7 +202,17 @@ function VideoModel() {
         }
     }
 
+    //Calling play on the element will emit playing - even if the stream is stalled. If the stream is stalled, emit a waiting event.
+    function onPlaying() {
+        if (element && isStalled() && element.playbackRate === 0) {
+            const event = document.createEvent('Event');
+            event.initEvent('waiting', true, false);
+            element.dispatchEvent(event);
+        }
+    }
+
     function getPlaybackQuality() {
+        if (!element) { return null; }
         let hasWebKit = ('webkitDroppedFrameCount' in element) && ('webkitDecodedFrameCount' in element);
         let hasQuality = ('getVideoPlaybackQuality' in element);
         let result = null;
@@ -290,7 +310,6 @@ function VideoModel() {
     }
 
     instance = {
-        initialize: initialize,
         setCurrentTime: setCurrentTime,
         play: play,
         isPaused: isPaused,
@@ -316,8 +335,11 @@ function VideoModel() {
         getBufferRange: getBufferRange,
         getClientWidth: getClientWidth,
         getClientHeight: getClientHeight,
-        getTextTracks: getTextTracks
+        getTextTracks: getTextTracks,
+        reset: reset
     };
+
+    setup();
 
     return instance;
 }

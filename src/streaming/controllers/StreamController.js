@@ -73,7 +73,6 @@ function StreamController() {
         abrController,
         mediaController,
         textController,
-        sourceBufferController,
         initCache,
         errHandler,
         timelineConverter,
@@ -314,13 +313,25 @@ function StreamController() {
 
         if (oldStream) oldStream.deactivate();
         activeStream = newStream;
+
+        playbackController.initialize(activeStream.getStreamInfo());
+
+        if (videoModel.getElement()) {
+            //TODO detect if we should close jump to activateStream.
+            openMediaSource(seekTime, false);
+        } else {
+            activateStream(seekTime); //TODO Check how seek time is being used here.
+        }
+    }
+
+    function switchToVideoElement(seekTime) {
         playbackController.initialize(activeStream.getStreamInfo());
 
         //TODO detect if we should close and repose or jump to activateStream.
-        openMediaSource(seekTime);
+        openMediaSource(seekTime, true);
     }
 
-    function openMediaSource(seekTime) {
+    function openMediaSource(seekTime, streamActivated) {
 
         let sourceUrl;
 
@@ -330,7 +341,11 @@ function StreamController() {
             mediaSource.removeEventListener('sourceopen', onMediaSourceOpen);
             mediaSource.removeEventListener('webkitsourceopen', onMediaSourceOpen);
             setMediaDuration();
-            activateStream(seekTime);
+            if (streamActivated) {
+                activeStream.setMediaSource(mediaSource);
+            } else {
+                activateStream(seekTime);
+            }
         }
 
         if (!mediaSource) {
@@ -346,7 +361,6 @@ function StreamController() {
     }
 
     function activateStream(seekTime) {
-
         activeStream.activate(mediaSource);
 
         if (!initialPlayback) {
@@ -431,7 +445,6 @@ function StreamController() {
                         playbackController: playbackController,
                         mediaController: mediaController,
                         textController: textController,
-                        sourceBufferController: sourceBufferController,
                         videoModel: videoModel,
                         streamController: instance
                     });
@@ -713,9 +726,6 @@ function StreamController() {
         if (config.textController) {
             textController = config.textController;
         }
-        if (config.sourceBufferController) {
-            sourceBufferController = config.sourceBufferController;
-        }
     }
 
     function resetInitialSettings() {
@@ -812,6 +822,7 @@ function StreamController() {
         setMediaDuration: setMediaDuration,
         isVideoTrackPresent: isVideoTrackPresent,
         isAudioTrackPresent: isAudioTrackPresent,
+        switchToVideoElement: switchToVideoElement,
         getStreamById: getStreamById,
         getTimeRelativeToStreamId: getTimeRelativeToStreamId,
         load: load,
