@@ -2178,7 +2178,10 @@ function MediaPlayer() {
         if (streamingInitialized || playbackInitialized) {
             resetPlaybackControllers();
         }
-        initializePlayback();
+
+        if (isReady()) {
+            initializePlayback();
+        }
     }
 
     /**
