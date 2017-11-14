@@ -319,10 +319,10 @@ function StreamController() {
 
         if (oldStream) oldStream.deactivate();
         activeStream = newStream;
+        playbackController.initialize(activeStream.getStreamInfo());
 
         if (videoModel.getElement()) {
             //TODO detect if we should close jump to activateStream.
-            playbackController.initialize(activeStream.getStreamInfo());
             openMediaSource(seekTime, false);
         } else {
             preloadStream(seekTime);
