@@ -627,8 +627,8 @@ function AbrController() {
         let manifest = manifestModel.getValue();
         let representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
         let newIdx = idx;
-        const scaledWidth = elementWidth * portalScale;
-        const scaledHeight = elementHeight * portalScale;
+        const scaledWidth = elementWidth * Math.sqrt(portalScale);
+        const scaledHeight = elementHeight * Math.sqrt(portalScale);
         if (scaledWidth > 0 && scaledHeight > 0) {
             while (
                 newIdx > 0 &&
