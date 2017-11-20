@@ -87,7 +87,8 @@ function AbrController() {
         isUsingBufferOccupancyABRDict,
         metricsModel,
         dashMetrics,
-        useDeadTimeLatency;
+        useDeadTimeLatency,
+        portalScale;
 
     function setup() {
         log = debug.log.bind(instance);
@@ -150,6 +151,7 @@ function AbrController() {
         if (abrRulesCollection) {
             abrRulesCollection.reset();
         }
+        portalScale = 1;
     }
 
     function setConfig(config) {
@@ -317,6 +319,14 @@ function AbrController() {
 
     function setLimitBitrateByPortal(value) {
         limitBitrateByPortal = value;
+    }
+
+    function setPortalScale(value) {
+        portalScale = value;
+    }
+
+    function getPortalScale() {
+        return portalScale;
     }
 
     function getUsePixelRatioInLimitBitrateByPortal() {
@@ -617,13 +627,14 @@ function AbrController() {
         let manifest = manifestModel.getValue();
         let representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
         let newIdx = idx;
-
-        if (elementWidth > 0 && elementHeight > 0) {
+        const scaledWidth = elementWidth * portalScale;
+        const scaledHeight = elementHeight * portalScale;
+        if (scaledWidth > 0 && scaledHeight > 0) {
             while (
                 newIdx > 0 &&
                 representation[newIdx] &&
-                elementWidth < representation[newIdx].width &&
-                elementWidth - representation[newIdx - 1].width < representation[newIdx].width - elementWidth
+                scaledWidth < representation[newIdx].width &&
+                scaledWidth - representation[newIdx - 1].width < representation[newIdx].width - scaledWidth
             ) {
                 newIdx = newIdx - 1;
             }
@@ -698,6 +709,8 @@ function AbrController() {
         setUseDeadTimeLatency: setUseDeadTimeLatency,
         setLimitBitrateByPortal: setLimitBitrateByPortal,
         getLimitBitrateByPortal: getLimitBitrateByPortal,
+        setPortalScale: setPortalScale,
+        getPortalScale: getPortalScale,
         getUsePixelRatioInLimitBitrateByPortal: getUsePixelRatioInLimitBitrateByPortal,
         setUsePixelRatioInLimitBitrateByPortal: setUsePixelRatioInLimitBitrateByPortal,
         getQualityFor: getQualityFor,

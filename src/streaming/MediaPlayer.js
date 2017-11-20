@@ -891,6 +891,14 @@ function MediaPlayer() {
         abrController.setUsePixelRatioInLimitBitrateByPortal(value);
     }
 
+    function setPortalScale(value) {
+        abrController.setPortalScale(value);
+    }
+
+    function getPortalScale() {
+        return abrController.getPortalScale();
+    }
+
     /**
      * Use this method to explicitly set the starting bitrate for audio | video
      *
@@ -2666,6 +2674,8 @@ function MediaPlayer() {
         getUseDeadTimeLatencyForAbr: getUseDeadTimeLatencyForAbr,
         setUseDeadTimeLatencyForAbr: setUseDeadTimeLatencyForAbr,
         refreshManifest: refreshManifest,
+        setPortalScale: setPortalScale,
+        getPortalScale: getPortalScale,
         reset: reset
     };
 
