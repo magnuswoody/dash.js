@@ -367,6 +367,8 @@ function BufferController(config) {
                     notifyBufferStateChanged(BUFFER_EMPTY);
                     return;
                 }
+            } else {
+                return;
             }
         }
         notifyBufferStateChanged(BUFFER_LOADED);
