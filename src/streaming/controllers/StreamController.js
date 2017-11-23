@@ -325,10 +325,11 @@ function StreamController() {
     }
 
     function switchToVideoElement(seekTime) {
-        playbackController.initialize(activeStream.getStreamInfo());
-
-        //TODO detect if we should close and repose or jump to activateStream.
-        openMediaSource(seekTime, true);
+        if (activeStream) { //If not, switchStream() will do this when we have a stream to use.
+            playbackController.initialize(activeStream.getStreamInfo());
+            //TODO detect if we should close and repose or jump to activateStream.
+            openMediaSource(seekTime, true);
+        }
     }
 
     function openMediaSource(seekTime, streamActivated) {
