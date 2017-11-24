@@ -28,6 +28,7 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
+
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import EventBus from '../../core/EventBus';
@@ -53,7 +54,11 @@ function EventController() {
         playbackController,
         isStarted;
 
-    function initialize() {
+    function setup() {
+        resetInitialSettings();
+    }
+
+    function resetInitialSettings() {
         isStarted = false;
         inlineEvents = {};
         inbandEvents = {};
@@ -223,14 +228,10 @@ function EventController() {
 
     function reset() {
         clear();
-        inlineEvents = null;
-        inbandEvents = null;
-        activeEvents = null;
-        playbackController = null;
+        resetInitialSettings();
     }
 
     instance = {
-        initialize: initialize,
         addInlineEvents: addInlineEvents,
         addInbandEvents: addInbandEvents,
         clear: clear,
@@ -238,6 +239,8 @@ function EventController() {
         setConfig: setConfig,
         reset: reset
     };
+
+    setup();
 
     return instance;
 }

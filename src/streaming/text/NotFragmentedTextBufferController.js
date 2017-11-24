@@ -33,7 +33,7 @@ import Events from '../../core/events/Events';
 import FactoryMaker from '../../core/FactoryMaker';
 import InitCache from '../utils/InitCache';
 import SourceBufferSink from '../SourceBufferSink';
-import TextController from './TextController';
+import TextController from '../../streaming/text/TextController';
 
 const BUFFER_CONTROLLER_TYPE = 'NotFragmentedTextBufferController';
 function NotFragmentedTextBufferController(config) {
@@ -52,11 +52,9 @@ function NotFragmentedTextBufferController(config) {
         mediaSource,
         buffer,
         representationController,
-        initCache,
-        id;
+        initCache;
 
     function setup() {
-        id = Math.random();
         initialized = false;
         mediaSource = null;
         representationController = null;
@@ -158,7 +156,6 @@ function NotFragmentedTextBufferController(config) {
         buffer.append(e.chunk);
     }
 
-    //TODO: Looks unused. Verify if ever executed. Append was to the wrong interface so probably not. ||| See latest upstream commit history.
     function switchInitData(streamId, representationId) {
         const chunk = initCache.extract(streamId, representationId);
         if (chunk) {

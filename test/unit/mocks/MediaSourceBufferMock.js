@@ -34,7 +34,7 @@ class MediaSourceBufferMock {
         this.chunk = null;
 
         let that = this;
-        setTimeout(function() {
+        setTimeout(function () {
             that.updating = false;
         }, 500);
     }
@@ -44,7 +44,7 @@ class MediaSourceBufferMock {
         this.chunk = chunk;
 
         let that = this;
-        setTimeout(function() {
+        setTimeout(function () {
             that.updating = false;
         }, 500);
     }

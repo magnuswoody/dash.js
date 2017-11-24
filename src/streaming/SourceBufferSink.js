@@ -79,7 +79,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
             // - currently no browser does, so check for it and use our own
             // implementation. The same is true for codecs="wvtt".
             if (codec.match(/application\/mp4;\s*codecs="(stpp|wvtt).*"/i)) {
-                throw new DashJSError('not really supported');
+                throw new Error('not really supported');
             }
 
             buffer = mediaSource.addSourceBuffer(codec);

@@ -29,6 +29,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 import Constants from './constants/Constants';
+import MetricsConstants from './constants/MetricsConstants';
 import UTCTiming from '../dash/vo/UTCTiming';
 import PlaybackController from './controllers/PlaybackController';
 import StreamController from './controllers/StreamController';
@@ -61,6 +62,11 @@ import DashAdapter from '../dash/DashAdapter';
 import DashManifestModel from '../dash/models/DashManifestModel';
 import DashMetrics from '../dash/DashMetrics';
 import TimelineConverter from '../dash/utils/TimelineConverter';
+import {
+    HTTPRequest
+} from './vo/metrics/HTTPRequest';
+import BASE64 from '../../externals/base64';
+import ISOBoxer from 'codem-isoboxer';
 
 /**
  * @module MediaPlayer
@@ -129,7 +135,7 @@ function MediaPlayer() {
     }
 
     /**
-     * Configure media plyer with customs controllers. Helpful for tests
+     * Configure media player with customs controllers. Helpful for tests
      *
      * @param {object=} config controllers configuration
      * @memberof module:MediaPlayer
@@ -540,11 +546,12 @@ function MediaPlayer() {
     function getBufferLength(type) {
         const types = [Constants.VIDEO, Constants.AUDIO, Constants.FRAGMENTED_TEXT];
         if (!type) {
-            return types.map(
+            const buffer = types.map(
                 t => getTracksFor(t).length > 0 ? getDashMetrics().getCurrentBufferLevel(getMetricsFor(t)) : Number.MAX_VALUE
             ).reduce(
                 (p, c) => Math.min(p, c)
             );
+            return buffer === Number.MAX_VALUE ? NaN : buffer;
         } else {
             if (types.indexOf(type) !== -1) {
                 const buffer = getDashMetrics().getCurrentBufferLevel(getMetricsFor(type));
@@ -1734,25 +1741,12 @@ function MediaPlayer() {
         if (!playbackInitialized) {
             throw PLAYBACK_NOT_INITIALIZED_ERROR;
         }
-        //For external time text file,  the only action needed to change a track is marking the track mode to showing.
-        // Fragmented text tracks need the additional step of calling TextController.setTextTrack();
+
         if (textController === undefined) {
             textController = TextController(context).getInstance();
         }
 
-        let tracks = getVideoElement().textTracks;
-        const ln = tracks.length;
-
-        for (let i = 0; i < ln; i++) {
-            let track = tracks[i];
-            let mode = idx === i ? Constants.TEXT_SHOWING : Constants.TEXT_HIDDEN;
-
-            if (track.mode !== mode) { //checking that mode is not already set by 3rd Party player frameworks that set mode to prevent event retrigger.
-                track.mode = mode;
-            }
-        }
-
-        textController.setTextTrack();
+        textController.setTextTrack(idx);
     }
 
     function getCurrentTextTrackIndex() {
@@ -1981,6 +1975,9 @@ function MediaPlayer() {
      * @instance
      */
     function setInitialMediaSettingsFor(type, value) {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         mediaController.setInitialSettings(type, value);
     }
 
@@ -1998,6 +1995,9 @@ function MediaPlayer() {
      * @instance
      */
     function getInitialMediaSettingsFor(type) {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         return mediaController.getInitialSettings(type);
     }
 
@@ -2022,6 +2022,9 @@ function MediaPlayer() {
      * @instance
      */
     function getTrackSwitchModeFor(type) {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         return mediaController.getSwitchMode(type);
     }
 
@@ -2040,6 +2043,9 @@ function MediaPlayer() {
      * @instance
      */
     function setTrackSwitchModeFor(type, mode) {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         mediaController.setSwitchMode(type, mode);
     }
 
@@ -2058,6 +2064,9 @@ function MediaPlayer() {
      * @instance
      */
     function setSelectionModeForInitialTrack(mode) {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         mediaController.setSelectionModeForInitialTrack(mode);
     }
 
@@ -2069,6 +2078,9 @@ function MediaPlayer() {
      * @instance
      */
     function getSelectionModeForInitialTrack() {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
         return mediaController.getSelectionModeForInitialTrack();
     }
 
@@ -2189,7 +2201,10 @@ function MediaPlayer() {
         if (streamingInitialized || playbackInitialized) {
             resetPlaybackControllers();
         }
-        initializePlayback();
+
+        if (isReady()) {
+            initializePlayback();
+        }
     }
 
     /**
@@ -2388,7 +2403,6 @@ function MediaPlayer() {
 
         playbackController.setConfig({
             streamController: streamController,
-            timelineConverter: timelineConverter,
             metricsModel: metricsModel,
             dashMetrics: dashMetrics,
             manifestModel: manifestModel,
@@ -2451,7 +2465,10 @@ function MediaPlayer() {
                 videoModel: videoModel,
                 capabilities: capabilities,
                 eventBus: eventBus,
-                adapter: adapter
+                adapter: adapter,
+                events: Events,
+                BASE64: BASE64,
+                constants: Constants
             });
             return protectionController;
         }
@@ -2473,7 +2490,10 @@ function MediaPlayer() {
                 eventBus: eventBus,
                 mediaElement: getVideoElement(),
                 dashManifestModel: dashManifestModel,
-                metricsModel: metricsModel
+                metricsModel: metricsModel,
+                events: Events,
+                constants: Constants,
+                metricsConstants: MetricsConstants
             });
         }
     }
@@ -2490,7 +2510,14 @@ function MediaPlayer() {
                 mediaPlayerModel: mediaPlayerModel,
                 metricsModel: metricsModel,
                 playbackController: playbackController,
-                errHandler: errHandler
+                protectionController: protectionController,
+                errHandler: errHandler,
+                events: Events,
+                constants: Constants,
+                log: log,
+                initSegmentType: HTTPRequest.INIT_SEGMENT_TYPE,
+                BASE64: BASE64,
+                ISOBoxer: ISOBoxer
             });
         }
     }

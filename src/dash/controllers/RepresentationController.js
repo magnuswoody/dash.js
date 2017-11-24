@@ -151,19 +151,20 @@ function RepresentationController() {
     }
 
     function updateData(newRealAdaptation, voAdaptation, type) {
+        const streamInfo = streamProcessor.getStreamInfo();
+        const maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
+        const minIdx = abrController.getMinAllowedIndexFor(type);
+
         let quality,
             averageThroughput;
-
         let bitrate = null;
-        let streamInfo = streamProcessor.getStreamInfo();
-        let maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
 
         updating = true;
         eventBus.trigger(Events.DATA_UPDATE_STARTED, {sender: this});
 
         voAvailableRepresentations = updateRepresentations(voAdaptation);
 
-        if (realAdaptation === null && type !== Constants.FRAGMENTED_TEXT) {
+        if ((realAdaptation === null || (realAdaptation.id != newRealAdaptation.id)) && type !== Constants.FRAGMENTED_TEXT) {
             averageThroughput = abrController.getThroughputHistory().getAverageThroughput(type);
             bitrate = averageThroughput || abrController.getInitialBitrateFor(type, streamInfo);
             quality = abrController.getQualityForBitrate(streamProcessor.getMediaInfo(), bitrate);
@@ -171,6 +172,9 @@ function RepresentationController() {
             quality = abrController.getQualityFor(type, streamInfo);
         }
 
+        if (minIdx !== undefined && quality < minIdx) {
+            quality = minIdx;
+        }
         if (quality > maxQuality) {
             quality = maxQuality;
         }
@@ -307,8 +311,8 @@ function RepresentationController() {
         }
 
         if (manifestUpdateInfo) {
-            for (let i = 0; i < manifestUpdateInfo.trackInfo.length; i++) {
-                repInfo = manifestUpdateInfo.trackInfo[i];
+            for (let i = 0; i < manifestUpdateInfo.representationInfo.length; i++) {
+                repInfo = manifestUpdateInfo.representationInfo[i];
                 if (repInfo.index === r.index && repInfo.mediaType === streamProcessor.getType()) {
                     alreadyAdded = true;
                     break;

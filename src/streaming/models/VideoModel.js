@@ -305,8 +305,50 @@ function VideoModel() {
         return element ? element.clientHeight : NaN;
     }
 
+    function getVideoWidth() {
+        return element ? element.videoWidth : NaN;
+    }
+
+    function getVideoHeight() {
+        return element ? element.videoHeight : NaN;
+    }
+
     function getTextTracks() {
         return element ? element.textTracks : [];
+    }
+
+    function getTextTrack(kind, label, lang) {
+        if (element) {
+            for (var i = 0; i < element.textTracks.length; i++) {
+                //label parameter could be a number (due to adaptationSet), but label, the attribute of textTrack, is a string => to modify...
+                //label could also be undefined (due to adaptationSet)
+                if (element.textTracks[i].kind === kind && (label ? element.textTracks[i].label == label : true) &&
+                   element.textTracks[i].language === lang) {
+                    return element.textTracks[i];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function addTextTrack(kind, label, lang) {
+        if (element) {
+            return element.addTextTrack(kind, label, lang);
+        }
+        return null;
+    }
+
+    function appendChild(childElement) {
+        if (element) {
+            element.appendChild(childElement);
+        }
+    }
+
+    function removeChild(childElement) {
+        if (element) {
+            element.removeChild(childElement);
+        }
     }
 
     instance = {
@@ -336,6 +378,12 @@ function VideoModel() {
         getClientWidth: getClientWidth,
         getClientHeight: getClientHeight,
         getTextTracks: getTextTracks,
+        getTextTrack: getTextTrack,
+        addTextTrack: addTextTrack,
+        appendChild: appendChild,
+        removeChild: removeChild,
+        getVideoWidth: getVideoWidth,
+        getVideoHeight: getVideoHeight,
         reset: reset
     };
 

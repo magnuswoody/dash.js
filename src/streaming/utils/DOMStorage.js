@@ -138,10 +138,10 @@ function DOMStorage(config) {
         if (!canStore(STORAGE_TYPE_LOCAL, LAST_MEDIA_SETTINGS)) return null;
 
         let settings = null;
-        let key = LOCAL_STORAGE_SETTINGS_KEY_TEMPLATE.replace(/\?/, type);
+        const key = LOCAL_STORAGE_SETTINGS_KEY_TEMPLATE.replace(/\?/, type);
         try {
-            let obj = JSON.parse(localStorage.getItem(key));
-            let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
+            const obj = JSON.parse(localStorage.getItem(key)) || {};
+            const isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
             settings = obj.settings;
 
             if (isExpired) {
@@ -162,11 +162,11 @@ function DOMStorage(config) {
         //Checks local storage to see if there is valid, non-expired bit rate
         //hinting from the last play session to use as a starting bit rate.
         if (canStore(STORAGE_TYPE_LOCAL, LAST_BITRATE)) {
-            let key = LOCAL_STORAGE_BITRATE_KEY_TEMPLATE.replace(/\?/, type);
+            const key = LOCAL_STORAGE_BITRATE_KEY_TEMPLATE.replace(/\?/, type);
             try {
-                let obj = JSON.parse(localStorage.getItem(key));
-                let isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
-                let bitrate = parseFloat(obj.bitrate);
+                const obj = JSON.parse(localStorage.getItem(key)) || {};
+                const isExpired = (new Date().getTime() - parseInt(obj.timestamp, 10)) >= mediaPlayerModel.getLastMediaSettingsCachingInfo().ttl || false;
+                const bitrate = parseFloat(obj.bitrate);
 
                 if (!isNaN(bitrate) && !isExpired) {
                     savedBitrate = bitrate;
@@ -207,8 +207,7 @@ function DOMStorage(config) {
         getSavedBitrateSettings: getSavedBitrateSettings,
         setSavedBitrateSettings: setSavedBitrateSettings,
         getSavedMediaSettings: getSavedMediaSettings,
-        setSavedMediaSettings: setSavedMediaSettings,
-        isSupported: isSupported
+        setSavedMediaSettings: setSavedMediaSettings
     };
 
     setup();

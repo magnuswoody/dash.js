@@ -37,17 +37,23 @@
  */
 import CommonEncryption from '../CommonEncryption';
 
-import FactoryMaker from '../../../core/FactoryMaker';
-import BASE64 from '../../../../externals/base64';
-
 const uuid = '9a04f079-9840-4286-ab92-e65be0885f95';
 const systemString = 'com.microsoft.playready';
 const schemeIdURI = 'urn:uuid:' + uuid;
+const PRCDMData = '<PlayReadyCDMData type="LicenseAcquisition"><LicenseAcquisition version="1.0" Proactive="false"><CustomData encoding="base64encoded">%CUSTOMDATA%</CustomData></LicenseAcquisition></PlayReadyCDMData>';
+let protData;
 
-function KeySystemPlayReady() {
+function KeySystemPlayReady(config) {
 
     let instance;
     let messageFormat = 'utf16';
+    let BASE64 = config ? config.BASE64 : null;
+
+    function checkConfig() {
+        if (!BASE64 || !BASE64.hasOwnProperty('decodeArray') || !BASE64.hasOwnProperty('decodeArray') ) {
+            throw new Error('Missing config parameter(s)');
+        }
+    }
 
     function getRequestHeadersFromMessage(message) {
         let msg,
@@ -81,6 +87,7 @@ function KeySystemPlayReady() {
         let parser = new DOMParser();
         let dataview = (messageFormat === 'utf16') ? new Uint16Array(message) : new Uint8Array(message);
 
+        checkConfig();
         msg = String.fromCharCode.apply(null, dataview);
         xmlDoc = parser.parseFromString(msg, 'application/xml');
 
@@ -157,9 +164,10 @@ function KeySystemPlayReady() {
             PSSHBox,
             PSSHData;
 
+        checkConfig();
         // Handle common encryption PSSH
         if ('pssh' in cpData) {
-            return CommonEncryption.parseInitDataFromContentProtection(cpData);
+            return CommonEncryption.parseInitDataFromContentProtection(cpData, BASE64);
         }
         // Handle native MS PlayReady ContentProtection elements
         if ('pro' in cpData) {
@@ -213,6 +221,57 @@ function KeySystemPlayReady() {
         messageFormat = format;
     }
 
+    /**
+     * Initialize the Key system with protection data
+     * @param {Object} protectionData the protection data
+     */
+    function init(protectionData) {
+        if (protectionData) {
+            protData = protectionData;
+        }
+    }
+
+
+    /**
+     * Get Playready Custom data
+     */
+    function getCDMData() {
+        var customData,
+            cdmData,
+            cdmDataBytes,
+            i;
+
+        checkConfig();
+        if (protData && protData.cdmData) {
+
+            // Convert custom data into multibyte string
+            customData = [];
+            for (i = 0; i < protData.cdmData.length; ++i) {
+                customData.push(protData.cdmData.charCodeAt(i));
+                customData.push(0);
+            }
+            customData = String.fromCharCode.apply(null, customData);
+
+            // Encode in Base 64 the custom data string
+            customData = BASE64.encode(customData);
+
+            // Initialize CDM data with Base 64 encoded custom data
+            // (see https://msdn.microsoft.com/en-us/library/dn457361.aspx)
+            cdmData = PRCDMData.replace('%CUSTOMDATA%', customData);
+
+            // Convert CDM data into multibyte characters
+            cdmDataBytes = [];
+            for (i = 0; i < cdmData.length; ++i) {
+                cdmDataBytes.push(cdmData.charCodeAt(i));
+                cdmDataBytes.push(0);
+            }
+
+            return new Uint8Array(cdmDataBytes).buffer;
+        }
+
+        return null;
+    }
+
     instance = {
         uuid: uuid,
         schemeIdURI: schemeIdURI,
@@ -221,11 +280,13 @@ function KeySystemPlayReady() {
         getRequestHeadersFromMessage: getRequestHeadersFromMessage,
         getLicenseRequestFromMessage: getLicenseRequestFromMessage,
         getLicenseServerURLFromInitData: getLicenseServerURLFromInitData,
-        setPlayReadyMessageFormat: setPlayReadyMessageFormat
+        getCDMData: getCDMData,
+        setPlayReadyMessageFormat: setPlayReadyMessageFormat,
+        init: init
     };
 
     return instance;
 }
 
 KeySystemPlayReady.__dashjs_factory_name = 'KeySystemPlayReady';
-export default FactoryMaker.getSingletonFactory(KeySystemPlayReady);
+export default dashjs.FactoryMaker.getSingletonFactory(KeySystemPlayReady); /* jshint ignore:line */
