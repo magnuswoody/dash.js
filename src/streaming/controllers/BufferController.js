@@ -40,6 +40,7 @@ import BoxParser from '../utils/BoxParser';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import InitCache from '../utils/InitCache';
+import VideoModel from '../models/VideoModel';
 
 const BUFFER_LOADED = 'bufferLoaded';
 const BUFFER_EMPTY = 'bufferStalled';
@@ -98,6 +99,7 @@ function BufferController(config) {
 
     function initialize(Source) {
         setMediaSource(Source);
+        videoModel = VideoModel(context).getInstance();
 
         requiredQuality = abrController.getQualityFor(type, streamProcessor.getStreamInfo());
         const ua = navigator.userAgent.toLowerCase();
