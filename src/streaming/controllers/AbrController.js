@@ -141,6 +141,7 @@ function AbrController() {
         limitBitrateByPortal = false;
         useDeadTimeLatency = true;
         usePixelRatioInLimitBitrateByPortal = false;
+        portalScale = 1;
         if (windowResizeEventCalled === undefined) {
             windowResizeEventCalled = false;
         }
@@ -162,7 +163,6 @@ function AbrController() {
         if (abrRulesCollection) {
             abrRulesCollection.reset();
         }
-        portalScale = 1;
     }
 
     function setConfig(config) {
