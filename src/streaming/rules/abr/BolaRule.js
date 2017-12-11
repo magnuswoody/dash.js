@@ -47,7 +47,7 @@ const BOLA_STATE_ONE_BITRATE    = 0;
 const BOLA_STATE_STARTUP        = 1;
 const BOLA_STATE_STEADY         = 2;
 
-const MINIMUM_BUFFER_S = 10; // BOLA should never add artificial delays if buffer is less than MINIMUM_BUFFER_S.
+const MINIMUM_BUFFER_S = 12; // BOLA should never add artificial delays if buffer is less than MINIMUM_BUFFER_S.
 const MINIMUM_BUFFER_PER_BITRATE_LEVEL_S = 2;
 // E.g. if there are 5 bitrates, BOLA switches to top bitrate at buffer = 10 + 5 * 2 = 20s.
 // If Schedule Controller does not allow buffer to reach that level, it can be achieved through the placeholder buffer level.
