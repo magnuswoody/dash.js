@@ -426,7 +426,7 @@ function BufferController(config) {
         if (bufferToPrune > 0) {
             log('pruning buffer: ' + bufferToPrune + ' seconds.');
             isPruningInProgress = true;
-            buffer.remove(0, Math.round(start + bufferToPrune), mediaSource);
+            buffer.remove(0, Math.round(start + bufferToPrune));
         }
     }
 
