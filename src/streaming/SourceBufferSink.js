@@ -79,7 +79,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
             // - currently no browser does, so check for it and use our own
             // implementation. The same is true for codecs="wvtt".
             if (codec.match(/application\/mp4;\s*codecs="(stpp|wvtt).*"/i)) {
-                throw new DashJSError('not really supported');
+                throw new Error('not really supported');
             }
 
             buffer = mediaSource.addSourceBuffer(codec);
@@ -122,12 +122,12 @@ function SourceBufferSink(mediaSource, mediaInfo) {
         }
     }
 
-    function remove(start, end) {
+    function remove(start, end, forceRemoval) {
         const sourceBufferSink = this;
         // make sure that the given time range is correct. Otherwise we will get InvalidAccessError
         waitForUpdateEnd(buffer, function () {
             try {
-                if ((start >= 0) && (end > start) && (mediaSource.readyState !== 'ended')) {
+                if ((start >= 0) && (end > start) && (forceRemoval || mediaSource.readyState !== 'ended')) {
                     buffer.remove(start, end);
                 }
                 // updating is in progress, we should wait for it to complete before signaling that this operation is done

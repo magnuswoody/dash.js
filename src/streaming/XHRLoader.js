@@ -185,6 +185,12 @@ function XHRLoader(cfg) {
             }
         };
 
+        const onabort = function () {
+            if (config.abort) {
+                config.abort(request, xhr.status);
+            }
+        };
+
         if (!requestModifier || !metricsModel || !errHandler) {
             throw new Error('config object is not correct or missing');
         }
@@ -215,6 +221,7 @@ function XHRLoader(cfg) {
             xhr.onloadend = onloadend;
             xhr.onerror = onloadend;
             xhr.onprogress = progress;
+            xhr.onabort = onabort;
 
             // Adds the ability to delay single fragment loading time to control buffer.
             let now = new Date().getTime();

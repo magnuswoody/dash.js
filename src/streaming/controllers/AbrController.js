@@ -53,9 +53,9 @@ const QUALITY_DEFAULT = 0;
 
 function AbrController() {
 
-    let context = this.context;
-    let debug = Debug(context).getInstance();
-    let eventBus = EventBus(context).getInstance();
+    const context = this.context;
+    const debug = Debug(context).getInstance();
+    const eventBus = EventBus(context).getInstance();
 
     let instance,
         log,
@@ -87,11 +87,12 @@ function AbrController() {
         isUsingBufferOccupancyABRDict,
         metricsModel,
         dashMetrics,
-        useDeadTimeLatency;
+        useDeadTimeLatency,
+        portalScale;
 
     function setup() {
         log = debug.log.bind(instance);
-        reset();
+        resetInitialSettings();
     }
 
     function registerStreamType(type, streamProcessor) {
@@ -112,6 +113,10 @@ function AbrController() {
         });
     }
 
+    function unRegisterStreamType(type) {
+        delete streamProcessorDict[type];
+    }
+
     function createAbrRulesCollection() {
         abrRulesCollection = ABRRulesCollection(context).create({
             metricsModel: metricsModel,
@@ -123,7 +128,7 @@ function AbrController() {
         abrRulesCollection.initialize();
     }
 
-    function reset() {
+    function resetInitialSettings() {
         autoSwitchBitrate = {video: true, audio: true};
         topQualities = {};
         qualityDict = {};
@@ -136,17 +141,25 @@ function AbrController() {
         limitBitrateByPortal = false;
         useDeadTimeLatency = true;
         usePixelRatioInLimitBitrateByPortal = false;
+        portalScale = 1;
         if (windowResizeEventCalled === undefined) {
             windowResizeEventCalled = false;
         }
-        eventBus.off(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
-        eventBus.off(Events.QUALITY_CHANGE_RENDERED, onQualityChangeRendered, this);
-        eventBus.off(Events.METRIC_ADDED, onMetricAdded, this);
         playbackIndex = undefined;
         droppedFramesHistory = undefined;
         throughputHistory = undefined;
         clearTimeout(abandonmentTimeout);
         abandonmentTimeout = null;
+    }
+
+    function reset() {
+
+        resetInitialSettings();
+
+        eventBus.off(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
+        eventBus.off(Events.QUALITY_CHANGE_RENDERED, onQualityChangeRendered, this);
+        eventBus.off(Events.METRIC_ADDED, onMetricAdded, this);
+
         if (abrRulesCollection) {
             abrRulesCollection.reset();
         }
@@ -291,6 +304,30 @@ function AbrController() {
         bitrateDict.min[type] = value;
     }
 
+    function getMaxAllowedIndexFor(type) {
+        const maxBitrate = getMaxAllowedBitrateFor(type);
+        if (maxBitrate) {
+            return getQualityForBitrate(streamProcessorDict[type].getMediaInfo(), maxBitrate);
+        } else {
+            return undefined;
+        }
+    }
+
+    function getMinAllowedIndexFor(type) {
+        const minBitrate = getMinAllowedBitrateFor(type);
+        if (minBitrate) {
+            const bitrateList = getBitrateList(streamProcessorDict[type].getMediaInfo());
+            // This returns the quality index <= for the given bitrate
+            let minIdx = getQualityForBitrate(streamProcessorDict[type].getMediaInfo(), minBitrate);
+            if (bitrateList[minIdx] && minIdx < bitrateList.length - 1 && bitrateList[minIdx].bitrate < minBitrate * 1000) {
+                minIdx++; // Go to the next bitrate
+            }
+            return minIdx;
+        } else {
+            return undefined;
+        }
+    }
+
     function getMaxAllowedRepresentationRatioFor(type) {
         if (ratioDict.hasOwnProperty('max') && ratioDict.max.hasOwnProperty(type)) {
             return ratioDict.max[type];
@@ -317,6 +354,14 @@ function AbrController() {
 
     function setLimitBitrateByPortal(value) {
         limitBitrateByPortal = value;
+    }
+
+    function setPortalScale(value) {
+        portalScale = value;
+    }
+
+    function getPortalScale() {
+        return portalScale;
     }
 
     function getUsePixelRatioInLimitBitrateByPortal() {
@@ -355,15 +400,18 @@ function AbrController() {
                     droppedFramesHistory.push(playbackIndex, playbackQuality);
                 }
             }
-
-            //log("ABR enabled? (" + autoSwitchBitrate + ")");
             if (getAutoSwitchBitrateFor(type)) {
+                const minIdx = getMinAllowedIndexFor(type);
                 const topQualityIdx = getTopQualityIndexFor(type, streamId);
                 const switchRequest = abrRulesCollection.getMaxQuality(rulesContext);
                 let newQuality = switchRequest.quality;
+                if (minIdx !== undefined && newQuality < minIdx) {
+                    newQuality = minIdx;
+                }
                 if (newQuality > topQualityIdx) {
                     newQuality = topQualityIdx;
                 }
+
                 switchHistoryDict[type].push({oldValue: oldQuality, newValue: newQuality});
 
                 if (newQuality > SwitchRequest.NO_CHANGE && newQuality != oldQuality) {
@@ -393,11 +441,11 @@ function AbrController() {
 
     function changeQuality(type, oldQuality, newQuality, topQualityIdx, reason) {
         if (type  && streamProcessorDict[type]) {
-            var streamInfo = streamProcessorDict[type].getStreamInfo();
-            var id = streamInfo ? streamInfo.id : null;
+            const streamInfo = streamProcessorDict[type].getStreamInfo();
+            const id = streamInfo ? streamInfo.id : null;
             if (debug.getLogToBrowserConsole()) {
                 const bufferLevel = dashMetrics.getCurrentBufferLevel(metricsModel.getReadOnlyMetricsFor(type));
-                log('AbrController (' + type + ') switch from ' + oldQuality + ' to ' + newQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ')\n' + JSON.stringify(reason));
+                log('AbrController (' + type + ') switch from ' + oldQuality + ' to ' + newQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ') ' + (reason ? JSON.stringify(reason) : '.'));
             }
             setQualityFor(type, id, newQuality);
             eventBus.trigger(Events.QUALITY_CHANGE_REQUESTED, {mediaType: type, streamInfo: streamInfo, oldQuality: oldQuality, newQuality: newQuality, reason: reason});
@@ -409,7 +457,7 @@ function AbrController() {
     }
 
     function getAbandonmentStateFor(type) {
-        return abandonmentStateDict[type].state;
+        return abandonmentStateDict[type] ? abandonmentStateDict[type].state : null;
     }
 
     /**
@@ -422,11 +470,11 @@ function AbrController() {
     function getQualityForBitrate(mediaInfo, bitrate, latency) {
         if (useDeadTimeLatency && latency && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo() && streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration) {
             latency = latency / 1000;
-            let fragmentDuration = streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration;
+            const fragmentDuration = streamProcessorDict[mediaInfo.type].getCurrentRepresentationInfo().fragmentDuration;
             if (latency > fragmentDuration) {
                 return 0;
             } else {
-                let deadTimeRatio = latency / fragmentDuration;
+                const deadTimeRatio = latency / fragmentDuration;
                 bitrate = bitrate * (1 - deadTimeRatio);
             }
         }
@@ -453,10 +501,10 @@ function AbrController() {
     function getBitrateList(mediaInfo) {
         if (!mediaInfo || !mediaInfo.bitrateList) return null;
 
-        let bitrateList = mediaInfo.bitrateList;
-        let type = mediaInfo.type;
+        const bitrateList = mediaInfo.bitrateList;
+        const type = mediaInfo.type;
 
-        let infoList = [];
+        const infoList = [];
         let bitrateInfo;
 
         for (let i = 0, ln = bitrateList.length; i < ln; i++) {
@@ -485,12 +533,12 @@ function AbrController() {
         }
         // else ABR_STRATEGY_DYNAMIC
 
-        let stableBufferTime = mediaPlayerModel.getStableBufferTime();
-        let switchOnThreshold = stableBufferTime;
-        let switchOffThreshold = 0.5 * stableBufferTime;
+        const stableBufferTime = mediaPlayerModel.getStableBufferTime();
+        const switchOnThreshold = stableBufferTime;
+        const switchOffThreshold = 0.5 * stableBufferTime;
 
-        let useBufferABR = isUsingBufferOccupancyABRDict[mediaType];
-        let newUseBufferABR = bufferLevel > (useBufferABR ? switchOffThreshold : switchOnThreshold); // use hysteresis to avoid oscillating rules
+        const useBufferABR = isUsingBufferOccupancyABRDict[mediaType];
+        const newUseBufferABR = bufferLevel > (useBufferABR ? switchOffThreshold : switchOnThreshold); // use hysteresis to avoid oscillating rules
         isUsingBufferOccupancyABRDict[mediaType] = newUseBufferABR;
 
         if (newUseBufferABR !== useBufferABR) {
@@ -511,9 +559,9 @@ function AbrController() {
     }
 
     function updateTopQualityIndex(mediaInfo) {
-        let type = mediaInfo.type;
-        let streamId = mediaInfo.streamInfo.id;
-        let max = mediaInfo.representationCount - 1;
+        const type = mediaInfo.type;
+        const streamId = mediaInfo.streamInfo.id;
+        const max = mediaInfo.representationCount - 1;
 
         setTopQualityIndex(type, streamId, max);
 
@@ -521,12 +569,11 @@ function AbrController() {
     }
 
     function isPlayingAtTopQuality(streamInfo) {
-        let isAtTop;
-        let streamId = streamInfo.id;
+        const streamId = streamInfo.id;
         const audioQuality = getQualityFor(Constants.AUDIO);
         const videoQuality = getQualityFor(Constants.VIDEO);
 
-        isAtTop = (audioQuality === getTopQualityIndexFor(Constants.AUDIO, streamId)) &&
+        const isAtTop = (audioQuality === getTopQualityIndexFor(Constants.AUDIO, streamId)) &&
             (videoQuality === getTopQualityIndexFor(Constants.VIDEO, streamId));
 
         return isAtTop;
@@ -534,7 +581,7 @@ function AbrController() {
 
     function getQualityFor(type) {
         if (type && streamProcessorDict[type]) {
-            let streamInfo = streamProcessorDict[type].getStreamInfo();
+            const streamInfo = streamProcessorDict[type].getStreamInfo();
             const id = streamInfo ? streamInfo.id : null;
             let quality;
 
@@ -569,15 +616,13 @@ function AbrController() {
             return newIdx;
         }
 
-        let minBitrate = getMinAllowedBitrateFor(type);
-        if (minBitrate) {
-            let minIdx = getQualityForBitrate(streamProcessorDict[type].getMediaInfo(), minBitrate);
+        const minIdx = getMinAllowedIndexFor(type);
+        if (minIdx !== undefined) {
             newIdx = Math.max (idx , minIdx);
         }
 
-        let maxBitrate = getMaxAllowedBitrateFor(type);
-        if (maxBitrate) {
-            let maxIdx = getQualityForBitrate(streamProcessorDict[type].getMediaInfo(), maxBitrate);
+        const maxIdx = getMaxAllowedIndexFor(type);
+        if (maxIdx !== undefined) {
             newIdx = Math.min (newIdx , maxIdx);
         }
 
@@ -585,7 +630,7 @@ function AbrController() {
     }
 
     function checkMaxRepresentationRatio(idx, type, maxIdx) {
-        let maxRepresentationRatio = getMaxAllowedRepresentationRatioFor(type);
+        const maxRepresentationRatio = getMaxAllowedRepresentationRatioFor(type);
         if (isNaN(maxRepresentationRatio) || maxRepresentationRatio >= 1 || maxRepresentationRatio < 0) {
             return idx;
         }
@@ -598,8 +643,8 @@ function AbrController() {
 
     function setElementSize() {
         if (videoModel) {
-            let hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
-            let pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
+            const hasPixelRatio = usePixelRatioInLimitBitrateByPortal && window.hasOwnProperty('devicePixelRatio');
+            const pixelRatio = hasPixelRatio ? window.devicePixelRatio : 1;
             elementWidth = videoModel.getClientWidth() * pixelRatio;
             elementHeight = videoModel.getClientHeight() * pixelRatio;
         }
@@ -614,16 +659,17 @@ function AbrController() {
             setElementSize();
         }
 
-        let manifest = manifestModel.getValue();
-        let representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
+        const manifest = manifestModel.getValue();
+        const representation = dashManifestModel.getAdaptationForType(manifest, 0, type).Representation;
         let newIdx = idx;
-
-        if (elementWidth > 0 && elementHeight > 0) {
+        const scaledWidth = elementWidth * Math.sqrt(portalScale);
+        const scaledHeight = elementHeight * Math.sqrt(portalScale);
+        if (scaledWidth > 0 && scaledHeight > 0) {
             while (
                 newIdx > 0 &&
                 representation[newIdx] &&
-                elementWidth < representation[newIdx].width &&
-                elementWidth - representation[newIdx - 1].width < representation[newIdx].width - elementWidth
+                scaledWidth < representation[newIdx].width &&
+                scaledWidth - representation[newIdx - 1].width < representation[newIdx].width - scaledWidth
             ) {
                 newIdx = newIdx - 1;
             }
@@ -642,7 +688,7 @@ function AbrController() {
             const streamProcessor = streamProcessorDict[type];
             if (!streamProcessor) return;// There may be a fragment load in progress when we switch periods and recreated some controllers.
 
-            let rulesContext = RulesContext(context).create({
+            const rulesContext = RulesContext(context).create({
                 abrController: instance,
                 streamProcessor: streamProcessor,
                 currentRequest: e.request,
@@ -660,7 +706,6 @@ function AbrController() {
                     switchHistoryDict[type].reset();
                     switchHistoryDict[type].push({oldValue: getQualityFor(type, streamController.getActiveStreamInfo()), newValue: switchRequest.quality, confidence: 1, reason: switchRequest.reason});
                     setPlaybackQuality(type, streamController.getActiveStreamInfo(), switchRequest.quality, switchRequest.reason);
-                    eventBus.trigger(Events.FRAGMENT_LOADING_ABANDONED, {streamProcessor: streamProcessorDict[type], request: request, mediaType: type, newQuality: switchRequest.quality});
 
                     clearTimeout(abandonmentTimeout);
                     abandonmentTimeout = setTimeout(
@@ -686,6 +731,8 @@ function AbrController() {
         getMinAllowedBitrateFor: getMinAllowedBitrateFor,
         setMaxAllowedBitrateFor: setMaxAllowedBitrateFor,
         setMinAllowedBitrateFor: setMinAllowedBitrateFor,
+        getMaxAllowedIndexFor: getMaxAllowedIndexFor,
+        getMinAllowedIndexFor: getMinAllowedIndexFor,
         getMaxAllowedRepresentationRatioFor: getMaxAllowedRepresentationRatioFor,
         setMaxAllowedRepresentationRatioFor: setMaxAllowedRepresentationRatioFor,
         getInitialBitrateFor: getInitialBitrateFor,
@@ -698,6 +745,8 @@ function AbrController() {
         setUseDeadTimeLatency: setUseDeadTimeLatency,
         setLimitBitrateByPortal: setLimitBitrateByPortal,
         getLimitBitrateByPortal: getLimitBitrateByPortal,
+        setPortalScale: setPortalScale,
+        getPortalScale: getPortalScale,
         getUsePixelRatioInLimitBitrateByPortal: getUsePixelRatioInLimitBitrateByPortal,
         setUsePixelRatioInLimitBitrateByPortal: setUsePixelRatioInLimitBitrateByPortal,
         getQualityFor: getQualityFor,
@@ -709,6 +758,7 @@ function AbrController() {
         setWindowResizeEventCalled: setWindowResizeEventCalled,
         createAbrRulesCollection: createAbrRulesCollection,
         registerStreamType: registerStreamType,
+        unRegisterStreamType: unRegisterStreamType,
         setConfig: setConfig,
         getSwitchHistory: getSwitchHistory,
         reset: reset
@@ -720,7 +770,7 @@ function AbrController() {
 }
 
 AbrController.__dashjs_factory_name = 'AbrController';
-let factory = FactoryMaker.getSingletonFactory(AbrController);
+const factory = FactoryMaker.getSingletonFactory(AbrController);
 factory.ABANDON_LOAD = ABANDON_LOAD;
 factory.QUALITY_DEFAULT = QUALITY_DEFAULT;
 FactoryMaker.updateSingletonFactory(AbrController.__dashjs_factory_name, factory);

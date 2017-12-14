@@ -57,7 +57,7 @@ function FragmentModel(config) {
     function setup() {
         resetInitialSettings();
         eventBus.on(Events.LOADING_COMPLETED, onLoadingCompleted, instance);
-
+        eventBus.on(Events.LOADING_ABANDONED, onLoadingAborted, instance);
     }
 
     function setStreamProcessor(value) {
@@ -68,7 +68,20 @@ function FragmentModel(config) {
         return streamProcessor;
     }
 
-    function isFragmentLoaded(request) {
+    function isFragmentInBuffer(request, bufferRanges) {
+        let intersects = false;
+        for (let i = 0; i < bufferRanges.length; i++) {
+            if (request.startTime + 0.5 >= bufferRanges.start(i) &&
+                    request.startTime + request.duration - 0.5 <= bufferRanges.end(i)) {
+                intersects = true;
+                break;
+            }
+        }
+
+        return intersects;
+    }
+
+    function isFragmentLoaded(request, bufferRanges) {
         const isEqualComplete = function (req1, req2) {
             return ((req1.action === FragmentRequest.ACTION_COMPLETE) && (req1.action === req2.action));
         };
@@ -82,13 +95,13 @@ function FragmentModel(config) {
         };
 
         const check = function (requests) {
-            let isLoaded = false;
-            requests.some(req => {
-                if (isEqualMedia(request, req) || isEqualInit(request, req) || isEqualComplete(request, req)) {
-                    isLoaded = true;
-                    return isLoaded;
+            const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
+            const isLoaded = requests.some(req => {
+                if ((isEqualMedia(request, req) && isInBuffer) || isEqualInit(request, req) || isEqualComplete(request, req)) {
+                    return true;
                 }
             });
+
             return isLoaded;
         };
 
@@ -266,6 +279,12 @@ function FragmentModel(config) {
         });
     }
 
+    function onLoadingAborted(e) {
+        if (e.sender !== fragmentLoader) return;
+
+        eventBus.trigger(Events.FRAGMENT_LOADING_ABANDONED, {streamProcessor: this.getStreamProcessor(), request: e.request, mediaType: e.mediaType});
+    }
+
     function resetInitialSettings() {
         executedRequests = [];
         loadingRequests = [];
@@ -273,6 +292,7 @@ function FragmentModel(config) {
 
     function reset() {
         eventBus.off(Events.LOADING_COMPLETED, onLoadingCompleted, this);
+        eventBus.off(Events.LOADING_ABANDONED, onLoadingAborted, this);
 
         if (fragmentLoader) {
             fragmentLoader.reset();

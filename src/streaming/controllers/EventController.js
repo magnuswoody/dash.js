@@ -28,10 +28,11 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
+
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import EventBus from '../../core/EventBus';
-import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
+import Events from '../../core/events/Events';
 
 function EventController() {
 
@@ -53,7 +54,11 @@ function EventController() {
         playbackController,
         isStarted;
 
-    function initialize() {
+    function setup() {
+        resetInitialSettings();
+    }
+
+    function resetInitialSettings() {
         isStarted = false;
         inlineEvents = {};
         inbandEvents = {};
@@ -127,30 +132,23 @@ function EventController() {
     }
 
     function handleManifestReloadEvent(event) {
-        //At this point
-        //Truncate current MPD validity time to event time
-        //Event time is a delta from the presenation time of the containing segment.
         if (event.eventStream.value == MPD_RELOAD_VALUE) {
             const timescale = event.eventStream.timescale || 1;
-            log('Manifest validity changed: Valid until: ' + event.presentationTime / timescale + '; remaining duration: ' + event.duration / timescale);
-            eventBus.trigger(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, {
+            const validUntil = event.presentationTime / timescale;
+            let newDuration;
+            if (event.presentationTime == 0xFFFFFFFF) {//0xFF... means remaining duration unknown
+                newDuration = NaN;
+            } else {
+                newDuration = (event.presentationTime + event.duration) / timescale;
+            }
+            log('Manifest validity changed: Valid until: ' + validUntil + '; remaining duration: ' + newDuration);
+            eventBus.trigger(Events.MANIFEST_VALIDITY_CHANGED, {
                 id: event.id,
-                validUntil: event.presentationTime / timescale,
-                remainingDuration: event.duration / timescale,
-                newManifestValidAfter: NaN //event.message_data - decode arraybuffer zulu time string first
+                validUntil: validUntil,
+                newDuration: newDuration,
+                newManifestValidAfter: NaN //event.message_data - this is an arraybuffer with a timestring in it, but not used yet
             });
         }
-        //If event duration == 0, video ends at this time. Mark stream as ended?
-
-        //If event duration > 0
-        //Reload manifest with conditional
-        //If new manifest publish time is not greater than messageData(MPD publish time)
-        //Truncate current MPD validity time to event time
-        //Await some timeout (to be decided relative to closeness of MPD expiry) and reload (max number of reloads?)
-        //Consider applicability of minimum update period in the MPD spec to this.
-
-        //Event duration value should set
-        //Event duration 0xffff is 'unknown' - this should read 0xffffffff, make note is deliberately against spec.
     }
 
     /**
@@ -182,6 +180,11 @@ function EventController() {
         removeEvents();
     }
 
+    function refreshManifest() {
+        checkSetConfigCall();
+        manifestUpdater.refreshManifest();
+    }
+
     function triggerEvents(events) {
         var currentVideoTime = playbackController.getTime();
         var presentationTime;
@@ -200,8 +203,13 @@ function EventController() {
                         if (curr.duration > 0) {
                             activeEvents[eventId] = curr;
                         }
-
-                        eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
+                        if (curr.eventStream.schemeIdUri == MPD_RELOAD_SCHEME && curr.eventStream.value == MPD_RELOAD_VALUE) {
+                            if (curr.duration !== 0 || curr.presentationTimeDelta !== 0) { //If both are set to zero, it indicates the media is over at this point. Don't reload the manifest.
+                                refreshManifest();
+                            }
+                        } else {
+                            eventBus.trigger(curr.eventStream.schemeIdUri, {event: curr});
+                        }
                         delete events[eventId];
                     }
                 }
@@ -223,14 +231,10 @@ function EventController() {
 
     function reset() {
         clear();
-        inlineEvents = null;
-        inbandEvents = null;
-        activeEvents = null;
-        playbackController = null;
+        resetInitialSettings();
     }
 
     instance = {
-        initialize: initialize,
         addInlineEvents: addInlineEvents,
         addInbandEvents: addInbandEvents,
         clear: clear,
@@ -238,6 +242,8 @@ function EventController() {
         setConfig: setConfig,
         reset: reset
     };
+
+    setup();
 
     return instance;
 }

@@ -34,7 +34,7 @@ class StreamControllerMock {
         return {
             id: 'dummyId',
             getBitrateListFor: function () {
-                return [1, 2]
+                return [1, 2];
             }
         };
     }

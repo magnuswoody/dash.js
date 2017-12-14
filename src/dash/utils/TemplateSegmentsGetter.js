@@ -39,7 +39,7 @@ function TemplateSegmentsGetter(config, isDynamic) {
 
     let instance;
 
-    function getSegmentsFromTemplate(representation, requestedTime, index, availabilityUpperLimit) {
+    function getSegmentsFromTemplate(representation, requestedTime, index) {
         const template = representation.adaptation.period.mpd.manifest.Period_asArray[representation.adaptation.period.index].
             AdaptationSet_asArray[representation.adaptation.index].Representation_asArray[representation.index].SegmentTemplate;
         const duration = representation.segmentDuration;
@@ -61,7 +61,7 @@ function TemplateSegmentsGetter(config, isDynamic) {
             segmentRange = {start: start, end: start};
         }
         else {
-            segmentRange = decideSegmentListRangeForTemplate(timelineConverter, isDynamic, representation, requestedTime, index, availabilityUpperLimit);
+            segmentRange = decideSegmentListRangeForTemplate(timelineConverter, isDynamic, representation, requestedTime, index);
         }
 
         startIdx = segmentRange.start;
@@ -77,7 +77,10 @@ function TemplateSegmentsGetter(config, isDynamic) {
             seg.media = url;
 
             segments.push(seg);
-            seg = null;
+        }
+
+        if (seg) { // Should be the last in the segmentList.
+            seg.duration = Math.min(seg.presentationStartTime + seg.duration, availabilityWindow.end) - seg.presentationStartTime;
         }
 
         if (isNaN(duration)) {

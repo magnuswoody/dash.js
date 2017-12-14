@@ -33,7 +33,6 @@ import DashConstants from '../constants/DashConstants';
 import DashJSError from '../../streaming/vo/DashJSError';
 import EventBus from '../../core/EventBus';
 import Events from '../../core/events/Events';
-import MediaPlayerEvents from '../../streaming/MediaPlayerEvents';
 import FactoryMaker from '../../core/FactoryMaker';
 import Representation from '../vo/Representation';
 
@@ -68,7 +67,7 @@ function RepresentationController() {
         eventBus.on(Events.REPRESENTATION_UPDATED, onRepresentationUpdated, instance);
         eventBus.on(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, instance);
         eventBus.on(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, instance);
-        eventBus.on(MediaPlayerEvents.MANIFEST_VALIDITY_CHANGED, onManifestValidityChanged, instance);
+        eventBus.on(Events.MANIFEST_VALIDITY_CHANGED, onManifestValidityChanged, instance);
     }
 
     function setConfig(config) {
@@ -146,24 +145,26 @@ function RepresentationController() {
         eventBus.off(Events.REPRESENTATION_UPDATED, onRepresentationUpdated, instance);
         eventBus.off(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, instance);
         eventBus.off(Events.BUFFER_LEVEL_UPDATED, onBufferLevelUpdated, instance);
+        eventBus.off(Events.MANIFEST_VALIDITY_CHANGED, onManifestValidityChanged, instance);
 
         resetInitialSettings();
     }
 
     function updateData(newRealAdaptation, voAdaptation, type) {
+        const streamInfo = streamProcessor.getStreamInfo();
+        const maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
+        const minIdx = abrController.getMinAllowedIndexFor(type);
+
         let quality,
             averageThroughput;
-
         let bitrate = null;
-        let streamInfo = streamProcessor.getStreamInfo();
-        let maxQuality = abrController.getTopQualityIndexFor(type, streamInfo.id);
 
         updating = true;
         eventBus.trigger(Events.DATA_UPDATE_STARTED, {sender: this});
 
         voAvailableRepresentations = updateRepresentations(voAdaptation);
 
-        if (realAdaptation === null && type !== Constants.FRAGMENTED_TEXT) {
+        if ((realAdaptation === null || (realAdaptation.id != newRealAdaptation.id)) && type !== Constants.FRAGMENTED_TEXT) {
             averageThroughput = abrController.getThroughputHistory().getAverageThroughput(type);
             bitrate = averageThroughput || abrController.getInitialBitrateFor(type, streamInfo);
             quality = abrController.getQualityForBitrate(streamProcessor.getMediaInfo(), bitrate);
@@ -171,6 +172,9 @@ function RepresentationController() {
             quality = abrController.getQualityFor(type, streamInfo);
         }
 
+        if (minIdx !== undefined && quality < minIdx) {
+            quality = minIdx;
+        }
         if (quality > maxQuality) {
             quality = maxQuality;
         }
@@ -272,7 +276,7 @@ function RepresentationController() {
         };
 
         updating = false;
-        eventBus.trigger(MediaPlayerEvents.AST_IN_FUTURE, { delay: delay });
+        eventBus.trigger(Events.AST_IN_FUTURE, { delay: delay });
         setTimeout(update, delay);
     }
 
@@ -307,8 +311,8 @@ function RepresentationController() {
         }
 
         if (manifestUpdateInfo) {
-            for (let i = 0; i < manifestUpdateInfo.trackInfo.length; i++) {
-                repInfo = manifestUpdateInfo.trackInfo[i];
+            for (let i = 0; i < manifestUpdateInfo.representationInfo.length; i++) {
+                repInfo = manifestUpdateInfo.representationInfo[i];
                 if (repInfo.index === r.index && repInfo.mediaType === streamProcessor.getType()) {
                     alreadyAdded = true;
                     break;
@@ -365,17 +369,12 @@ function RepresentationController() {
     }
 
     function onManifestValidityChanged(e) {
-        const representation = getCurrentRepresentation();
-        if (representation && representation.adaptation.period) {
-            const period = representation.adaptation.period;
-            period.duration = e.validUntil;
-            //setMediaDuration(newDuration);
-
-            //if (e.remainingDuration > 0) {
-            //TODO: Schedule to occur at or after e.newManifestValidAfter.
-            //TODO: Provide postManifestUpdateCallback to verify that the new manifest has a publish date after e.newManifestValidAfter.
-            //    streamController.refreshManifest();
-            //}
+        if (!isNaN(e.newDuration)) {
+            const representation = getCurrentRepresentation();
+            if (representation && representation.adaptation.period) {
+                const period = representation.adaptation.period;
+                period.duration = e.newDuration;
+            }
         }
     }
 

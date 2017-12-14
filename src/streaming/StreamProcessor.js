@@ -109,7 +109,6 @@ function StreamProcessor(config) {
             mediaPlayerModel: mediaPlayerModel,
             abrController: abrController,
             playbackController: playbackController,
-            mediaController: mediaController,
             streamController: streamController,
             textController: textController,
             streamProcessor: this
@@ -145,6 +144,10 @@ function StreamProcessor(config) {
         }
     }
 
+    function getExternalControllers() {
+        return spExternalControllers;
+    }
+
     function unregisterAllExternalController() {
         spExternalControllers = [];
     }
@@ -174,6 +177,9 @@ function StreamProcessor(config) {
             representationController = null;
         }
 
+        if (abrController) {
+            abrController.unRegisterStreamType(type);
+        }
         spExternalControllers.forEach(function (controller) {
             controller.reset();
         });
@@ -368,6 +374,7 @@ function StreamProcessor(config) {
         setBuffer: setBuffer,
         registerExternalController: registerExternalController,
         unregisterExternalController: unregisterExternalController,
+        getExternalControllers: getExternalControllers,
         unregisterAllExternalController: unregisterAllExternalController,
         reset: reset
     };
