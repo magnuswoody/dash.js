@@ -79,7 +79,7 @@ function TemplateSegmentsGetter(config, isDynamic) {
             segments.push(seg);
         }
 
-        if (seg) { // Should be the last in the segmentList.
+        if (representation.adaptation.period.mpd.manifest.type !== 'dynamic' && seg) { // Should be the last in the segmentList.
             seg.duration = Math.min(seg.presentationStartTime + seg.duration, availabilityWindow.end) - seg.presentationStartTime;
         }
 
