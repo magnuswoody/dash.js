@@ -118,7 +118,6 @@ function BufferController(config) {
         eventBus.on(Events.PLAYBACK_SEEKING, onPlaybackSeeking, this);
         eventBus.on(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, this);
         eventBus.on(Events.CURRENT_TRACK_CHANGED, onCurrentTrackChanged, this, EventBus.EVENT_PRIORITY_HIGH);
-        eventBus.on(Events.SOURCEBUFFER_APPEND_COMPLETED, onAppended, this);
         eventBus.on(Events.SOURCEBUFFER_REMOVE_COMPLETED, onRemoved, this);
 
         if (isSafariOnMac) {
@@ -130,7 +129,7 @@ function BufferController(config) {
         if (!initCache || !mediaInfo || !streamProcessor) return null;
         if (mediaSource) {
             try {
-                buffer = SourceBufferSink(context).create(mediaSource, mediaInfo);
+                buffer = SourceBufferSink(context).create(mediaSource, mediaInfo, onAppended.bind(this));
                 if (typeof buffer.getBuffer().initialize === 'function') {
                     buffer.getBuffer().initialize(type, streamProcessor);
                 }
@@ -139,7 +138,7 @@ function BufferController(config) {
                 errHandler.mediaSourceError('Error creating ' + type + ' source buffer.');
             }
         } else {
-            buffer = PreBufferSink(context).create(mediaInfo);
+            buffer = PreBufferSink(context).create(onAppended.bind(this));
         }
         updateBufferTimestampOffset(streamProcessor.getRepresentationInfoForQuality(requiredQuality).MSETimeOffset);
     }
@@ -223,7 +222,6 @@ function BufferController(config) {
 
 
     function appendToBuffer(chunk) {
-        appendedBytesInfo = chunk; //TODO It's async - there's no reason to think this is valid after the return.
         buffer.append(chunk);
 
         if (chunk.mediaInfo.type === Constants.VIDEO) {
@@ -350,7 +348,7 @@ function BufferController(config) {
 
     function checkIfBufferingCompleted() {
         const isLastIdxAppended = maxAppendedIndex >= lastIndex - 1; // Handles 0 and non 0 based request index
-        if (isLastIdxAppended && !isBufferingCompleted) {
+        if (isLastIdxAppended && !isBufferingCompleted && buffer.discharge === undefined) {
             isBufferingCompleted = true;
             eventBus.trigger(Events.BUFFERING_COMPLETED, {sender: instance, streamInfo: streamProcessor.getStreamInfo()});
         }
@@ -586,30 +584,29 @@ function BufferController(config) {
     }
 
     function onAppended(e) {
-        if (buffer === e.buffer) { //TODO: This is entirely local to sourcebuffer/buffercontroller - rewrite as a callback and not an event.
-            if (appendedBytesInfo && !isNaN(appendedBytesInfo.index)) {
-                maxAppendedIndex = Math.max(appendedBytesInfo.index, maxAppendedIndex);
-                checkIfBufferingCompleted();
-            }
+        appendedBytesInfo = e.chunk;
+        if (appendedBytesInfo && !isNaN(appendedBytesInfo.index)) {
+            maxAppendedIndex = Math.max(appendedBytesInfo.index, maxAppendedIndex);
+            checkIfBufferingCompleted();
+        }
 
-            onPlaybackProgression();
+        onPlaybackProgression();
 
-            const ranges = buffer.getAllBufferRanges();
-            if (ranges && ranges.length > 0) {
-                for (let i = 0, len = ranges.length; i < len; i++) {
-                    log('Buffered Range for type:', type , ':' ,ranges.start(i) ,  ' - ' ,  ranges.end(i));
-                }
+        const ranges = buffer.getAllBufferRanges();
+        if (ranges && ranges.length > 0) {
+            for (let i = 0, len = ranges.length; i < len; i++) {
+                log('Buffered Range for type:', type , ':' ,ranges.start(i) ,  ' - ' ,  ranges.end(i));
             }
+        }
 
-            if (appendedBytesInfo) {
-                eventBus.trigger(Events.BYTES_APPENDED, {
-                    sender: instance,
-                    quality: appendedBytesInfo.quality,
-                    startTime: appendedBytesInfo.start,
-                    index: appendedBytesInfo.index,
-                    bufferedRanges: ranges
-                });
-            }
+        if (appendedBytesInfo) {
+            eventBus.trigger(Events.BYTES_APPENDED, {
+                sender: instance,
+                quality: appendedBytesInfo.quality,
+                startTime: appendedBytesInfo.start,
+                index: appendedBytesInfo.index,
+                bufferedRanges: ranges
+            });
         }
 
         if (e.error) {
@@ -682,7 +679,6 @@ function BufferController(config) {
         eventBus.off(Events.PLAYBACK_RATE_CHANGED, onPlaybackRateChanged, this);
         eventBus.off(Events.PLAYBACK_SEEKING, onPlaybackSeeking, this);
         eventBus.off(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, this);
-        eventBus.off(Events.SOURCEBUFFER_APPEND_COMPLETED, onAppended, this);
         eventBus.off(Events.SOURCEBUFFER_REMOVE_COMPLETED, onRemoved, this);
         eventBus.off(Events.PLAYBACK_SEEKED, onSeeked, this);
 
