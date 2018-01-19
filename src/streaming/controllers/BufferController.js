@@ -599,6 +599,23 @@ function BufferController(config) {
             }
         }
 
+        let closestEndDifference = NaN;
+        let closestRange = NaN;
+        for (let i = 0; i < ranges.length; i++) {
+            let endDifference = ranges.end(i) - e.chunk.end;
+            if (endDifference < 0) {
+                endDifference = -endDifference;
+            }
+            if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
+                closestEndDifference = endDifference;
+                closestRange = i;
+            }
+        }
+
+        if (!isNaN(closestRange) && !isNaN(e.chunk.end)) {
+            console.log('#a ' + e.chunk.mediaInfo.type + '-manifest: ' + (ranges.end(closestRange) - e.chunk.end).toFixed(2) + '; media: ' + ranges.end(closestRange).toFixed(2) + '; manifest: ' + e.chunk.end.toFixed(2));
+        }
+
         if (appendedBytesInfo) {
             eventBus.trigger(Events.BYTES_APPENDED, {
                 sender: instance,
