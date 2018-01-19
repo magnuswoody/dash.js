@@ -43,7 +43,6 @@ module.exports = function (grunt) {
                     drop_console: false
                 }
             },
-
             build_core: {
                 options: {
                     sourceMapIn: 'build/temp/dash.mediaplayer.debug.js.map'
@@ -82,6 +81,14 @@ module.exports = function (grunt) {
             build_all: {
                 options: {
                     sourceMapIn: 'build/temp/dash.all.debug.js.map'
+                },
+                files: {
+                    'build/temp/dash.all.min.js': 'build/temp/dash.all.debug.js'
+                }
+            },
+            build_all_no_map: {
+                options: {
+                    sourceMap: false
                 },
                 files: {
                     'build/temp/dash.all.min.js': 'build/temp/dash.all.debug.js'
@@ -338,11 +345,13 @@ module.exports = function (grunt) {
     require('load-grunt-tasks')(grunt);
     grunt.registerTask('default', ['dist', 'test']);
     grunt.registerTask('dist', ['clean', 'jshint', 'jscs', 'browserify:mediaplayer', 'browserify:protection', 'browserify:reporting', 'browserify:mss', 'browserify:all', 'babel:es5', 'minimize', 'copy:dist']);
+    grunt.registerTask('smp-dist', ['clean', 'jshint', 'jscs', 'browserify:mediaplayer', 'browserify:protection', 'browserify:reporting', 'browserify:mss', 'browserify:all', 'babel:es5', 'minimize-nomap', 'copy:dist']);
     grunt.registerTask('minimize', ['exorcise', 'githash', 'uglify']);
+    grunt.registerTask('minimize-nomap', ['githash', 'uglify:build_all_no_map']);
     grunt.registerTask('test', ['mocha_istanbul:test']);
     grunt.registerTask('watch', ['browserify:watch']);
     grunt.registerTask('watch-dev', ['browserify:watch_dev']);
-    grunt.registerTask('release', ['default', 'jsdoc']);
+    grunt.registerTask('release', ['smp-dist', 'test', 'jsdoc']);
     grunt.registerTask('debug', ['clean', 'browserify:all', 'exorcise:all', 'copy:dist']);
     grunt.registerTask('lint', ['jshint', 'jscs']);
     grunt.registerTask('prepublish', ['githooks', 'dist']);
