@@ -102,7 +102,7 @@ function BufferController(config) {
     function initialize(Source) {
         setMediaSource(Source);
         videoModel = VideoModel(context).getInstance();
-        
+
         requiredQuality = abrController.getQualityFor(type, streamProcessor.getStreamInfo());
         const ua = navigator.userAgent.toLowerCase();
         //This whole test is just for safari on a mac.
@@ -614,12 +614,10 @@ function BufferController(config) {
                 }
             }
 
-            if (!isNaN(closestRange)){
+            if (!isNaN(closestRange)) {
                 const timeOffset = ranges.end(closestRange) - e.chunk.end;
-                console.log('#a ' + e.chunk.mediaInfo.type + '-manifest: ' + timeOffset.toFixed(2) + '; media: ' + ranges.end(closestRange).toFixed(2) + '; manifest: ' + e.chunk.end.toFixed(2));
 
                 if (timeOffset > 0.5 || timeOffset < -0.5) {
-                    console.log('#a ' + e.chunk.mediaInfo.type + '-q: ' + e.chunk.quality + '; to: ' + timeOffset.toFixed(2));
                     streamProcessor.getFragmentModel().setMediaManifestOffset(timeOffset);
                 }
             }
