@@ -52,7 +52,8 @@ function FragmentModel(config) {
     let instance,
         streamProcessor,
         executedRequests,
-        loadingRequests;
+        loadingRequests,
+        mediaManifestOffset;
 
     function setup() {
         resetInitialSettings();
@@ -68,11 +69,16 @@ function FragmentModel(config) {
         return streamProcessor;
     }
 
+    //The difference between the buffered media presentation time and the manifest's believed presentation time. +ve means media is later than manifest.
+    function setMediaManifestOffset(value) {
+        mediaManifestOffset = value;
+    }
+
     function isFragmentInBuffer(request, bufferRanges) {
         let intersects = false;
         for (let i = 0; i < bufferRanges.length; i++) {
-            if (request.startTime + 0.5 >= bufferRanges.start(i) &&
-                    request.startTime + request.duration - 0.5 <= bufferRanges.end(i)) {
+            if (request.startTime + mediaManifestOffset + 0.5 >= bufferRanges.start(i) &&
+                    request.startTime + mediaManifestOffset + request.duration - 0.5 <= bufferRanges.end(i)) {
                 intersects = true;
                 break;
             }
@@ -288,6 +294,7 @@ function FragmentModel(config) {
     function resetInitialSettings() {
         executedRequests = [];
         loadingRequests = [];
+        mediaManifestOffset = 0;
     }
 
     function reset() {
@@ -309,6 +316,7 @@ function FragmentModel(config) {
         removeExecutedRequestsBeforeTime: removeExecutedRequestsBeforeTime,
         abortRequests: abortRequests,
         executeRequest: executeRequest,
+        setMediaManifestOffset: setMediaManifestOffset,
         reset: reset
     };
 

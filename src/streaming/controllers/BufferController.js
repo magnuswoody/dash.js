@@ -85,7 +85,8 @@ function BufferController(config) {
         initCache,
         seekStartTime,
         seekClearedBufferingCompleted,
-        isSafariOnMac;
+        isSafariOnMac,
+        firstFragmentAppended;
 
     function setup() {
         log = Debug(context).getInstance().log.bind(instance);
@@ -599,6 +600,31 @@ function BufferController(config) {
             }
         }
 
+        if (!firstFragmentAppended && !isNaN(e.chunk.end)) {//For the first non-init segment
+            let closestEndDifference = NaN;
+            let closestRange = NaN;
+            for (let i = 0; i < ranges.length; i++) {
+                let endDifference = ranges.end(i) - e.chunk.end;
+                if (endDifference < 0) {
+                    endDifference = -endDifference;
+                }
+                if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
+                    closestEndDifference = endDifference;
+                    closestRange = i;
+                }
+            }
+
+            if (!isNaN(closestRange)) {
+                const timeOffset = ranges.end(closestRange) - e.chunk.end;
+
+                if (timeOffset > 0.5 || timeOffset < -0.5) {
+                    streamProcessor.getFragmentModel().setMediaManifestOffset(timeOffset);
+                }
+            }
+
+            firstFragmentAppended = true;
+        }
+
         if (appendedBytesInfo) {
             eventBus.trigger(Events.BYTES_APPENDED, {
                 sender: instance,
@@ -663,6 +689,7 @@ function BufferController(config) {
         isBufferingCompleted = false;
         isPruningInProgress = false;
         seekClearedBufferingCompleted = false;
+        firstFragmentAppended = false;
         bufferLevel = 0;
         wallclockTicked = 0;
     }
