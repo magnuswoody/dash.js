@@ -85,7 +85,8 @@ function BufferController(config) {
         initCache,
         seekStartTime,
         seekClearedBufferingCompleted,
-        isSafariOnMac;
+        isSafariOnMac,
+        firstFragmentAppended;
 
     function setup() {
         log = Debug(context).getInstance().log.bind(instance);
@@ -101,7 +102,7 @@ function BufferController(config) {
     function initialize(Source) {
         setMediaSource(Source);
         videoModel = VideoModel(context).getInstance();
-
+        
         requiredQuality = abrController.getQualityFor(type, streamProcessor.getStreamInfo());
         const ua = navigator.userAgent.toLowerCase();
         //This whole test is just for safari on a mac.
@@ -599,21 +600,31 @@ function BufferController(config) {
             }
         }
 
-        let closestEndDifference = NaN;
-        let closestRange = NaN;
-        for (let i = 0; i < ranges.length; i++) {
-            let endDifference = ranges.end(i) - e.chunk.end;
-            if (endDifference < 0) {
-                endDifference = -endDifference;
+        if (!firstFragmentAppended && !isNaN(e.chunk.end)) {//For the first non-init segment
+            let closestEndDifference = NaN;
+            let closestRange = NaN;
+            for (let i = 0; i < ranges.length; i++) {
+                let endDifference = ranges.end(i) - e.chunk.end;
+                if (endDifference < 0) {
+                    endDifference = -endDifference;
+                }
+                if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
+                    closestEndDifference = endDifference;
+                    closestRange = i;
+                }
             }
-            if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
-                closestEndDifference = endDifference;
-                closestRange = i;
-            }
-        }
 
-        if (!isNaN(closestRange) && !isNaN(e.chunk.end)) {
-            console.log('#a ' + e.chunk.mediaInfo.type + '-manifest: ' + (ranges.end(closestRange) - e.chunk.end).toFixed(2) + '; media: ' + ranges.end(closestRange).toFixed(2) + '; manifest: ' + e.chunk.end.toFixed(2));
+            if (!isNaN(closestRange)){
+                const timeOffset = ranges.end(closestRange) - e.chunk.end;
+                console.log('#a ' + e.chunk.mediaInfo.type + '-manifest: ' + timeOffset.toFixed(2) + '; media: ' + ranges.end(closestRange).toFixed(2) + '; manifest: ' + e.chunk.end.toFixed(2));
+
+                if (timeOffset > 0.5 || timeOffset < -0.5) {
+                    console.log('#a ' + e.chunk.mediaInfo.type + '-q: ' + e.chunk.quality + '; to: ' + timeOffset.toFixed(2));
+                    streamProcessor.getFragmentModel().setMediaManifestOffset(timeOffset);
+                }
+            }
+
+            firstFragmentAppended = true;
         }
 
         if (appendedBytesInfo) {
@@ -680,6 +691,7 @@ function BufferController(config) {
         isBufferingCompleted = false;
         isPruningInProgress = false;
         seekClearedBufferingCompleted = false;
+        firstFragmentAppended = false;
         bufferLevel = 0;
         wallclockTicked = 0;
     }
