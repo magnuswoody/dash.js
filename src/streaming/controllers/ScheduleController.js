@@ -42,6 +42,7 @@ import Debug from '../../core/Debug';
 
 function ScheduleController(config) {
 
+    config = config || {};
     const context = this.context;
     const eventBus = EventBus(context).getInstance();
     const metricsModel = config.metricsModel;
@@ -171,6 +172,7 @@ function ScheduleController(config) {
 
     function schedule() {
         if (isStopped || isFragmentProcessingInProgress || !streamProcessor.getBufferController() || playbackController.isPaused() && !scheduleWhilePaused) {
+            log('ScheduleController ' + type + ' - schedule stop!');
             return;
         }
 
@@ -178,20 +180,20 @@ function ScheduleController(config) {
 
         const type = currentRepresentationInfo.mediaInfo.type;
         const isReplacement = replaceRequestArray.length > 0;
+        const streamInfo = streamProcessor.getStreamInfo();
         if (switchTrack || isReplacement ||
-            hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamProcessor.getStreamInfo().id) ||
+            hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamInfo.id) ||
             bufferLevelRule.execute(streamProcessor, type, streamController.isVideoTrackPresent())) {
 
             const getNextFragment = function () {
-                log('ScheduleController ' + type + '- getNextFragment');
                 const fragmentController = streamProcessor.getFragmentController();
                 if (switchTrack) {
-                    log('ScheduleController ' + type + '- switch track has been asked, get init request for ' + type + ' with representationid = ' + currentRepresentationInfo.id);
+                    log('ScheduleController - ' + type + ' - switch track has been asked, get init request for ' + type + ' with representationid = ' + currentRepresentationInfo.id);
                     streamProcessor.switchInitData(currentRepresentationInfo.id);
                     lastInitQuality = currentRepresentationInfo.quality;
                     switchTrack = false;
                 } else if (currentRepresentationInfo.quality !== lastInitQuality) {
-                    log('ScheduleController ' + type + '- quality has changed, get init request');
+                    log('ScheduleController - ' + type + ' - quality has changed, get init request for representationid = ' + currentRepresentationInfo.id);
                     lastInitQuality = currentRepresentationInfo.quality;
 
                     streamProcessor.switchInitData(currentRepresentationInfo.id);
@@ -202,12 +204,19 @@ function ScheduleController(config) {
                         //to be sure the specific init segment had not already been loaded.
                         streamProcessor.switchInitData(replacement.representationId);
                     } else {
-                        const request = nextFragmentRequestRule.execute(streamProcessor, replacement);
+                        let request;
+                        // don't schedule next fragments while pruning to avoid buffer inconsistencies
+                        if (!streamProcessor.getBufferController().getIsPruningInProgress()) {
+                            request = nextFragmentRequestRule.execute(streamProcessor, replacement);
+                            if (!request && streamInfo.manifestInfo && streamInfo.manifestInfo.isDynamic) {
+                                log('getNextFragment - ' + type + ' - Playing at the bleeding live edge and frag is not available yet');
+                            }
+                        }
+
                         if (request) {
-                            log('ScheduleController ' + type + '- getNextFragment - request is ' + request.url);
+                            log('ScheduleController - ' + type + ' - getNextFragment - request is ' + request.url);
                             fragmentModel.executeRequest(request);
                         } else { //Use case - Playing at the bleeding live edge and frag is not available yet. Cycle back around.
-                            log('getNextFragment ' + type + '- Playing at the bleeding live edge and frag is not available yet');
                             isFragmentProcessingInProgress = false;
                             startScheduleTimer(500);
                         }
@@ -216,12 +225,11 @@ function ScheduleController(config) {
             };
 
             isFragmentProcessingInProgress = true;
-            if (isReplacement || switchTrack) {
-                getNextFragment();
-            } else {
+            if (!isReplacement && !switchTrack) {
                 abrController.checkPlaybackQuality(type);
-                getNextFragment();
             }
+
+            getNextFragment();
 
         } else {
             startScheduleTimer(500);
@@ -386,14 +394,14 @@ function ScheduleController(config) {
 
         stop();
         isFragmentProcessingInProgress = false;
-        log('Stream is complete');
+        log('[ScheduleController] Stream is complete');
     }
 
     function onFragmentLoadingCompleted(e) {
         if (e.sender !== fragmentModel) {
             return;
         }
-
+        log('[ScheduleController] onFragmentLoadingCompleted for', type);
         if (dashManifestModel.getIsTextTrack(type)) {
             isFragmentProcessingInProgress = false;
         }
@@ -422,8 +430,11 @@ function ScheduleController(config) {
         if (e.streamProcessor !== streamProcessor) {
             return;
         }
-        log('[ScheduleController][' + type + '] Request ' + e.request.url + ' has been aborted');
-        replaceRequest(e.request);
+        log('[ScheduleController][onFragmentLoadingAbandoned] for ' + type + ', request: ' + e.request.url + ' has been aborted');
+        if (!playbackController.isSeeking()) {
+            log('[ScheduleController][onFragmentLoadingAbandoned] for ' + type + ', request: ' + e.request.url + ' has to be downloaded again, origin is not seeking process');
+            replaceRequest(e.request);
+        }
         isFragmentProcessingInProgress = false;
         startScheduleTimer(0);
     }
@@ -441,9 +452,9 @@ function ScheduleController(config) {
             return;
         }
 
-        // after the data has been removed from the buffer we should remove the requests from the list of
-        // the executed requests for which playback time is inside the time interval that has been removed from the buffer
-        fragmentModel.removeExecutedRequestsBeforeTime(e.to);
+        streamProcessor.getFragmentModel().syncExecutedRequestsWithBufferedRange(
+            streamProcessor.getBufferController().getBuffer().buffered,
+            streamProcessor.getStreamInfo().duration);
 
         if (e.hasEnoughSpaceToAppend && isStopped) {
             start();
@@ -502,6 +513,9 @@ function ScheduleController(config) {
         //if, during the seek command, the scheduleController is waiting : stop waiting, request chunk as soon as possible
         if (!isFragmentProcessingInProgress) {
             startScheduleTimer(0);
+        } else {
+            log('[ScheduleController][onPlaybackSeeking] for ' + type + ', call fragmentModel.abortRequests in order to seek quicker');
+            fragmentModel.abortRequests();
         }
     }
 

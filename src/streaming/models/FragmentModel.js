@@ -43,6 +43,7 @@ const FRAGMENT_MODEL_FAILED = 'failed';
 
 function FragmentModel(config) {
 
+    config = config || {};
     const context = this.context;
     const log = Debug(context).getInstance().log;
     const eventBus = EventBus(context).getInstance();
@@ -88,6 +89,10 @@ function FragmentModel(config) {
     }
 
     function isFragmentLoaded(request, bufferRanges) {
+        const isEqualUrl = function (req1, req2) {
+            return (req1.url === req2.url);
+        };
+
         const isEqualComplete = function (req1, req2) {
             return ((req1.action === FragmentRequest.ACTION_COMPLETE) && (req1.action === req2.action));
         };
@@ -103,7 +108,7 @@ function FragmentModel(config) {
         const check = function (requests) {
             const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
             const isLoaded = requests.some(req => {
-                if ((isEqualMedia(request, req) && isInBuffer) || isEqualInit(request, req) || isEqualComplete(request, req)) {
+                if (isEqualUrl(request,req) && (isEqualMedia(request, req) && isInBuffer) || isEqualInit(request, req) || isEqualComplete(request, req)) {
                     return true;
                 }
             });
@@ -153,7 +158,6 @@ function FragmentModel(config) {
      * @memberof FragmentModel#
      */
     function getRequests(filter) {
-
         const states = filter ? filter.state instanceof Array ? filter.state : [filter.state] : [];
 
         let filteredRequests = [];
@@ -165,8 +169,44 @@ function FragmentModel(config) {
         return filteredRequests;
     }
 
+    function getRequestThreshold(req) {
+        return isNaN(req.duration) ? 0.25 : req.duration / 8;
+    }
+
     function removeExecutedRequestsBeforeTime(time) {
-        executedRequests = executedRequests.filter(req => isNaN(req.startTime) || req.startTime >= time);
+        executedRequests = executedRequests.filter(req => {
+            const threshold = getRequestThreshold(req);
+            return isNaN(req.startTime) || time !== undefined ? req.startTime >= time - threshold : false;
+        });
+    }
+
+    function removeExecutedRequestsInTimeRange(start, end) {
+        if (end <= start + 0.5) {
+            return;
+        }
+
+        executedRequests = executedRequests.filter(req => {
+            const threshold = getRequestThreshold(req);
+            return (isNaN(req.startTime) || req.startTime >= (end - threshold)) ||
+                (isNaN(req.duration) || (req.startTime + req.duration) <= (start + threshold));
+        });
+    }
+
+    // Remove requests that are not "represented" by any of buffered ranges
+    function syncExecutedRequestsWithBufferedRange(bufferedRanges, streamDuration) {
+        if (!bufferedRanges || bufferedRanges.length === 0) {
+            executedRequests = [];
+            return;
+        }
+
+        let start = 0;
+        for (let i = 0, ln = bufferedRanges.length; i < ln; i++) {
+            removeExecutedRequestsInTimeRange(start, bufferedRanges.start(i));
+            start = bufferedRanges.end(i);
+        }
+        if (streamDuration > 0) {
+            removeExecutedRequestsInTimeRange(start, streamDuration);
+        }
     }
 
     function abortRequests() {
@@ -175,11 +215,11 @@ function FragmentModel(config) {
     }
 
     function executeRequest(request) {
-
         switch (request.action) {
             case FragmentRequest.ACTION_COMPLETE:
                 executedRequests.push(request);
                 addSchedulingInfoMetrics(request, FRAGMENT_MODEL_EXECUTED);
+                log('[FragmentModel] executeRequest trigger STREAM_COMPLETED');
                 eventBus.trigger(Events.STREAM_COMPLETED, {
                     request: request,
                     fragmentModel: this
@@ -210,7 +250,7 @@ function FragmentModel(config) {
             const req = arr[i];
             const start = req.startTime;
             const end = start + req.duration;
-            threshold = threshold !== undefined ? threshold : (req.duration / 2);
+            threshold = !isNaN(threshold) ? threshold : getRequestThreshold(req);
             if ((!isNaN(start) && !isNaN(end) && ((time + threshold) >= start) && ((time - threshold) < end)) || (isNaN(start) && isNaN(time))) {
                 return req;
             }
@@ -235,7 +275,6 @@ function FragmentModel(config) {
     }
 
     function getRequestsForState(state) {
-
         let requests;
         switch (state) {
             case FRAGMENT_MODEL_LOADING:
@@ -251,7 +290,6 @@ function FragmentModel(config) {
     }
 
     function addSchedulingInfoMetrics(request, state) {
-
         metricsModel.addSchedulingInfo(
             request.mediaType,
             new Date(),
@@ -314,6 +352,7 @@ function FragmentModel(config) {
         isFragmentLoaded: isFragmentLoaded,
         isFragmentLoadedOrPending: isFragmentLoadedOrPending,
         removeExecutedRequestsBeforeTime: removeExecutedRequestsBeforeTime,
+        syncExecutedRequestsWithBufferedRange: syncExecutedRequestsWithBufferedRange,
         abortRequests: abortRequests,
         executeRequest: executeRequest,
         setMediaManifestOffset: setMediaManifestOffset,

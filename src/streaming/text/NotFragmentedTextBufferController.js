@@ -38,6 +38,7 @@ import TextController from '../../streaming/text/TextController';
 const BUFFER_CONTROLLER_TYPE = 'NotFragmentedTextBufferController';
 function NotFragmentedTextBufferController(config) {
 
+    config = config || {};
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
     const textController = TextController(context).getInstance();

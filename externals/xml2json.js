@@ -545,9 +545,8 @@ function X2JS(config) {
                 }
             }
             try {
-                xmlDoc = parser.parseFromString( xmlDocStr, "application/xml" );
-                if( parsererrorNS!= null && xmlDoc.getElementsByTagNameNS(parsererrorNS, "parsererror").length > 0) {
-                    //throw new Error('Error parsing XML: '+xmlDocStr);
+                xmlDoc = parser.parseFromString( xmlDocStr, "text/xml" );
+                if(xmlDoc.getElementsByTagNameNS("*", "parsererror").length > 0) {
                     xmlDoc = null;
                 }
             }

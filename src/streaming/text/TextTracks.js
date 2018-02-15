@@ -56,6 +56,7 @@ function TextTracks() {
         isChrome,
         fullscreenAttribute,
         displayCCOnTop,
+        previousISDState,
         topZIndex;
 
     function initialize() {
@@ -75,6 +76,7 @@ function TextTracks() {
         videoSizeCheckInterval = null;
         displayCCOnTop = false;
         topZIndex = 2147483647;
+        previousISDState = null;
 
         //TODO Check if IE has resolved issues: Then revert to not using the addTextTrack API for all browsers.
         // https://connect.microsoft.com/IE/feedbackdetail/view/1660701/text-tracks-do-not-fire-change-addtrack-or-removetrack-events
@@ -99,6 +101,8 @@ function TextTracks() {
         const kind = textTrackQueue[i].kind;
         const label = textTrackQueue[i].label !== undefined ? textTrackQueue[i].label : textTrackQueue[i].lang;
         const lang = textTrackQueue[i].lang;
+        const isTTML = textTrackQueue[i].isTTML;
+        const isEmbedded = textTrackQueue[i].isEmbedded;
         const track = isChrome ? document.createElement('track') : videoModel.addTextTrack(kind, label, lang);
 
         if (isChrome) {
@@ -106,6 +110,9 @@ function TextTracks() {
             track.label = label;
             track.srclang = lang;
         }
+
+        track.isEmbedded = isEmbedded;
+        track.isTTML = isTTML;
 
         return track;
     }
@@ -174,7 +181,7 @@ function TextTracks() {
                 }
             }
 
-            eventBus.trigger(Events.TEXT_TRACKS_ADDED, {
+            eventBus.trigger(Events.TEXT_TRACKS_QUEUE_INITIALIZED, {
                 index: currentTrackIdx,
                 tracks: textTrackQueue
             }); //send default idx.
@@ -204,15 +211,13 @@ function TextTracks() {
 
         if (videoPictureAspect > aspectRatio) {
             videoPictureHeightAspect = videoPictureHeight;
-            videoPictureWidthAspect = videoPictureHeight / (1 / aspectRatio);
-            videoPictureXAspect = (viewWidth - videoPictureWidthAspect) / 2;
-            videoPictureYAspect = 0;
+            videoPictureWidthAspect = videoPictureHeight * aspectRatio;
         } else {
             videoPictureWidthAspect = videoPictureWidth;
             videoPictureHeightAspect = videoPictureWidth / aspectRatio;
-            videoPictureXAspect = 0;
-            videoPictureYAspect = (viewHeight - videoPictureHeightAspect) / 2;
         }
+        videoPictureXAspect = (viewWidth - videoPictureWidthAspect) / 2;
+        videoPictureYAspect = (viewHeight - videoPictureHeightAspect) / 2;
 
         if (use80Percent) {
             return {
@@ -231,12 +236,14 @@ function TextTracks() {
         }
     }
 
-    function checkVideoSize(track) {
+    function checkVideoSize(track, forceDrawing) {
         const clientWidth = videoModel.getClientWidth();
         const clientHeight = videoModel.getClientHeight();
         const videoWidth = videoModel.getVideoWidth();
         const videoHeight = videoModel.getVideoHeight();
-        let aspectRatio =  clientWidth / clientHeight;
+        const videoOffsetTop = videoModel.getVideoRelativeOffsetTop();
+        const videoOffsetLeft = videoModel.getVideoRelativeOffsetLeft();
+        let aspectRatio =  videoWidth / videoHeight;
         let use80Percent = false;
         if (track.isFromCEA608) {
             // If this is CEA608 then use predefined aspect ratio
@@ -248,10 +255,12 @@ function TextTracks() {
 
         const newVideoWidth = realVideoSize.w;
         const newVideoHeight = realVideoSize.h;
+        const newVideoLeft = realVideoSize.x;
+        const newVideoTop = realVideoSize.y;
 
-        if (newVideoWidth != actualVideoWidth || newVideoHeight != actualVideoHeight) {
-            actualVideoLeft = realVideoSize.x;
-            actualVideoTop = realVideoSize.y;
+        if (newVideoWidth != actualVideoWidth || newVideoHeight != actualVideoHeight || newVideoLeft != actualVideoLeft || newVideoTop != actualVideoTop || forceDrawing) {
+            actualVideoLeft = newVideoLeft + videoOffsetLeft;
+            actualVideoTop = newVideoTop + videoOffsetTop;
             actualVideoWidth = newVideoWidth;
             actualVideoHeight = newVideoHeight;
             captionContainer.style.left = actualVideoLeft + 'px';
@@ -341,6 +350,41 @@ function TextTracks() {
                 }
             }
         }
+
+        if (activeCue.isd) {
+            let htmlCaptionDiv = document.getElementById(activeCue.cueID);
+            if (htmlCaptionDiv) {
+                captionContainer.removeChild(htmlCaptionDiv);
+            }
+            renderCaption(activeCue);
+        }
+    }
+
+    function renderCaption(cue) {
+        const finalCue = document.createElement('div');
+        captionContainer.appendChild(finalCue);
+        previousISDState = renderHTML(cue.isd, finalCue, function (uri) {
+            const imsc1ImgUrnTester = /^(urn:)(mpeg:[a-z0-9][a-z0-9-]{0,31}:)(subs:)([0-9]+)$/;
+            const smpteImgUrnTester = /^#(.*)$/;
+            if (imsc1ImgUrnTester.test(uri)) {
+                const match = imsc1ImgUrnTester.exec(uri);
+                const imageId = parseInt(match[4], 10) - 1;
+                const imageData = btoa(cue.images[imageId]);
+                const dataUrl = 'data:image/png;base64,' + imageData;
+                return dataUrl;
+            } else if (smpteImgUrnTester.test(uri)) {
+                const match = smpteImgUrnTester.exec(uri);
+                const imageId = match[1];
+                const dataUrl = 'data:image/png;base64,' + cue.embeddedImages[imageId];
+                return dataUrl;
+            } else {
+                return null;
+            }
+        }, captionContainer.clientHeight, captionContainer.clientWidth, false/*displayForcedOnlyMode*/, function (err) {
+            log('[TextTracks][renderCaption]', err);
+            //TODO add ErrorHandler management
+        }, previousISDState, true /*enableRollUp*/);
+        finalCue.id = cue.cueID;
     }
 
     /*
@@ -387,28 +431,8 @@ function TextTracks() {
                 cue.onenter = function () {
                     if (track.mode === Constants.TEXT_SHOWING) {
                         if (this.isd) {
-                            const finalCue = document.createElement('div');
+                            renderCaption(this);
                             log('Cue enter id:' + this.cueID);
-                            captionContainer.appendChild(finalCue);
-                            renderHTML(this.isd, finalCue, function (uri) {
-                                const imsc1ImgUrnTester = /^(urn:)(mpeg:[a-z0-9][a-z0-9-]{0,31}:)(subs:)([0-9])$/;
-                                const smpteImgUrnTester = /^#(.*)$/;
-                                if (imsc1ImgUrnTester.test(uri)) {
-                                    const match = imsc1ImgUrnTester.exec(uri);
-                                    const imageId = parseInt(match[4], 10) - 1;
-                                    const imageData = btoa(cue.images[imageId]);
-                                    const dataUrl = 'data:image/png;base64,' + imageData;
-                                    return dataUrl;
-                                } else if (smpteImgUrnTester.test(uri)) {
-                                    const match = smpteImgUrnTester.exec(uri);
-                                    const imageId = match[1];
-                                    const dataUrl = 'data:image/png;base64,' + cue.embeddedImages[imageId];
-                                    return dataUrl;
-                                } else {
-                                    return null;
-                                }
-                            }, captionContainer.clientHeight, captionContainer.clientWidth);
-                            finalCue.id = this.cueID;
                         } else {
                             captionContainer.appendChild(this.cueHTMLElement);
                             scaleCue.call(self, this);
@@ -449,7 +473,7 @@ function TextTracks() {
 
     function getTrackByIdx(idx) {
         return idx >= 0 && textTrackQueue[idx] ?
-            videoModel.getTextTrack(textTrackQueue[idx].kind, textTrackQueue[idx].label, textTrackQueue[idx].lang) : null;
+            videoModel.getTextTrack(textTrackQueue[idx].kind, textTrackQueue[idx].label, textTrackQueue[idx].lang, textTrackQueue[idx].isTTML, textTrackQueue[idx].isEmbedded) : null;
     }
 
     function getCurrentTrackIdx() {
@@ -482,7 +506,7 @@ function TextTracks() {
         }
 
         if (track && track.renderingType === 'html') {
-            checkVideoSize.call(this, track);
+            checkVideoSize.call(this, track, true);
             videoSizeCheckInterval = setInterval(checkVideoSize.bind(this, track), 500);
         }
     }
