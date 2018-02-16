@@ -67,6 +67,7 @@ function BufferController(config) {
     const playbackController = config.playbackController;
     const type = config.type;
     const streamProcessor = config.streamProcessor;
+    const ua = navigator.userAgent.toLowerCase();
 
     let instance,
         log,
@@ -120,6 +121,9 @@ function BufferController(config) {
         eventBus.on(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, this);
         eventBus.on(Events.CURRENT_TRACK_CHANGED, onCurrentTrackChanged, this, EventBus.EVENT_PRIORITY_HIGH);
         eventBus.on(Events.SOURCEBUFFER_REMOVE_COMPLETED, onRemoved, this);
+        if (/safari/.test(ua) && /mac/.test(ua) && !/chrome/.test(ua) && !/windows phone/.test(ua)) {
+            eventBus.on(Events.PLAYBACK_SEEKED, onSeeked, this);
+        }
     }
 
     function createBuffer(mediaInfo) {
@@ -256,6 +260,25 @@ function BufferController(config) {
         }
         onPlaybackProgression();
         seekStartTime = undefined;
+    }
+    /*
+     * MacOS Safari doesn't like buffer being appended to the start of a buffered range.
+     * It removes a little bit of buffer just after the segment we append.
+     * Therefore, let's remove all buffer ahead of us after a seek.
+     */
+    function onSeeked() {
+        removeBufferAhead(playbackController.getTime());
+    }
+
+    //Removes buffered ranges ahead. It will not remove anything part of the current buffer timeRange.
+    function removeBufferAhead(time) {
+        const ranges = buffer.getAllBufferRanges();
+        for (let i = 0; i < ranges.length; i++) {
+            if (ranges.start(i) > time) {
+                log('Removing buffer from: ' + ranges.start(i) + '-' + ranges.end(i));
+                buffer.remove(buffer, ranges.start(i), ranges.end(i), mediaSource);
+            }
+        }
     }
 
     // Prune full buffer but what is around current time position
@@ -823,6 +846,9 @@ function BufferController(config) {
         eventBus.off(Events.PLAYBACK_SEEKING, onPlaybackSeeking, this);
         eventBus.off(Events.WALLCLOCK_TIME_UPDATED, onWallclockTimeUpdated, this);
         eventBus.off(Events.SOURCEBUFFER_REMOVE_COMPLETED, onRemoved, this);
+        if (/safari/.test(ua) && /mac/.test(ua) && !/chrome/.test(ua) && !/windows phone/.test(ua)) {
+            eventBus.off(Events.PLAYBACK_SEEKED, onSeeked, this);
+        }
 
         resetInitialSettings(errored);
     }
