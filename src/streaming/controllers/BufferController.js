@@ -156,7 +156,7 @@ function BufferController(config) {
                 }
                 log(rangeStr);
             } else {
-                log('PreBuffer discharge requested, but the PreBuffer was empty.');
+                log('PreBuffer discharge requested, but there were no media segments in the PreBuffer.');
             }
 
             let chunks = dischargeBuffer.discharge();
