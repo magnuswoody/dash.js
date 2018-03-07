@@ -9,6 +9,12 @@ describe('TextBufferController', function () {
 
     let textBufferController;
 
+    beforeEach(function () {
+        global.navigator = {
+            userAgent: 'node.js'
+        };
+    });
+
     it('should create a buffer of type "BufferController" if type is "fragmentedText"', function () {
 
 

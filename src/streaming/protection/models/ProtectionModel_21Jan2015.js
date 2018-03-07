@@ -42,13 +42,15 @@ import NeedKey from '../vo/NeedKey';
 import KeyError from '../vo/KeyError';
 import KeyMessage from '../vo/KeyMessage';
 import KeySystemAccess from '../vo/KeySystemAccess';
+import ProtectionConstants from '../../constants/ProtectionConstants';
 
 function ProtectionModel_21Jan2015(config) {
 
-    let context = this.context;
-    let eventBus = config.eventBus;//Need to pass in here so we can use same instance since this is optional module
+    config = config || {};
+    const context = this.context;
+    const eventBus = config.eventBus;//Need to pass in here so we can use same instance since this is optional module
     const events = config.events;
-    let log = config.log;
+    const log = config.log;
 
     let instance,
         keySystem,
@@ -111,7 +113,7 @@ function ProtectionModel_21Jan2015(config) {
     }
 
     function getAllInitData() {
-        let retVal = [];
+        const retVal = [];
         for (let i = 0; i < sessions.length; i++) {
             retVal.push(sessions[i].initData);
         }
@@ -170,8 +172,7 @@ function ProtectionModel_21Jan2015(config) {
         });
     }
 
-    function createKeySession(initData, sessionType, sessionId) {
-
+    function createKeySession(initData, protData, sessionType, sessionId) {
         if (!keySystem || !mediaKeys) {
             throw new Error('Can not create sessions until you have selected a key system');
         }
@@ -180,11 +181,14 @@ function ProtectionModel_21Jan2015(config) {
             loadPersistedLicence(sessionId);
         }
         else {
-            let session = mediaKeys.createSession(sessionType);
-            let sessionToken = createSessionToken(session, initData, sessionType);
+            const session = mediaKeys.createSession(sessionType);
+            const sessionToken = createSessionToken(session, initData, sessionType);
+            const ks = this.getKeySystem();
 
-            // Generate initial key request
-            session.generateRequest('cenc', initData).then(function () {
+            // Generate initial key request.
+            // keyids type is used for clearkey when keys are provided directly in the protection data and then request to a license server is not needed
+            const dataType = ks.systemString === ProtectionConstants.CLEARKEY_KEYSTEM_STRING && protData && protData.clearkeys ? 'keyids' : 'cenc';
+            session.generateRequest(dataType, initData).then(function () {
                 log('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
                 eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
             }).catch(function (error) {
@@ -226,8 +230,7 @@ function ProtectionModel_21Jan2015(config) {
     }
 
     function updateKeySession(sessionToken, message) {
-
-        let session = sessionToken.session;
+        const session = sessionToken.session;
 
         // Send our request to the key session
         if (protectionKeyController.isClearKey(keySystem)) {
@@ -243,12 +246,12 @@ function ProtectionModel_21Jan2015(config) {
             throw new Error('Can not load sessions until you have selected a key system');
         }
 
-        let session = mediaKeys.createSession();
+        const session = mediaKeys.createSession();
 
         // Load persisted session data into our newly created session object
         session.load(sessionID).then(function (success) {
             if (success) {
-                let sessionToken = createSessionToken(session);
+                const sessionToken = createSessionToken(session);
                 log('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
                 eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
             } else {
@@ -260,7 +263,7 @@ function ProtectionModel_21Jan2015(config) {
     }
 
     function removeKeySession(sessionToken) {
-        let session = sessionToken.session;
+        const session = sessionToken.session;
 
         session.remove().then(function () {
             log('DRM: Session removed.  SessionID = ' + sessionToken.getSessionID());
@@ -281,14 +284,13 @@ function ProtectionModel_21Jan2015(config) {
 
     function requestKeySystemAccessInternal(ksConfigurations, idx) {
         (function (i) {
-            let keySystem = ksConfigurations[i].ks;
-            let configs = ksConfigurations[i].configs;
+            const keySystem = ksConfigurations[i].ks;
+            const configs = ksConfigurations[i].configs;
             navigator.requestMediaKeySystemAccess(keySystem.systemString, configs).then(function (mediaKeySystemAccess) {
-
                 // Chrome 40 does not currently implement MediaKeySystemAccess.getConfiguration()
-                let configuration = (typeof mediaKeySystemAccess.getConfiguration === 'function') ?
+                const configuration = (typeof mediaKeySystemAccess.getConfiguration === 'function') ?
                         mediaKeySystemAccess.getConfiguration() : null;
-                let keySystemAccess = new KeySystemAccess(keySystem, configuration);
+                const keySystemAccess = new KeySystemAccess(keySystem, configuration);
                 keySystemAccess.mksa = mediaKeySystemAccess;
                 eventBus.trigger(events.KEY_SYSTEM_ACCESS_COMPLETE, {data: keySystemAccess});
 
@@ -303,7 +305,7 @@ function ProtectionModel_21Jan2015(config) {
     }
 
     function closeKeySessionInternal(sessionToken) {
-        let session = sessionToken.session;
+        const session = sessionToken.session;
 
         // Remove event listeners
         session.removeEventListener('keystatuseschange', sessionToken);
@@ -320,7 +322,6 @@ function ProtectionModel_21Jan2015(config) {
         return {
             handleEvent: function (event) {
                 switch (event.type) {
-
                     case 'encrypted':
                         if (event.initData) {
                             let initData = ArrayBuffer.isView(event.initData) ? event.initData.buffer : event.initData;
@@ -345,8 +346,7 @@ function ProtectionModel_21Jan2015(config) {
     // Function to create our session token objects which manage the EME
     // MediaKeySession and session-specific event handler
     function createSessionToken(session, initData, sessionType) {
-
-        let token = { // Implements SessionToken
+        const token = { // Implements SessionToken
             session: session,
             initData: initData,
 

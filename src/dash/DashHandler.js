@@ -39,7 +39,13 @@ import FactoryMaker from '../core/FactoryMaker';
 import Debug from '../core/Debug';
 import URLUtils from '../streaming/utils/URLUtils';
 import Representation from './vo/Representation';
-import {replaceTokenForTemplate, getTimeBasedSegment, getSegmentByIndex} from './utils/SegmentsUtils';
+import {
+    replaceIDForTemplate,
+    unescapeDollarsInTemplate,
+    replaceTokenForTemplate,
+    getTimeBasedSegment,
+    getSegmentByIndex
+} from './utils/SegmentsUtils';
 import SegmentsGetter from './utils/SegmentsGetter';
 import SegmentBaseLoader from './SegmentBaseLoader';
 import WebmSegmentBaseLoader from './WebmSegmentBaseLoader';
@@ -48,6 +54,7 @@ const SEGMENTS_UNAVAILABLE_ERROR_CODE = 1;
 
 function DashHandler(config) {
 
+    config = config || {};
     const context = this.context;
     const eventBus = EventBus(context).getInstance();
     const urlUtils = URLUtils(context).getInstance();
@@ -133,16 +140,6 @@ function DashHandler(config) {
         eventBus.off(Events.SEGMENTS_LOADED, onSegmentsLoaded, instance);
     }
 
-    function unescapeDollarsInTemplate(url) {
-        return url ? url.split('$$').join('$') : url;
-    }
-
-    function replaceIDForTemplate(url, value) {
-        if (value === null || url === null || url.indexOf('$RepresentationID$') === -1) { return url; }
-        const v = value.toString();
-        return url.split('$RepresentationID$').join(v);
-    }
-
     function setRequestUrl(request, destination, representation) {
         const baseURL = baseURLController.resolve(representation.path);
         let url,
@@ -205,7 +202,7 @@ function DashHandler(config) {
         } else {
             const seg = getSegmentByIndex(index, representation);
             if (seg) {
-                const time = seg.presentationStartTime - representation.adaptation.period.start;
+                const time = parseFloat((seg.presentationStartTime - representation.adaptation.period.start).toFixed(5));
                 const duration = representation.adaptation.period.duration;
                 log(representation.segmentInfoType + ': ' + time + ' / ' + duration);
                 isFinished = representation.segmentInfoType === DashConstants.SEGMENT_TIMELINE && isDynamic ? false : time >= duration;
@@ -298,10 +295,15 @@ function DashHandler(config) {
             i;
 
         if (segments && ln > 0) {
+            // In case timeThreshold is not provided, let's use the default value set in MediaPlayerModel
+            timeThreshold = (timeThreshold === undefined || timeThreshold === null) ?
+                mediaPlayerModel.getSegmentOverlapToleranceTime() : timeThreshold;
+
             for (i = 0; i < ln; i++) {
                 frag = segments[i];
                 ft = frag.presentationStartTime;
                 fd = frag.duration;
+                // In case timeThreshold is null, set epsilon to half the fragment duration
                 epsilon = (timeThreshold === undefined || timeThreshold === null) ? fd / 2 : timeThreshold;
                 if ((time + epsilon) >= ft &&
                     (time - epsilon) < (ft + fd)) {
@@ -393,12 +395,10 @@ function DashHandler(config) {
             request.index = index;
             request.mediaType = type;
             request.mediaInfo = streamProcessor.getMediaInfo();
-            log('Signal complete.', request);
-
+            log('Signal complete in getSegmentRequestForTime -', type);
         } else {
             segment = getSegmentByIndex(index, representation);
             request = getRequestForSegment(segment);
-            // log('[getSegmentRequestForTime]request is ' + JSON.stringify(request));
         }
 
         if (keepIdx && idx >= 0) {
@@ -449,12 +449,11 @@ function DashHandler(config) {
             request.index = index;
             request.mediaType = type;
             request.mediaInfo = streamProcessor.getMediaInfo();
-            log('Signal complete.');
+            log('Signal complete -', type);
         } else {
             updateSegments(representation);
             segment = getSegmentByIndex(index, representation);
             request = getRequestForSegment(segment);
-            // log('[getSegmentRequestForTime]request is ' + JSON.stringify(request));
             if (!segment && isDynamic) {
                 /*
                  Sometimes when playing dynamic streams with 0 fragment delay at live edge we ask for

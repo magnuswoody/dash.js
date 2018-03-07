@@ -37,6 +37,7 @@ import MssParser from './parser/MssParser';
 
 function MssHandler(config) {
 
+    config = config || {};
     let context = this.context;
     let eventBus = config.eventBus;
     const events = config.events;
@@ -128,7 +129,7 @@ function MssHandler(config) {
                         processor.getType() === constants.AUDIO ||
                         processor.getType() === constants.FRAGMENTED_TEXT) {
 
-                        // check taht there is no fragment info controller registered to processor
+                        // check that there is no fragment info controller registered to processor
                         let i;
                         let alreadyRegistered = false;
                         let externalControllers = processor.getExternalControllers();

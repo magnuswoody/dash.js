@@ -34,32 +34,11 @@ import EventBus from '../core/EventBus';
 import Events from '../core/events/Events';
 import FactoryMaker from '../core/FactoryMaker';
 import TextController from './text/TextController';
-
-/**
- * The an end place to put fragments after they have been fetched.
- * @interface FragmentSink
- */
-/**
- * @function append
- */
-/**
- * @function remove
- */
-/**
- * @function abort
- */
-/**
- * @function getAllBufferRanges
- */
-/**
- * @function reset
- */
-
 /**
  * @class SourceBufferSink
  * @implements FragmentSink
  */
-function SourceBufferSink(mediaSource, mediaInfo) {
+function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback) {
     const context = this.context;
     const log = Debug(context).getInstance().log;
     const eventBus = EventBus(context).getInstance();
@@ -68,6 +47,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
         isAppendingInProgress;
 
     let appendQueue = [];
+    let onAppended = onAppendedCallback;
 
     function setup() {
         isAppendingInProgress = false;
@@ -105,6 +85,7 @@ function SourceBufferSink(mediaSource, mediaInfo) {
             buffer = null;
         }
         appendQueue = [];
+        onAppended = null;
     }
 
     function getBuffer() {
@@ -160,10 +141,11 @@ function SourceBufferSink(mediaSource, mediaInfo) {
                     appendNextInQueue.call(this);
                 } else {
                     isAppendingInProgress = false;
-                    eventBus.trigger(Events.SOURCEBUFFER_APPEND_COMPLETED, {
-                        buffer: this,
-                        bytes: nextChunk.bytes
-                    });
+                    if (onAppended) {
+                        onAppended({
+                            chunk: nextChunk
+                        });
+                    }
                 }
             };
 
@@ -183,11 +165,12 @@ function SourceBufferSink(mediaSource, mediaInfo) {
                     isAppendingInProgress = false;
                 }
 
-                eventBus.trigger(Events.SOURCEBUFFER_APPEND_COMPLETED, {
-                    buffer: this,
-                    bytes: nextChunk.bytes,
-                    error: new DashJSError(err.code, err.message, null)
-                });
+                if (onAppended) {
+                    onAppended({
+                        chunk: nextChunk,
+                        error: new DashJSError(err.code, err.message, null)
+                    });
+                }
             }
         }
     }

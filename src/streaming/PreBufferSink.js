@@ -29,42 +29,51 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 import Debug from '../core/Debug';
-import EventBus from '../core/EventBus';
-import Events from '../core/events/Events';
 import FactoryMaker from '../core/FactoryMaker';
 
-//implements fragmentSink
-function PreBufferSink() {
+/**
+ * This is a sink that is used to temporarily hold onto media chunks before a video element is added.
+ * The discharge() function is used to get the chunks out of the PreBuffer for adding to a real SourceBuffer.
+ *
+ * @class PreBufferSink
+ * @implements FragmentSink
+ */
+function PreBufferSink(onAppendedCallback) {
     const context = this.context;
     const log = Debug(context).getInstance().log;
-    const eventBus = EventBus(context).getInstance();
 
     let chunks = [];
+    let outstandingInit;
+    let onAppended = onAppendedCallback;
 
     function reset() {
         chunks = [];
+        outstandingInit = null;
+        onAppended = null;
     }
 
     function append(chunk) {
         if (chunk.segmentType !== 'InitializationSegment') { //Init segments are stored in the initCache.
             chunks.push(chunk);
             chunks.sort(function (a, b) { return a.start - b.start; });
+            outstandingInit = null;
+        } else {//We need to hold an init chunk for when a corresponding media segment is being downloaded when the discharge happens.
+            outstandingInit = chunk;
         }
+
         log('PreBufferSink appended chunk s: ' + chunk.start + '; e: ' + chunk.end);
-        eventBus.trigger(Events.SOURCEBUFFER_APPEND_COMPLETED, {
-            buffer: this,
-            bytes: chunk.bytes,
-            canAppend: true
-        });
+        if (onAppended) {
+            onAppended({
+                chunk: chunk
+            });
+        }
     }
 
     function remove(start, end) {
         chunks = chunks.filter( a => !((isNaN(end) || a.start < end) && (isNaN(start) || a.end > start))); //The opposite of the getChunks predicate.
     }
 
-    /**
-     * Nothing async, nothing to abort.
-     */
+    //Nothing async, nothing to abort.
     function abort() {
     }
 
@@ -99,12 +108,22 @@ function PreBufferSink() {
         return timeranges;
     }
 
-    /*
-     * Remove and return the chunks in the buffer between times start and end.
-     * TODO: fragmentSource interface?
+    /**
+     * Return the all chunks in the buffer the lie between times start and end.
+     * Because a chunk cannot be split, this returns the full chunk if any part of its time lies in the requested range.
+     * Chunks are removed from the buffer when they are discharged.
+     * @function PreBufferSink#discharge
+     * @param {?Number} start The start time from which to discharge from the buffer. If NaN, it is regarded as unbounded.
+     * @param {?Number} end The end time from which to discharge from the buffer. If NaN, it is regarded as unbounded.
+     * @returns {Array} The set of chunks from the buffer within the time ranges.
      */
     function discharge(start, end) {
         const result = getChunksAt(start, end);
+        if (outstandingInit) {
+            result.push(outstandingInit);
+            outstandingInit = null;
+        }
+
         remove(start, end);
 
         return result;

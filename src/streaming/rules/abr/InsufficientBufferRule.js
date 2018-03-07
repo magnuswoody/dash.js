@@ -33,10 +33,11 @@ import EventBus from '../../../core/EventBus';
 import Events from '../../../core/events/Events';
 import FactoryMaker from '../../../core/FactoryMaker';
 import Debug from '../../../core/Debug';
-import SwitchRequest from '../SwitchRequest.js';
+import SwitchRequest from '../SwitchRequest';
 
 function InsufficientBufferRule(config) {
 
+    config = config || {};
     const INSUFFICIENT_BUFFER_SAFETY_FACTOR = 0.5;
 
     const context = this.context;

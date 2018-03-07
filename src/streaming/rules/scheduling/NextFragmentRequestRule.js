@@ -35,6 +35,7 @@ import FragmentRequest from '../../../streaming/vo/FragmentRequest';
 
 function NextFragmentRequestRule(config) {
 
+    config = config || {};
     const context = this.context;
     const log = Debug(context).getInstance().log;
     const adapter = config.adapter;
@@ -66,14 +67,13 @@ function NextFragmentRequestRule(config) {
         if (bufferController) {
             const range = bufferController.getRangeAt(time);
             if (range !== null) {
-                log('Prior to making a request for time, NextFragmentRequestRule is aligning index handler\'s currentTime with bufferedRange.end.', time, ' was changed to ', range.end);
+                log('Prior to making a request for time, NextFragmentRequestRule is aligning index handler\'s currentTime with bufferedRange.end for', mediaType, '.', time, 'was changed to', range.end);
                 time = range.end;
             }
         }
 
         let request;
         if (requestToReplace) {
-            // log('requestToReplace :' + requestToReplace.url);
             time = requestToReplace.startTime + (requestToReplace.duration / 2);
             request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {
                 timeThreshold: 0,
@@ -84,22 +84,18 @@ function NextFragmentRequestRule(config) {
                 keepIdx: !hasSeekTarget
             });
             while (request && request.action !== FragmentRequest.ACTION_COMPLETE && streamProcessor.getFragmentModel().isFragmentLoaded(request, bufferController.getBuffer().getAllBufferRanges())) {
+                // Then, check if this request was downloaded or not
                 // loop until we found not loaded fragment, or no fragment
                 request = adapter.getNextFragmentRequest(streamProcessor, representationInfo);
             }
             if (request) {
-                adapter.setIndexHandlerTime(streamProcessor, request.startTime + request.duration);
+                if (!isNaN(request.startTime + request.duration)) {
+                    adapter.setIndexHandlerTime(streamProcessor, request.startTime + request.duration);
+                }
                 request.delayLoadingTime = new Date().getTime() + scheduleController.getTimeToLoadDelay();
                 scheduleController.setTimeToLoadDelay(0);
             }
         }
-
-        /*
-        if (request) {
-            log('Return request :' + request.url);
-        } else {
-            log('no request');
-        }*/
 
         return request;
     }
