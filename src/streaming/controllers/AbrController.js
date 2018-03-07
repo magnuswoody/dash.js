@@ -70,6 +70,7 @@ function AbrController() {
         abandonmentStateDict,
         abandonmentTimeout,
         limitBitrateByPortal,
+        portalLimitMinimum,
         usePixelRatioInLimitBitrateByPortal,
         windowResizeEventCalled,
         elementWidth,
@@ -142,6 +143,7 @@ function AbrController() {
         useDeadTimeLatency = true;
         usePixelRatioInLimitBitrateByPortal = false;
         portalScale = 1;
+        portalLimitMinimum = 0;
         if (windowResizeEventCalled === undefined) {
             windowResizeEventCalled = false;
         }
@@ -370,6 +372,14 @@ function AbrController() {
 
     function setUsePixelRatioInLimitBitrateByPortal(value) {
         usePixelRatioInLimitBitrateByPortal = value;
+    }
+
+    function getPortalLimitMinimum() {
+        return portalLimitMinimum;
+    }
+
+    function setPortalLimitMinimum(bitrate) {
+        portalLimitMinimum = bitrate;
     }
 
     function getUseDeadTimeLatency() {
@@ -677,6 +687,10 @@ function AbrController() {
             if (representation.length - 2 >= newIdx && representation[newIdx].width === representation[newIdx + 1].width) {
                 newIdx = Math.min(idx, newIdx + 1);
             }
+
+            while (newIdx + 1 < representation.length && representation[newIdx + 1].bandwidth <= portalLimitMinimum * 1000) {
+                newIdx++;
+            }
         }
 
         return newIdx;
@@ -749,6 +763,8 @@ function AbrController() {
         getPortalScale: getPortalScale,
         getUsePixelRatioInLimitBitrateByPortal: getUsePixelRatioInLimitBitrateByPortal,
         setUsePixelRatioInLimitBitrateByPortal: setUsePixelRatioInLimitBitrateByPortal,
+        getPortalLimitMinimum: getPortalLimitMinimum,
+        setPortalLimitMinimum: setPortalLimitMinimum,
         getQualityFor: getQualityFor,
         getAbandonmentStateFor: getAbandonmentStateFor,
         setPlaybackQuality: setPlaybackQuality,
