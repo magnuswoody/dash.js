@@ -347,9 +347,21 @@ function StreamController() {
     function preloadStream(seekTime) {
         activateStream(seekTime);
     }
+
     function switchToVideoElement(seekTime) {
-        playbackController.initialize(activeStream.getStreamInfo());
-        openMediaSource(seekTime, null, true);
+        if (!activeStream) {
+            switchStream(null, getStreamForTime(seekTime), seekTime);
+        } else {
+            playbackController.initialize(activeStream.getStreamInfo());
+            openMediaSource(seekTime, null, true);
+        }
+    }
+
+    function detachVideoElement() {
+        for (let i = 0; i < streams.length; i++) {
+            streams[i].deactivate();
+        }
+        activeStream = null;
     }
 
     function openMediaSource(seekTime, oldStream, streamActivated) {
@@ -391,15 +403,13 @@ function StreamController() {
         audioTrackDetected = checkTrackPresence(Constants.AUDIO);
         videoTrackDetected = checkTrackPresence(Constants.VIDEO);
 
-        if (!initialPlayback) {
-            if (!isNaN(seekTime)) {
-                playbackController.seek(seekTime); //we only need to call seek here, IndexHandlerTime was set from seeking event
-            } else {
-                let startTime = playbackController.getStreamStartTime(true);
-                activeStream.getProcessors().forEach(p => {
-                    adapter.setIndexHandlerTime(p, startTime);
-                });
-            }
+        if (!isNaN(seekTime)) {
+            playbackController.seek(seekTime); //we only need to call seek here, IndexHandlerTime was set from seeking event
+        } else {
+            let startTime = playbackController.getStreamStartTime(true);
+            activeStream.getProcessors().forEach(p => {
+                adapter.setIndexHandlerTime(p, startTime);
+            });
         }
 
         activeStream.startEventController();
@@ -857,6 +867,7 @@ function StreamController() {
         isVideoTrackPresent: isVideoTrackPresent,
         isAudioTrackPresent: isAudioTrackPresent,
         switchToVideoElement: switchToVideoElement,
+        detachVideoElement: detachVideoElement,
         getStreamById: getStreamById,
         getStreamForTime: getStreamForTime,
         getTimeRelativeToStreamId: getTimeRelativeToStreamId,

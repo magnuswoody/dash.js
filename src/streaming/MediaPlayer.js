@@ -113,7 +113,8 @@ function MediaPlayer() {
         manifestModel,
         videoModel,
         textController,
-        domStorage;
+        domStorage,
+        savedElementAttributes;
 
     /*
     ---------------------------------------------------------------------------
@@ -239,6 +240,7 @@ function MediaPlayer() {
 
         restoreDefaultUTCTimingSources();
         setAutoPlay(AutoPlay !== undefined ? AutoPlay : true);
+        savedElementAttributes = {};
 
         if (view) {
             attachView(view);
@@ -1981,7 +1983,7 @@ function MediaPlayer() {
             detectMss();
 
             if (streamController) {
-                streamController.switchToVideoElement();
+                streamController.switchToVideoElement(savedElementAttributes.seekTime);
             }
         }
 
@@ -1990,6 +1992,38 @@ function MediaPlayer() {
         }
 
         initializePlayback();
+    }
+
+    function detachView() {
+        const element = videoModel.getElement();
+        if (element) {
+            savedElementAttributes.seekTime = playbackController.getTime();
+            streamController.detachVideoElement();
+            playbackController.reset();
+            playbackController.setConfig({
+                streamController: streamController,
+                metricsModel: metricsModel,
+                dashMetrics: dashMetrics,
+                manifestModel: manifestModel,
+                mediaPlayerModel: mediaPlayerModel,
+                dashManifestModel: dashManifestModel,
+                adapter: adapter,
+                videoModel: videoModel
+            });
+        }
+    }
+
+    function reattachView(element) {
+        if (element) {
+            videoModel.setElement(element);
+            detectProtection();
+            detectMetricsReporting();
+            detectMss();
+
+            if (streamController) {
+                streamController.switchToVideoElement(savedElementAttributes.seekTime);
+            }
+        }
     }
 
     /**
@@ -2716,6 +2750,8 @@ function MediaPlayer() {
         off: off,
         extend: extend,
         attachView: attachView,
+        detachView: detachView,
+        reattachView: reattachView,
         attachSource: attachSource,
         isReady: isReady,
         preload: preload,
