@@ -312,8 +312,10 @@ function MediaController() {
         let sameRoles = t1.roles.toString() === t2.roles.toString();
         let sameAccessibility = t1.accessibility.toString() === t2.accessibility.toString();
         let sameAudioChannelConfiguration = t1.audioChannelConfiguration.toString() === t2.audioChannelConfiguration.toString();
+        const sameCodec = t1.codec === t2.codec;
+        const sameBandwidth = t1.minBandwidth === t2.minBandwidth && t1.maxBandwidth === t2.maxBandwidth;
 
-        return (sameId && sameViewpoint && sameLang && sameRoles && sameAccessibility && sameAudioChannelConfiguration);
+        return (sameId && sameViewpoint && sameLang && sameRoles && sameAccessibility && sameAudioChannelConfiguration && sameCodec && sameBandwidth);
     }
 
     function setConfig(config) {
