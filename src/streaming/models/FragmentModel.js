@@ -90,10 +90,6 @@ function FragmentModel(config) {
     }
 
     function isFragmentLoaded(request, bufferRanges) {
-        const isEqualUrl = function (req1, req2) {
-            return (req1.url === req2.url);
-        };
-
         const isEqualComplete = function (req1, req2) {
             return ((req1.action === FragmentRequest.ACTION_COMPLETE) && (req1.action === req2.action));
         };
@@ -110,7 +106,7 @@ function FragmentModel(config) {
             const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
             const isLastRequest = requests.length > 0 && requests[requests.length - 1].index === request.index; //Don't keep repeating the last fragment if not in buffer, move on.
             const isLoaded = requests.some(req => {
-                if (isEqualUrl(request,req) && (isEqualMedia(request, req) && (isInBuffer || isLastRequest)) || isEqualInit(request, req) || isEqualComplete(request, req)) {
+                if ((isEqualMedia(request, req) && (isInBuffer || isLastRequest)) || isEqualInit(request, req) || isEqualComplete(request, req)) {
                     return true;
                 }
             });
