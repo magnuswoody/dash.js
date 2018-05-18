@@ -276,7 +276,7 @@ function BufferController(config) {
         for (let i = 0; i < ranges.length; i++) {
             if (ranges.start(i) > time) {
                 log('Removing buffer from: ' + ranges.start(i) + '-' + ranges.end(i));
-                buffer.remove(buffer, ranges.start(i), ranges.end(i), mediaSource);
+                buffer.remove(ranges.start(i), ranges.end(i), mediaSource);
             }
         }
     }
