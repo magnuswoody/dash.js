@@ -107,8 +107,9 @@ function FragmentModel(config) {
 
         const check = function (requests) {
             const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
+            const isLastRequest = requests.length > 0 && requests[requests.length - 1].index === request.index; //Don't keep repeating the last fragment if not in buffer, move on.
             const isLoaded = requests.some(req => {
-                if (isEqualUrl(request,req) && (isEqualMedia(request, req) && isInBuffer) || isEqualInit(request, req) || isEqualComplete(request, req)) {
+                if (isEqualUrl(request,req) && (isEqualMedia(request, req) && (isInBuffer || isLastRequest)) || isEqualInit(request, req) || isEqualComplete(request, req)) {
                     return true;
                 }
             });
