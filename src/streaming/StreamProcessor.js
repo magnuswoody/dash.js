@@ -114,11 +114,10 @@ function StreamProcessor(config) {
             playbackController: playbackController,
             streamController: streamController,
             textController: textController,
-            streamProcessor: instance
+            streamProcessor: instance,
+            mediaController: mediaController
         });
-
         representationController = RepresentationController(context).create();
-
         representationController.setConfig({
             abrController: abrController,
             domStorage: domStorage,
@@ -298,9 +297,9 @@ function StreamProcessor(config) {
         return bufferController.getBufferLevel();
     }
 
-    function switchInitData(representationId) {
+    function switchInitData(representationId, bufferResetEnabled) {
         if (bufferController) {
-            bufferController.switchInitData(getStreamInfo().id, representationId);
+            bufferController.switchInitData(getStreamInfo().id, representationId, bufferResetEnabled);
         }
     }
 

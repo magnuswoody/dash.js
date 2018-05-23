@@ -1103,6 +1103,23 @@ function MediaPlayer() {
     }
 
     /**
+     * @memberof module:MediaPlayer
+     * @instance
+     * @returns {number|NaN} Current live stream latency in seconds. It is the difference between current time and time position at the playback head.
+     */
+    function getCurrentLiveLatency() {
+        if (!mediaPlayerInitialized) {
+            throw MEDIA_PLAYER_NOT_INITIALIZED_ERROR;
+        }
+
+        if (!playbackInitialized) {
+            return NaN;
+        }
+
+        return playbackController.getCurrentLiveLatency();
+    }
+
+    /**
      * <p>Set to true if you would like to override the default live delay and honor the SuggestedPresentationDelay attribute in by the manifest.</p>
      * @param {boolean} value
      * @default false
@@ -1325,6 +1342,29 @@ function MediaPlayer() {
      */
     function getMovingAverageMethod() {
         return mediaPlayerModel.getMovingAverageMethod();
+    }
+
+
+    /**
+     * Returns if low latency mode is enabled. Disabled by default.
+     * @return {boolean} true - if enabled
+     * @see {@link module:MediaPlayer#setLowLatencyEnabled setLowLatencyEnabled()}
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getLowLatencyEnabled() {
+        return mediaPlayerModel.getLowLatencyEnabled();
+    }
+
+    /**
+     * Enables low latency mode for dynamic streams. If not specified, liveDelay is set to 3s of buffer.
+     * Browser compatibility (Check row 'ReadableStream response body'): https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+     * @param {boolean} value
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function setLowLatencyEnabled(value) {
+        return mediaPlayerModel.setLowLatencyEnabled(value);
     }
 
     /**
@@ -1744,6 +1784,82 @@ function MediaPlayer() {
         return mediaPlayerModel.getXHRWithCredentialsForType(type);
     }
 
+    /**
+     * Sets whether player should jump small gaps (discontinuities) in the buffer.
+     *
+     * @param {boolean} value
+     * @default false
+     * @memberof module:MediaPlayer
+     * @instance
+     *
+     */
+    function setJumpGaps(value) {
+        mediaPlayerModel.setJumpGaps(value);
+    }
+
+    /**
+     * Gets current status of jump gaps feature.
+     * @returns {boolean} The current jump gaps state.
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getJumpGaps() {
+        return mediaPlayerModel.getJumpGaps();
+    }
+
+    /**
+     * Time in seconds for a gap to be considered small.
+     *
+     * @param {boolean} value
+     * @default 0.8
+     * @memberof module:MediaPlayer
+     * @instance
+     *
+     */
+    function setSmallGapLimit(value) {
+        mediaPlayerModel.setSmallGapLimit(value);
+    }
+
+    /**
+     * Time in seconds for a gap to be considered small.
+     * @returns {boolean} Current small gap limit
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getSmallGapLimit() {
+        return mediaPlayerModel.getSmallGapLimit();
+    }
+
+    /**
+     * For live streams, set the interval-frequency in milliseconds at which
+     * dash.js will check if the current manifest is still processed before
+     * downloading the next manifest once the minimumUpdatePeriod time has
+     * expired.
+     * @param {int} value
+     * @default 100
+     * @memberof module:MediaPlayer
+     * @instance
+     * @see {@link module:MediaPlayer#getManifestUpdateRetryInterval getManifestUpdateRetryInterval()}
+     *
+     */
+    function setManifestUpdateRetryInterval(value) {
+        mediaPlayerModel.setManifestUpdateRetryInterval(value);
+    }
+
+    /**
+     * For live streams, get the interval-frequency in milliseconds at which
+     * dash.js will check if the current manifest is still processed before
+     * downloading the next manifest once the minimumUpdatePeriod time has
+     * expired.
+     * @returns {int} Current retry delay for manifest update
+     * @memberof module:MediaPlayer
+     * @instance
+     * @see {@link module:MediaPlayer#setManifestUpdateRetryInterval setManifestUpdateRetryInterval()}
+     */
+    function getManifestUpdateRetryInterval() {
+        return mediaPlayerModel.getManifestUpdateRetryInterval();
+    }
+
     /*
     ---------------------------------------------------------------------------
 
@@ -1877,9 +1993,8 @@ function MediaPlayer() {
     /**
      * Use this method to change the current text track for both external time text files and fragmented text tracks. There is no need to
      * set the track mode on the video object to switch a track when using this method.
-     *
      * @param {number} idx - Index of track based on the order of the order the tracks are added Use -1 to disable all tracks. (turn captions off).  Use module:MediaPlayer#dashjs.MediaPlayer.events.TEXT_TRACK_ADDED.
-     * @see {@link module:MediaPlayer#dashjs.MediaPlayer.events.TEXT_TRACK_ADDED}
+     * @see {@link MediaPlayerEvents#event:TEXT_TRACK_ADDED dashjs.MediaPlayer.events.TEXT_TRACK_ADDED}
      * @memberof module:MediaPlayer
      * @instance
      */
@@ -2115,7 +2230,7 @@ function MediaPlayer() {
             throw STREAMING_NOT_INITIALIZED_ERROR;
         }
 
-        streamInfo = streamInfo || adapter.getStreamsInfo(manifest)[0];
+        streamInfo = streamInfo || adapter.getStreamsInfo(manifest, 1)[0];
 
         return streamInfo ? adapter.getAllMediaInfoForType(streamInfo, type, manifest) : [];
     }
@@ -2311,6 +2426,10 @@ function MediaPlayer() {
     }
 
     /**
+     * Sets Protection Data required to setup the Protection Module (DRM). Protection Data must
+     * be set before initializing MediaPlayer or, once initialized, before PROTECTION_CREATED event is fired.
+     * @see {@link module:MediaPlayer#initialize initialize()}
+     * @see {@link ProtectionEvents#event:PROTECTION_CREATED dashjs.Protection.events.PROTECTION_CREATED}
      * @param {ProtectionData} value - object containing
      * property names corresponding to key system name strings and associated
      * values being instances of.
@@ -2319,6 +2438,11 @@ function MediaPlayer() {
      */
     function setProtectionData(value) {
         protectionData = value;
+
+        // Propagate changes in case StreamController is already created
+        if (streamController) {
+            streamController.setProtectionData(protectionData);
+        }
     }
 
     /*
@@ -2635,13 +2759,15 @@ function MediaPlayer() {
             MediaPlayerEvents.extend(Protection.events, {
                 publicOnly: true
             });
+            if (!capabilities) {
+                capabilities = Capabilities(context).getInstance();
+            }
             protectionController = protection.createProtectionSystem({
                 log: log,
                 errHandler: errHandler,
                 videoModel: videoModel,
                 capabilities: capabilities,
                 eventBus: eventBus,
-                adapter: adapter,
                 events: Events,
                 BASE64: BASE64,
                 constants: Constants
@@ -2787,6 +2913,7 @@ function MediaPlayer() {
         setLiveDelayFragmentCount: setLiveDelayFragmentCount,
         setLiveDelay: setLiveDelay,
         getLiveDelay: getLiveDelay,
+        getCurrentLiveLatency: getCurrentLiveLatency,
         useSuggestedPresentationDelay: useSuggestedPresentationDelay,
         enableLastBitrateCaching: enableLastBitrateCaching,
         enableLastMediaSettingsCaching: enableLastMediaSettingsCaching,
@@ -2868,6 +2995,14 @@ function MediaPlayer() {
         setManifestLoaderRetryInterval: setManifestLoaderRetryInterval,
         setXHRWithCredentialsForType: setXHRWithCredentialsForType,
         getXHRWithCredentialsForType: getXHRWithCredentialsForType,
+        setJumpGaps: setJumpGaps,
+        getJumpGaps: getJumpGaps,
+        setSmallGapLimit: setSmallGapLimit,
+        getSmallGapLimit: getSmallGapLimit,
+        getLowLatencyEnabled: getLowLatencyEnabled,
+        setLowLatencyEnabled: setLowLatencyEnabled,
+        setManifestUpdateRetryInterval: setManifestUpdateRetryInterval,
+        getManifestUpdateRetryInterval: getManifestUpdateRetryInterval,
         setLongFormContentDurationThreshold: setLongFormContentDurationThreshold,
         setSegmentOverlapToleranceTime: setSegmentOverlapToleranceTime,
         setCacheLoadThresholdForType: setCacheLoadThresholdForType,

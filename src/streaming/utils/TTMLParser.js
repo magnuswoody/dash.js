@@ -30,12 +30,15 @@
  */
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
+import EventBus from '../../core/EventBus';
+import Events from '../../core/events/Events';
 import { fromXML, generateISD } from 'imsc';
 
 function TTMLParser() {
 
     let context = this.context;
     let log = Debug(context).getInstance().log;
+    let eventBus = EventBus(context).getInstance();
 
     /*
      * This TTML parser follows "EBU-TT-D SUBTITLING DISTRIBUTION FORMAT - tech3380" spec - https://tech.ebu.ch/docs/tech/tech3380.pdf.
@@ -61,13 +64,14 @@ function TTMLParser() {
      * @param {Array} images - images array referenced by subs MP4 box
      */
     function parse(data, offsetTime, startTimeSegment, endTimeSegment, images) {
-        let i,
-            j;
+        let i;
 
         let errorMsg = '';
         let captionArray = [];
         let startTime,
             endTime;
+
+        let content = {};
 
         let embeddedImages = {};
         let currentImageId = '';
@@ -104,46 +108,48 @@ function TTMLParser() {
             throw new Error(errorMsg);
         }
 
-        let imsc1doc = fromXML(data, function (msg) {
+        content.data = data;
+
+        eventBus.trigger(Events.TTML_TO_PARSE, content);
+
+        let imsc1doc = fromXML(content.data, function (msg) {
             errorMsg = msg;
-        },
-            metadataHandler);
+        }, metadataHandler);
+
+        eventBus.trigger(Events.TTML_PARSED, {ttmlString: content.data, ttmlDoc: imsc1doc});
+
         let mediaTimeEvents = imsc1doc.getMediaTimeEvents();
 
         for (i = 0; i < mediaTimeEvents.length; i++) {
             let isd = generateISD(imsc1doc, mediaTimeEvents[i], function (error) {
                 errorMsg = error;
             });
-            for (j = 0; j < isd.contents.length; j++) {
-                if (isd.contents[j].contents.length >= 1) {
-                    //be sure that mediaTimeEvents values are in the mp4 segment time ranges.
-                    startTime = (mediaTimeEvents[i] + offsetTime) < startTimeSegment ? startTimeSegment : (mediaTimeEvents[i] + offsetTime);
-                    endTime = (mediaTimeEvents[i + 1] + offsetTime) > endTimeSegment ? endTimeSegment : (mediaTimeEvents[i + 1] + offsetTime);
 
-                    if (startTime < endTime) {
-                        captionArray.push({
-                            start: startTime,
-                            end: endTime,
-                            type: 'html',
-                            cueID: getCueID(),
-                            isd: isd,
-                            images: images,
-                            embeddedImages: embeddedImages
-                        });
-                    }
+            if (isd.contents.some(topLevelContents => topLevelContents.contents.length)) {
+                //be sure that mediaTimeEvents values are in the mp4 segment time ranges.
+                startTime = (mediaTimeEvents[i] + offsetTime) < startTimeSegment ? startTimeSegment : (mediaTimeEvents[i] + offsetTime);
+                endTime = (mediaTimeEvents[i + 1] + offsetTime) > endTimeSegment ? endTimeSegment : (mediaTimeEvents[i + 1] + offsetTime);
+
+                if (startTime < endTime) {
+                    captionArray.push({
+                        start: startTime,
+                        end: endTime,
+                        type: 'html',
+                        cueID: getCueID(),
+                        isd: isd,
+                        images: images,
+                        embeddedImages: embeddedImages
+                    });
                 }
             }
         }
 
         if (errorMsg !== '') {
             log(errorMsg);
-        }
-
-        if (captionArray.length > 0) {
-            return captionArray;
-        } else { // This seems too strong given that there are segments with no TTML subtitles
             throw new Error(errorMsg);
         }
+
+        return captionArray;
     }
 
     function setup() {

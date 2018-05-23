@@ -42,6 +42,8 @@ import Debug from '../../core/Debug';
 import InitCache from '../utils/InitCache';
 import VideoModel from '../models/VideoModel';
 
+import {HTTPRequest} from '../vo/metrics/HTTPRequest';
+
 const BUFFER_LOADED = 'bufferLoaded';
 const BUFFER_EMPTY = 'bufferStalled';
 const STALL_THRESHOLD = 0.5;
@@ -83,18 +85,22 @@ function BufferController(config) {
         bufferState,
         appendedBytesInfo,
         wallclockTicked,
-        appendingMediaChunk,
+        isAppendingInProgress,
         isPruningInProgress,
         videoModel,
         initCache,
         seekStartTime,
         seekClearedBufferingCompleted,
         firstFragmentAppended,
-        pendingPruningRanges;
+        pendingPruningRanges,
+        chunksToAppend,
+        bufferResetInProgress,
+        mediaChunk;
 
     function setup() {
         log = Debug(context).getInstance().log.bind(instance);
         initCache = InitCache(context).getInstance();
+        chunksToAppend = [];
 
         resetInitialSettings();
     }
@@ -190,8 +196,9 @@ function BufferController(config) {
         appendToBuffer(e.chunk);
     }
 
-    function switchInitData(streamId, representationId) {
+    function switchInitData(streamId, representationId, bufferResetEnabled) {
         const chunk = initCache.extract(streamId, representationId);
+        bufferResetInProgress = bufferResetEnabled === true ? bufferResetEnabled : false;
         if (chunk) {
             log('Append Init fragment', type, ' with representationId:', chunk.representationId, ' and quality:', chunk.quality);
             appendToBuffer(chunk);
@@ -221,23 +228,138 @@ function BufferController(config) {
             streamProcessor.getEventController().addInbandEvents(events);
         }
 
-        appendToBuffer(chunk);
-    }
-
-
-    function appendToBuffer(chunk) {
-        buffer.append(chunk);
-
-        if (chunk.mediaInfo.type === Constants.VIDEO) {
-            eventBus.trigger(Events.VIDEO_CHUNK_RECEIVED, { chunk: chunk });
+        if (bufferResetInProgress) {
+            mediaChunk = chunk;
+            const ranges = buffer && buffer.getAllBufferRanges();
+            if (ranges && ranges.length > 0 && playbackController.getTimeToStreamEnd() > STALL_THRESHOLD) {
+                log('Clearing buffer because track changed - ' + (ranges.end(ranges.length - 1) + BUFFER_END_THRESHOLD));
+                clearBuffers([{
+                    start: 0,
+                    end: ranges.end(ranges.length - 1) + BUFFER_END_THRESHOLD,
+                    force: true // Force buffer removal even when buffering is completed and MediaSource is ended
+                }]);
+            }
+        } else {
+            appendToBuffer(chunk);
         }
     }
 
+    function appendToBuffer(chunk, forceAppend) {
+        if (!isAppendingInProgress || forceAppend) {
+            isAppendingInProgress = true;
+            appendedBytesInfo = chunk;
+            buffer.append(chunk);
+
+            if (chunk.mediaInfo.type === Constants.VIDEO) {
+                eventBus.trigger(Events.VIDEO_CHUNK_RECEIVED, { chunk: chunk });
+            }
+        } else {
+            chunksToAppend.push(chunk);
+        }
+    }
+
+    /*
     function showBufferRanges(ranges) {
         if (ranges && ranges.length > 0) {
             for (let i = 0, len = ranges.length; i < len; i++) {
-                log('Buffered Range for type:', type, ':', ranges.start(i), ' - ', ranges.end(i));
+                log('Buffered Range for type:', type, ':', ranges.start(i), ' - ', ranges.end(i), ' currentTime = ', playbackController.getTime());
             }
+        }
+    }
+    */
+
+    function onAppended(e) {
+        if (e.error) {
+            if (e.error.code === QUOTA_EXCEEDED_ERROR_CODE) {
+                criticalBufferLevel = getTotalBufferedTime() * 0.8;
+                log('Quota exceeded for type: ' + type + ', Critical Buffer: ' + criticalBufferLevel);
+
+                if (criticalBufferLevel > 0) {
+                    // recalculate buffer lengths to keep (bufferToKeep, bufferAheadToKeep, bufferTimeAtTopQuality) according to criticalBufferLevel
+                    const bufferToKeep = Math.max(0.2 * criticalBufferLevel, 1);
+                    const bufferAhead = criticalBufferLevel - bufferToKeep;
+                    mediaPlayerModel.setBufferToKeep(parseFloat(bufferToKeep).toFixed(5));
+                    mediaPlayerModel.setBufferAheadToKeep(parseFloat(bufferAhead).toFixed(5));
+                }
+            }
+            if (e.error.code === QUOTA_EXCEEDED_ERROR_CODE || !hasEnoughSpaceToAppend()) {
+                log('Clearing playback buffer to overcome quota exceed situation for type: ' + type);
+                eventBus.trigger(Events.QUOTA_EXCEEDED, { sender: instance, criticalBufferLevel: criticalBufferLevel }); //Tells ScheduleController to stop scheduling.
+                pruneAllSafely(); // Then we clear the buffer and onCleared event will tell ScheduleController to start scheduling again.
+            }
+            return;
+        }
+
+        appendedBytesInfo = e.chunk;
+        if (appendedBytesInfo && !isNaN(appendedBytesInfo.index)) {
+            maxAppendedIndex = Math.max(appendedBytesInfo.index, maxAppendedIndex);
+            checkIfBufferingCompleted();
+        }
+        const ranges = buffer.getAllBufferRanges();
+        if (!firstFragmentAppended && !isNaN(e.chunk.end)) {//For the first non-init segment
+            let closestEndDifference = NaN;
+            let closestRange = NaN;
+            for (let i = 0; i < ranges.length; i++) {
+                let endDifference = ranges.end(i) - e.chunk.end;
+                if (endDifference < 0) {
+                    endDifference = -endDifference;
+                }
+                if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
+                    closestEndDifference = endDifference;
+                    closestRange = i;
+                }
+            }
+
+            if (!isNaN(closestRange)) {
+                const timeOffset = ranges.end(closestRange) - e.chunk.end;
+
+                if (timeOffset > 0.5 || timeOffset < -0.5) {
+                    streamProcessor.getFragmentModel().setMediaManifestOffset(timeOffset);
+                }
+            }
+
+            firstFragmentAppended = true;
+        }
+
+        if (appendedBytesInfo.segmentType === HTTPRequest.MEDIA_SEGMENT_TYPE) {
+            // showBufferRanges(ranges);
+            onPlaybackProgression();
+        } else {
+            if (bufferResetInProgress) {
+                const currentTime = playbackController.getTime();
+                log('[BufferController][', type,'] appendToBuffer seek target should be ' + currentTime);
+                streamProcessor.getScheduleController().setSeekTarget(currentTime);
+                adapter.setIndexHandlerTime(streamProcessor, currentTime);
+            }
+        }
+
+        const dataEvent = {
+            sender: instance,
+            quality: appendedBytesInfo.quality,
+            startTime: appendedBytesInfo.start,
+            index: appendedBytesInfo.index,
+            bufferedRanges: ranges
+        };
+        if (appendedBytesInfo && !appendedBytesInfo.endFragment) {
+            eventBus.trigger(Events.BYTES_APPENDED, dataEvent);
+        } else if (appendedBytesInfo) {
+            eventBus.trigger(Events.BYTES_APPENDED_END_FRAGMENT, dataEvent);
+        }
+
+        if (chunksToAppend.length === 0) {
+            isAppendingInProgress = false;
+        } else {
+            const chunk = chunksToAppend.shift();
+            appendToBuffer(chunk, true);
+        }
+        if (appendedBytesInfo) {
+            eventBus.trigger(Events.BYTES_APPENDED, {
+                sender: instance,
+                quality: appendedBytesInfo.quality,
+                startTime: appendedBytesInfo.start,
+                index: appendedBytesInfo.index,
+                bufferedRanges: ranges
+            });
         }
     }
 
@@ -258,7 +380,14 @@ function BufferController(config) {
             //a seek command has occured, reset lastIndex value, it will be set next time that onStreamCompleted will be called.
             lastIndex = Number.POSITIVE_INFINITY;
         }
-        onPlaybackProgression();
+        chunksToAppend = [];
+        isAppendingInProgress = false;
+        if (type !== Constants.FRAGMENTED_TEXT) {
+            // remove buffer after seeking operations
+            pruneAllSafely();
+        } else {
+            onPlaybackProgression();
+        }
         seekStartTime = undefined;
     }
     /*
@@ -370,8 +499,10 @@ function BufferController(config) {
     }
 
     function onPlaybackProgression() {
-        updateBufferLevel();
-        addBufferMetrics();
+        if (!bufferResetInProgress) {
+            updateBufferLevel();
+            addBufferMetrics();
+        }
     }
 
     function getRangeAt(time, tolerance) {
@@ -499,7 +630,7 @@ function BufferController(config) {
 
 
     function handleInbandEvents(data, request, mediaInbandEvents, trackInbandEvents) {
-        const fragmentStartTime = Math.max(isNaN(request.startTime) ? 0 : request.startTime, 0);
+        const fragmentStartTime = Math.max(!request || isNaN(request.startTime) ? 0 : request.startTime, 0);
         const eventStreams = [];
         const events = [];
 
@@ -557,8 +688,6 @@ function BufferController(config) {
             rangeToKeep.end = Math.max(currentTimeRequest.startTime + currentTimeRequest.duration, rangeToKeep.end);
         }
 
-        log('getClearRanges for', type, '- Remove buffer out of ', rangeToKeep.start, ' - ', rangeToKeep.end);
-
         if (ranges.start(0) <= rangeToKeep.start) {
             const behindRange = {
                 start: 0,
@@ -598,7 +727,13 @@ function BufferController(config) {
     }
 
     function clearNextRange() {
-        if (pendingPruningRanges.length === 0) return;
+        if (pendingPruningRanges.length === 0 || !buffer) {
+            return;
+        }
+        const sourceBuffer = buffer.getBuffer();
+        if (!sourceBuffer || !sourceBuffer.buffered || sourceBuffer.buffered.length === 0) {
+            return;
+        }
 
         const range = pendingPruningRanges.shift();
         log('Removing', type, 'buffer from:', range.start, 'to', range.end);
@@ -609,11 +744,42 @@ function BufferController(config) {
         if (currentTime < range.end) {
             isBufferingCompleted = false;
             maxAppendedIndex = 0;
-            streamProcessor.getScheduleController().setSeekTarget(currentTime);
-            adapter.setIndexHandlerTime(streamProcessor, currentTime);
+            if (!bufferResetInProgress) {
+                streamProcessor.getScheduleController().setSeekTarget(currentTime);
+                adapter.setIndexHandlerTime(streamProcessor, currentTime);
+            }
         }
 
         buffer.remove(range.start, range.end, range.force);
+    }
+
+    function onRemoved(e) {
+        if (buffer !== e.buffer) return;
+
+        log('[BufferController][', type,'] onRemoved buffer from:', e.from, 'to', e.to);
+
+        // const ranges = buffer.getAllBufferRanges();
+        // showBufferRanges(ranges);
+
+        if (pendingPruningRanges.length === 0) {
+            isPruningInProgress = false;
+        }
+
+        if (isPruningInProgress) {
+            clearNextRange();
+        } else {
+            if (!bufferResetInProgress) {
+                log('onRemoved : call updateBufferLevel');
+                updateBufferLevel();
+            } else {
+                bufferResetInProgress = false;
+                if (mediaChunk) {
+                    appendToBuffer(mediaChunk);
+                }
+            }
+            eventBus.trigger(Events.BUFFER_CLEARED, { sender: instance, from: e.from, to: e.to, hasEnoughSpaceToAppend: hasEnoughSpaceToAppend() });
+        }
+        //TODO - REMEMBER removed a timerout hack calling clearBuffer after manifestInfo.minBufferTime * 1000 if !hasEnoughSpaceToAppend() Aug 04 2016
     }
 
     function updateBufferTimestampOffset(MSETimeOffset) {
@@ -637,17 +803,14 @@ function BufferController(config) {
     }
 
     function onCurrentTrackChanged(e) {
-        if (!buffer || (e.newMediaInfo.type !== type) || (e.newMediaInfo.streamInfo.id !== streamProcessor.getStreamInfo().id)) return;
+        const ranges = buffer && buffer.getAllBufferRanges();
+        if (!ranges || (e.newMediaInfo.type !== type) || (e.newMediaInfo.streamInfo.id !== streamProcessor.getStreamInfo().id)) return;
+
+        log('[BufferController][' + type + '] track change asked');
         if (mediaController.getSwitchMode(type) === MediaController.TRACK_SWITCH_MODE_ALWAYS_REPLACE) {
-            if (buffer.buffered && buffer.buffered.length > 0) {
-                log('Clearing buffer because track changed - ' + (buffer.buffered.end(buffer.buffered.length - 1) + BUFFER_END_THRESHOLD));
-                clearBuffers([{
-                    start: 0,
-                    end: buffer.buffered.end(buffer.buffered.length - 1) + BUFFER_END_THRESHOLD,
-                    force: true // Force buffer removal even when buffering is completed and MediaSource is ended
-                }]);
+            if (ranges && ranges.length > 0 && playbackController.getTimeToStreamEnd() > STALL_THRESHOLD) {
+                isBufferingCompleted = false;
                 lastIndex = Number.POSITIVE_INFINITY;
-                streamProcessor.getFragmentModel().abortRequests();
             }
         }
     }
@@ -707,87 +870,6 @@ function BufferController(config) {
         return isPruningInProgress;
     }
 
-    function onAppended(e) {
-        if (e.error) {
-            if (e.error.code === QUOTA_EXCEEDED_ERROR_CODE) {
-                criticalBufferLevel = getTotalBufferedTime() * 0.8;
-                log('Quota exceeded for type: ' + type + ', Critical Buffer: ' + criticalBufferLevel);
-
-                if (criticalBufferLevel > 0) {
-                    // recalculate buffer lengths to keep (bufferToKeep, bufferAheadToKeep, bufferTimeAtTopQuality) according to criticalBufferLevel
-                    const bufferToKeep = Math.max(0.2 * criticalBufferLevel, 1);
-                    const bufferAhead = criticalBufferLevel - bufferToKeep;
-                    mediaPlayerModel.setBufferToKeep(parseFloat(bufferToKeep).toFixed(5));
-                    mediaPlayerModel.setBufferAheadToKeep(parseFloat(bufferAhead).toFixed(5));
-                }
-            }
-            if (e.error.code === QUOTA_EXCEEDED_ERROR_CODE || !hasEnoughSpaceToAppend()) {
-                log('Clearing playback buffer to overcome quota exceed situation for type: ' + type);
-                eventBus.trigger(Events.QUOTA_EXCEEDED, { sender: instance, criticalBufferLevel: criticalBufferLevel }); //Tells ScheduleController to stop scheduling.
-                pruneAllSafely(); // Then we clear the buffer and onCleared event will tell ScheduleController to start scheduling again.
-            }
-            return;
-        }
-
-        appendedBytesInfo = e.chunk;
-        if (appendedBytesInfo && !isNaN(appendedBytesInfo.index)) {
-            maxAppendedIndex = Math.max(appendedBytesInfo.index, maxAppendedIndex);
-            checkIfBufferingCompleted();
-        }
-
-        onPlaybackProgression();
-
-        const ranges = buffer.getAllBufferRanges();
-        showBufferRanges(ranges);
-
-        if (!firstFragmentAppended && !isNaN(e.chunk.end)) {//For the first non-init segment
-            let closestEndDifference = NaN;
-            let closestRange = NaN;
-            for (let i = 0; i < ranges.length; i++) {
-                let endDifference = ranges.end(i) - e.chunk.end;
-                if (endDifference < 0) {
-                    endDifference = -endDifference;
-                }
-                if ((closestEndDifference > endDifference) || isNaN(closestEndDifference) ) {
-                    closestEndDifference = endDifference;
-                    closestRange = i;
-                }
-            }
-
-            if (!isNaN(closestRange)) {
-                const timeOffset = ranges.end(closestRange) - e.chunk.end;
-
-                if (timeOffset > 0.5 || timeOffset < -0.5) {
-                    streamProcessor.getFragmentModel().setMediaManifestOffset(timeOffset);
-                }
-            }
-
-            firstFragmentAppended = true;
-        }
-
-        if (appendedBytesInfo) {
-            eventBus.trigger(Events.BYTES_APPENDED, {
-                sender: instance,
-                quality: appendedBytesInfo.quality,
-                startTime: appendedBytesInfo.start,
-                index: appendedBytesInfo.index,
-                bufferedRanges: ranges
-            });
-        }
-    }
-
-    function onRemoved(e) {
-        if (buffer !== e.buffer) return;
-
-        if (isPruningInProgress) {
-            isPruningInProgress = false;
-        }
-
-        updateBufferLevel();
-        eventBus.trigger(Events.BUFFER_CLEARED, {sender: instance, from: e.from, to: e.to, hasEnoughSpaceToAppend: hasEnoughSpaceToAppend()});
-        //TODO - REMEMBER removed a timerout hack calling clearBuffer after manifestInfo.minBufferTime * 1000 if !hasEnoughSpaceToAppend() Aug 04 2016
-    }
-
     function getTotalBufferedTime() {
         const ranges = buffer.getAllBufferRanges();
         let totalBufferedTime = 0;
@@ -815,8 +897,8 @@ function BufferController(config) {
         lastIndex = Number.POSITIVE_INFINITY;
         maxAppendedIndex = 0;
         appendedBytesInfo = null;
-        appendingMediaChunk = false;
         isBufferingCompleted = false;
+        isAppendingInProgress = false;
         isPruningInProgress = false;
         seekClearedBufferingCompleted = false;
         firstFragmentAppended = false;
@@ -831,6 +913,8 @@ function BufferController(config) {
             buffer.reset();
             buffer = null;
         }
+
+        bufferResetInProgress = false;
     }
 
     function reset(errored) {

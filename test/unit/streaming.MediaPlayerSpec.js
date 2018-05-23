@@ -798,6 +798,37 @@ describe('MediaPlayer', function () {
             expect(cacheLoadThresholdForAudio).to.equal(2);
         });
 
+        it('should configure jumpGap feature', function () {
+            let jumpGaps = mediaPlayerModel.getJumpGaps();
+            expect(jumpGaps).to.equal(false);
+
+            player.setJumpGaps(true);
+
+            jumpGaps = mediaPlayerModel.getJumpGaps();
+            expect(jumpGaps).to.equal(true);
+
+            let smallGapLimit = mediaPlayerModel.getSmallGapLimit();
+            expect(smallGapLimit).to.equal(0.8);
+
+            player.setSmallGapLimit(0.5);
+
+            smallGapLimit = mediaPlayerModel.getSmallGapLimit();
+            expect(smallGapLimit).to.equal(0.5);
+        });
+
+        it('should configure manifestUpdateRetryInterval', function () {
+            let manifestUpdateRetryInterval = player.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(MediaPlayerModelMock.MANIFEST_UPDATE_RETRY_INTERVAL);
+
+            player.setManifestUpdateRetryInterval(200);
+
+            manifestUpdateRetryInterval = mediaPlayerModel.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(200);
+
+            manifestUpdateRetryInterval = player.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(200);
+        });
+
         it('should configure BandwidthSafetyFactor', function () {
             let BandwidthSafetyFactor = mediaPlayerModel.getBandwidthSafetyFactor();
             expect(BandwidthSafetyFactor).to.equal(0.9);
@@ -1017,6 +1048,10 @@ describe('MediaPlayer', function () {
 
             it('Method getSelectionModeForInitialTrack should throw an exception', function () {
                 expect(player.getSelectionModeForInitialTrack).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+            });
+
+            it('Method getCurrentLiveLatency should throw an exception', function () {
+                expect(player.getCurrentLiveLatency).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
         });
     });

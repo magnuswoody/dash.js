@@ -373,7 +373,7 @@ module.exports = function (grunt) {
                     hideCredentials: true,
                     // disabling incrementalUpdates because this option is not working fine
                     incrementalUpdates: false,
-                    debug: false,
+                    debug: true,
                     port: 21
                 },
                 files: [

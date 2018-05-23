@@ -10,7 +10,13 @@ declare namespace dashjs {
     interface VideoModel { }
 
     interface ProtectionController {
+        initialize(manifest: object | null, audioInfo: ProtectionMediaInfo, videoInfo: ProtectionMediaInfo): void;
+        setProtectionData(protData: object): void;
         setRobustnessLevel(level: string): void;
+        setSessionType(type: string): void;
+        loadKeySession(id: string): void;
+        closeKeySession(session: SessionToken): void;
+        removeKeySession(session: SessionToken): void;
     }
 
     export interface Bitrate {
@@ -39,6 +45,11 @@ declare namespace dashjs {
         bitrateList: Bitrate[];
     }
 
+    export class ProtectionMediaInfo {
+        codec: string | null;
+        contentProtection: any | null;
+    }
+
     export interface MediaPlayerClass {
         initialize(view?: HTMLElement, source?: string, autoPlay?: boolean): void;
         on(type: AstInFutureEvent['type'], listener: (e: AstInFutureEvent) => void, scope?: object): void;
@@ -50,6 +61,7 @@ declare namespace dashjs {
         on(type: KeyMessageEvent['type'], listener: (e: KeyMessageEvent) => void, scope?: object): void;
         on(type: KeySessionClosedEvent['type'], listener: (e: KeySessionClosedEvent) => void, scope?: object): void;
         on(type: KeySessionEvent['type'], listener: (e: KeySessionEvent) => void, scope?: object): void;
+        on(type: KeyStatusesChangedEvent['type'], listener: (e: KeyStatusesChangedEvent) => void, scope?: object): void;
         on(type: KeySystemSelectedEvent['type'], listener: (e: KeySystemSelectedEvent) => void, scope?: object): void;
         on(type: LicenseRequestCompleteEvent['type'], listener: (e: LicenseRequestCompleteEvent) => void, scope?: object): void;
         on(type: LogEvent['type'], listener: (e: LogEvent) => void, scope?: object): void;
@@ -70,6 +82,7 @@ declare namespace dashjs {
         on(type: QualityChangeRequestedEvent['type'], listener: (e: QualityChangeRequestedEvent) => void, scope?: object): void;
         on(type: StreamInitializedEvent['type'], listener: (e: StreamInitializedEvent) => void, scope?: object): void;
         on(type: TextTracksAddedEvent['type'], listener: (e: TextTracksAddedEvent) => void, scope?: object): void;
+        on(type: TtmlParsedEvent['type'], listener: (e: TtmlParsedEvent) => void, scope?: object): void;
         on(type: string, listener: (e: Event) => void, scope?: object): void;
         off(type: string, listener: (e: any) => void, scope?: object): void;
         extend(parentNameString: string, childInstance: object, override: boolean): void;
@@ -88,7 +101,7 @@ declare namespace dashjs {
         isMuted(): boolean;
         setVolume(value: number): void;
         getVolume(): number;
-        time(streamId: string): number;
+        time(streamId: string | undefined): number;
         duration(): number;
         timeAsUTC(): number;
         durationAsUTC(): number;
@@ -128,6 +141,7 @@ declare namespace dashjs {
         setLimitBitrateByPortal(value: boolean): void;
         getUsePixelRatioInLimitBitrateByPortal(): any;
         setUsePixelRatioInLimitBitrateByPortal(value: boolean): void;
+        enableText(enable: boolean): void;
         setTextTrack(idx: number): void;
         getTextDefaultLanguage(): string | undefined;
         setTextDefaultLanguage(lang: string): void;
@@ -171,7 +185,6 @@ declare namespace dashjs {
         setBufferTimeAtTopQuality(value: number): void;
         setFragmentLoaderRetryAttempts(value: number): void;
         setFragmentLoaderRetryInterval(value: number): void;
-        setXHRWithCredentials(value: boolean): void;
         setXHRWithCredentialsForType(type: string, value: boolean): void;
         getXHRWithCredentialsForType(type: string): boolean;
         setBufferTimeAtTopQualityLongForm(value: number): void;
@@ -186,6 +199,11 @@ declare namespace dashjs {
         attachVideoContainer(container: HTMLElement): void;
         attachTTMLRenderingDiv(div: HTMLDivElement): void;
         getCurrentTextTrackIndex(): number;
+        setJumpGaps(value: boolean): void;
+        getJumpGaps(): boolean;
+        setSmallGapLimit(value: number): void;
+        getSmallGapLimit(): number;
+        preload(): void;
         reset(): void;
     }
 
@@ -238,13 +256,16 @@ declare namespace dashjs {
         PLAYBACK_SEEKING: 'playbackSeeking';
         PLAYBACK_STARTED: 'playbackStarted';
         PLAYBACK_TIME_UPDATED: 'playbackTimeUpdated';
+        PLAYBACK_WAITING: 'playbackWaiting';
         PROTECTION_CREATED: 'public_protectioncreated';
         PROTECTION_DESTROYED: 'public_protectiondestroyed';
-        QUALITY_CHANGE_RENDERED: 'qualityChangeRequested';
-        QUALITY_CHANGE_REQUESTED: 'qualityChangeRendered';
+        TRACK_CHANGE_RENDERED: 'trackChangeRendered';
+        QUALITY_CHANGE_RENDERED: 'qualityChangeRendered';
+        QUALITY_CHANGE_REQUESTED: 'qualityChangeRequested';
         STREAM_INITIALIZED: 'streamInitialized';
         TEXT_TRACKS_ADDED: 'allTextTracksAdded';
         TEXT_TRACK_ADDED: 'textTrackAdded';
+        TTML_PARSED: 'ttmlParsed';
     }
 
     export interface Event {
@@ -353,9 +374,14 @@ declare namespace dashjs {
     }
 
     export interface KeySessionEvent extends Event {
-        type: MediaPlayerEvents['KEY_SESSION_CREATED' | 'KEY_STATUSES_CHANGED'];
+        type: MediaPlayerEvents['KEY_SESSION_CREATED'];
         data: SessionToken | null;
         error?: string;
+    }
+
+    export interface KeyStatusesChangedEvent extends Event {
+        type: MediaPlayerEvents['KEY_STATUSES_CHANGED'];
+        data: SessionToken;
     }
 
     export interface KeySystemSelectedEvent extends Event {
@@ -437,6 +463,11 @@ declare namespace dashjs {
         timeToEnd: number;
     }
 
+    export interface PlaybackWaitingEvent extends Event {
+        type: MediaPlayerEvents['PLAYBACK_WAITING'];
+        playingTime: number | null;
+    }
+
     export interface ProtectionCreatedEvent extends Event {
         type: MediaPlayerEvents['PROTECTION_CREATED'];
         controller: object;
@@ -446,6 +477,13 @@ declare namespace dashjs {
     export interface ProtectionDestroyedEvent extends Event {
         type: MediaPlayerEvents['PROTECTION_DESTROYED'];
         data: string;
+    }
+
+    export interface TrackChangeRenderedEvent extends Event {
+        type: MediaPlayerEvents['TRACK_CHANGE_RENDERED'];
+        mediaType: 'video' | 'audio' | 'fragmentedText';
+        oldMediaInfo: MediaInfo;
+        newMediaInfo: MediaInfo;
     }
 
     export interface QualityChangeRenderedEvent extends Event {
@@ -478,6 +516,12 @@ declare namespace dashjs {
         enabled: boolean;
         index: number;
         tracks: TextTrackInfo[];
+    }
+
+    export interface TtmlParsedEvent extends Event {
+        type: MediaPlayerEvents['TTML_PARSED'];
+        ttmlString: string;
+        ttmlDoc: object;
     }
 
     export class BitrateInfo {
@@ -583,17 +627,17 @@ declare namespace dashjs {
          * type with the corresponding property value being the URL to use for
          * messages of that type
          */
-        serverURL: string | { [P in MediaKeyMessageType]: string };
+        serverURL?: string | { [P in MediaKeyMessageType]: string };
 
         /** headers to add to the http request */
-        httpRequestHeaders: object;
+        httpRequestHeaders?: object;
 
         /**
          * Defines a set of clear keys that are available to the key system.
          * Object properties are base64-encoded keyIDs (with no padding).
          * Corresponding property values are keys, base64-encoded (no padding).
          */
-        clearkeys: { [key: string]: string };
+        clearkeys?: { [key: string]: string };
     }
 
     export class MetricsList {
