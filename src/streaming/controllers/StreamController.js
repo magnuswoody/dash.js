@@ -121,7 +121,8 @@ function StreamController() {
             manifestModel: manifestModel,
             dashManifestModel: dashManifestModel,
             mediaPlayerModel: mediaPlayerModel,
-            manifestLoader: manifestLoader
+            manifestLoader: manifestLoader,
+            errHandler: errHandler
         });
         manifestUpdater.initialize();
 
@@ -439,6 +440,9 @@ function StreamController() {
         let sourceUrl;
 
         function onMediaSourceOpen() {
+            // Manage situations in which a call to reset happens while MediaSource is being opened
+            if (!mediaSource) return;
+
             log('MediaSource is open!');
             window.URL.revokeObjectURL(sourceUrl);
             mediaSource.removeEventListener('sourceopen', onMediaSourceOpen);

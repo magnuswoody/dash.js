@@ -106,9 +106,7 @@ function FragmentModel(config) {
             const isInBuffer = bufferRanges ? isFragmentInBuffer(request, bufferRanges) : true;
             const isLastRequest = requests.length > 0 && requests[requests.length - 1].index === request.index; //Don't keep repeating the last fragment if not in buffer, move on.
             const isLoaded = requests.some(req => {
-                if ((isEqualMedia(request, req) && (isInBuffer || isLastRequest)) || isEqualInit(request, req) || isEqualComplete(request, req)) {
-                    return true;
-                }
+                return (isEqualMedia(request, req) && (isInBuffer || isLastRequest)) || isEqualInit(request, req) || isEqualComplete(request, req);
             });
 
             return isLoaded;
@@ -175,6 +173,12 @@ function FragmentModel(config) {
         executedRequests = executedRequests.filter(req => {
             const threshold = getRequestThreshold(req);
             return isNaN(req.startTime) || (time !== undefined ? req.startTime >= time - threshold : false);
+        });
+    }
+
+    function removeExecutedRequestsAfterTime(time) {
+        executedRequests = executedRequests.filter(req => {
+            return isNaN(req.startTime) || (time !== undefined ? req.startTime <= time : false);
         });
     }
 
@@ -366,6 +370,7 @@ function FragmentModel(config) {
         isFragmentLoaded: isFragmentLoaded,
         isFragmentLoadedOrPending: isFragmentLoadedOrPending,
         removeExecutedRequestsBeforeTime: removeExecutedRequestsBeforeTime,
+        removeExecutedRequestsAfterTime: removeExecutedRequestsAfterTime,
         syncExecutedRequestsWithBufferedRange: syncExecutedRequestsWithBufferedRange,
         abortRequests: abortRequests,
         executeRequest: executeRequest,
