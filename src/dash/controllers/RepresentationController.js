@@ -206,7 +206,7 @@ function RepresentationController() {
         const manifestInfo = streamInfo ? streamInfo.manifestInfo : null;
         const isDynamic = manifestInfo ? manifestInfo.isDynamic : null;
         const range = timelineConverter.calcSegmentAvailabilityRange(currentVoRepresentation, isDynamic);
-        if (range) {
+        if (range && isDynamic) {
             const dvrWindowSize = range.end - range.start;
             range.end = range.end - playbackController.computeLiveDelay(currentVoRepresentation.fragmentDuration, dvrWindowSize);
         }
