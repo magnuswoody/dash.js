@@ -107,7 +107,8 @@ function HTTPLoader(cfg) {
                     request.requestEndDate,
                     httpRequest.response ? httpRequest.response.status : null,
                     request.duration,
-                    httpRequest.response && httpRequest.response.getAllResponseHeaders ? httpRequest.response.getAllResponseHeaders() : httpRequest.response.responseHeaders,
+                    httpRequest.response && httpRequest.response.getAllResponseHeaders ? httpRequest.response.getAllResponseHeaders() :
+                        httpRequest.response ? httpRequest.response.responseHeaders : [],
                     success ? traces : null,
                     request.quality
                 );
@@ -168,7 +169,7 @@ function HTTPLoader(cfg) {
             if (!event.noTrace) {
                 traces.push({
                     s: lastTraceTime,
-                    d: currentTime.getTime() - lastTraceTime.getTime(),
+                    d: event.time ? event.time : currentTime.getTime() - lastTraceTime.getTime(),
                     b: [event.loaded ? event.loaded - lastTraceReceivedCount : 0]
                 });
 
@@ -176,8 +177,8 @@ function HTTPLoader(cfg) {
                 lastTraceReceivedCount = event.loaded;
             }
 
-            if (config.progress && event.data) {
-                config.progress(event.data);
+            if (config.progress && event) {
+                config.progress(event);
             }
         };
 

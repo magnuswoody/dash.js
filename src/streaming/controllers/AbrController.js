@@ -58,7 +58,7 @@ function AbrController() {
     const eventBus = EventBus(context).getInstance();
 
     let instance,
-        log,
+        logger,
         abrRulesCollection,
         streamController,
         autoSwitchBitrate,
@@ -92,7 +92,7 @@ function AbrController() {
         portalScale;
 
     function setup() {
-        log = debug.log.bind(instance);
+        logger = debug.getLogger(instance);
         resetInitialSettings();
     }
 
@@ -109,6 +109,8 @@ function AbrController() {
             setElementSize();
         }
         eventBus.on(Events.METRIC_ADDED, onMetricAdded, this);
+        eventBus.on(Events.PERIOD_SWITCH_COMPLETED, createAbrRulesCollection, this);
+
         throughputHistory = ThroughputHistory(context).create({
             mediaPlayerModel: mediaPlayerModel
         });
@@ -161,6 +163,7 @@ function AbrController() {
         eventBus.off(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
         eventBus.off(Events.QUALITY_CHANGE_RENDERED, onQualityChangeRendered, this);
         eventBus.off(Events.METRIC_ADDED, onMetricAdded, this);
+        eventBus.off(Events.PERIOD_SWITCH_COMPLETED, createAbrRulesCollection, this);
 
         if (abrRulesCollection) {
             abrRulesCollection.reset();
@@ -447,7 +450,7 @@ function AbrController() {
                     }
                 } else if (debug.getLogToBrowserConsole()) {
                     const bufferLevel = dashMetrics.getCurrentBufferLevel(metricsModel.getReadOnlyMetricsFor(type));
-                    log('AbrController (' + type + ') stay on ' + oldQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ')');
+                    logger.debug('AbrController (' + type + ') stay on ' + oldQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ')');
                 }
             }
         }
@@ -472,7 +475,7 @@ function AbrController() {
             const id = streamInfo ? streamInfo.id : null;
             if (debug.getLogToBrowserConsole()) {
                 const bufferLevel = dashMetrics.getCurrentBufferLevel(metricsModel.getReadOnlyMetricsFor(type));
-                log('AbrController (' + type + ') switch from ' + oldQuality + ' to ' + newQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ') ' + (reason ? JSON.stringify(reason) : '.'));
+                logger.info('AbrController (' + type + ') switch from ' + oldQuality + ' to ' + newQuality + '/' + topQualityIdx + ' (buffer: ' + bufferLevel + ') ' + (reason ? JSON.stringify(reason) : '.'));
             }
             setQualityFor(type, id, newQuality);
             eventBus.trigger(Events.QUALITY_CHANGE_REQUESTED, {mediaType: type, streamInfo: streamInfo, oldQuality: oldQuality, newQuality: newQuality, reason: reason});
@@ -570,9 +573,9 @@ function AbrController() {
 
         if (newUseBufferABR !== useBufferABR) {
             if (newUseBufferABR) {
-                log('AbrController (' + mediaType + ') switching from throughput to buffer occupancy ABR rule (buffer: ' + bufferLevel.toFixed(3) + ').');
+                logger.info('AbrController (' + mediaType + ') switching from throughput to buffer occupancy ABR rule (buffer: ' + bufferLevel.toFixed(3) + ').');
             } else {
-                log('AbrController (' + mediaType + ') switching from buffer occupancy to throughput ABR rule (buffer: ' + bufferLevel.toFixed(3) + ').');
+                logger.info('AbrController (' + mediaType + ') switching from buffer occupancy to throughput ABR rule (buffer: ' + bufferLevel.toFixed(3) + ').');
             }
         }
     }
@@ -661,7 +664,7 @@ function AbrController() {
         if (isNaN(maxRepresentationRatio) || maxRepresentationRatio >= 1 || maxRepresentationRatio < 0) {
             return idx;
         }
-        return Math.min( idx , Math.round(maxIdx * maxRepresentationRatio) );
+        return Math.min(idx , Math.round(maxIdx * maxRepresentationRatio) );
     }
 
     function setWindowResizeEventCalled(value) {

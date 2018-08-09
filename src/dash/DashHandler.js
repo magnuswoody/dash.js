@@ -68,7 +68,7 @@ function DashHandler(config) {
     let segmentBaseLoader;
 
     let instance,
-        log,
+        logger,
         index,
         requestedTime,
         currentTime,
@@ -77,8 +77,7 @@ function DashHandler(config) {
         segmentsGetter;
 
     function setup() {
-        log = Debug(context).getInstance().log.bind(instance);
-
+        logger = Debug(context).getInstance().getLogger(instance);
         resetInitialSettings();
 
         segmentBaseLoader = isWebM(config.mimeType) ? WebmSegmentBaseLoader(context).getInstance() : SegmentBaseLoader(context).getInstance();
@@ -124,8 +123,12 @@ function DashHandler(config) {
         return earliestTime;
     }
 
-    function resetInitialSettings() {
+    function resetIndex() {
         index = -1;
+    }
+
+    function resetInitialSettings() {
+        resetIndex();
         currentTime = 0;
         earliestTime = NaN;
         requestedTime = null;
@@ -187,8 +190,8 @@ function DashHandler(config) {
     }
 
     function getInitRequest(representation) {
-        const type = streamProcessor ? streamProcessor.getType() : null;
         if (!representation) return null;
+        const type = streamProcessor ? streamProcessor.getType() : null;
         const request = generateInitRequest(representation, type);
         return request;
     }
@@ -204,10 +207,10 @@ function DashHandler(config) {
             if (seg) {
                 const time = parseFloat((seg.presentationStartTime - representation.adaptation.period.start).toFixed(5));
                 const duration = representation.adaptation.period.duration;
-                log(representation.segmentInfoType + ': ' + time + ' / ' + duration);
+                logger.debug(representation.segmentInfoType + ': ' + time + ' / ' + duration);
                 isFinished = representation.segmentInfoType === DashConstants.SEGMENT_TIMELINE && isDynamic ? false : time >= duration;
             } else {
-                log('isMediaFinished - no segment found');
+                logger.debug('isMediaFinished - no segment found');
             }
         }
 
@@ -223,7 +226,7 @@ function DashHandler(config) {
         voRepresentation.segments = segments;
         if (segments && segments.length > 0) {
             earliestTime = isNaN(earliestTime) ? segments[0].presentationStartTime : Math.min(segments[0].presentationStartTime,  earliestTime);
-            if (isDynamic && isNaN(timelineConverter.getExpectedLiveEdge())) {
+            if (isDynamic) {
                 const lastSegment = segments[segments.length - 1];
                 const liveEdge = lastSegment.presentationStartTime;
                 const metrics = metricsModel.getMetricsFor(Constants.STREAM);
@@ -263,7 +266,9 @@ function DashHandler(config) {
             return;
         }
 
-        if (!keepIdx) index = -1;
+        if (!keepIdx) {
+            resetIndex();
+        }
 
         if (voRepresentation.segmentDuration) {
             updateSegmentList(voRepresentation);
@@ -358,6 +363,10 @@ function DashHandler(config) {
             segment,
             finished;
 
+        if (!representation) {
+            return null;
+        }
+
         const type = streamProcessor ? streamProcessor.getType() : null;
         const isDynamic = streamProcessor ? streamProcessor.getStreamInfo().manifestInfo.isDynamic : null;
         const idx = index;
@@ -365,13 +374,9 @@ function DashHandler(config) {
         const timeThreshold = options ? options.timeThreshold : null;
         const ignoreIsFinished = (options && options.ignoreIsFinished) ? true : false;
 
-        if (!representation) {
-            return null;
-        }
-
         if (requestedTime !== time) { // When playing at live edge with 0 delay we may loop back with same time and index until it is available. Reduces verboseness of logs.
             requestedTime = time;
-            log('Getting the request for ' + type + ' time : ' + time + ', keepIdx: ' + keepIdx);
+            logger.debug('Getting the request for ' + type + ' time : ' + time);
         }
 
         updateSegments(representation);
@@ -385,7 +390,7 @@ function DashHandler(config) {
         }
 
         if (index > 0) {
-            log('Index for ' + type + ' time ' + time + ' is ' + index );
+            logger.debug('Index for ' + type + ' time ' + time + ' is ' + index );
         }
 
         finished = !ignoreIsFinished ? isMediaFinished(representation) : false;
@@ -395,7 +400,7 @@ function DashHandler(config) {
             request.index = index;
             request.mediaType = type;
             request.mediaInfo = streamProcessor.getMediaInfo();
-            log('Signal complete in getSegmentRequestForTime -', type);
+            logger.debug('Signal complete in getSegmentRequestForTime -', type);
         } else {
             segment = getSegmentByIndex(index, representation);
             request = getRequestForSegment(segment);
@@ -408,35 +413,27 @@ function DashHandler(config) {
         return request;
     }
 
-    function generateSegmentRequestForTime(representation, time) {
-        const step = (representation.segmentAvailabilityRange.end - representation.segmentAvailabilityRange.start) / 2;
-
-        representation.segments = null;
-        representation.segmentAvailabilityRange = {start: time - step, end: time + step};
-        return getSegmentRequestForTime(representation, time, {keepIdx: false, ignoreIsFinished: true});
-    }
-
     function getNextSegmentRequest(representation) {
         let request,
             segment,
             finished;
 
-        const type = streamProcessor ? streamProcessor.getType() : null;
-        const isDynamic = streamProcessor ? streamProcessor.getStreamInfo().manifestInfo.isDynamic : null;
-
         if (!representation || index === -1) {
             return null;
         }
 
+        const type = streamProcessor ? streamProcessor.getType() : null;
+        const isDynamic = streamProcessor ? streamProcessor.getStreamInfo().manifestInfo.isDynamic : null;
+
         requestedTime = null;
         index++;
 
-        log('Getting the next request at index: ' + index + ', type: ' + type);
+        logger.debug('Getting the next request at index: ' + index + ', type: ' + type);
 
         // check that there is a segment in this index. If none, update segments and wait for next time loop is called
         const seg = getSegmentByIndex(index, representation);
         if (!seg && isDynamic) {
-            log('No segment found at index: ' + index + '. Wait for next loop');
+            logger.debug('No segment found at index: ' + index + '. Wait for next loop');
             updateSegments(representation);
             index--;
             return null;
@@ -449,7 +446,7 @@ function DashHandler(config) {
             request.index = index;
             request.mediaType = type;
             request.mediaInfo = streamProcessor.getMediaInfo();
-            log('Signal complete -', type);
+            logger.debug('Signal complete -', type);
         } else {
             updateSegments(representation);
             segment = getSegmentByIndex(index, representation);
@@ -525,13 +522,13 @@ function DashHandler(config) {
         getInitRequest: getInitRequest,
         getSegmentRequestForTime: getSegmentRequestForTime,
         getNextSegmentRequest: getNextSegmentRequest,
-        generateSegmentRequestForTime: generateSegmentRequestForTime,
         updateRepresentation: updateRepresentation,
         updateSegmentList: updateSegmentList,
         setCurrentTime: setCurrentTime,
         getCurrentTime: getCurrentTime,
         getEarliestTime: getEarliestTime,
-        reset: reset
+        reset: reset,
+        resetIndex: resetIndex
     };
 
     setup();

@@ -177,6 +177,11 @@ function TextController() {
             return;
         }
         textDefaultEnabled = enable;
+
+        if (!textDefaultEnabled) {
+            // disable text at startup
+            this.setTextTrack(-1);
+        }
     }
 
     function getTextDefaultEnabled() {
@@ -225,6 +230,11 @@ function TextController() {
         let config = textSourceBuffer.getConfig();
         let fragmentModel = config.fragmentModel;
         let fragmentedTracks = config.fragmentedTracks;
+        let videoModel = config.videoModel;
+        let mediaInfosArr,
+            streamProcessor;
+
+        allTracksAreDisabled = idx === -1 ? true : false;
 
         let oldTrackIdx = textTracks.getCurrentTrackIdx();
         if (oldTrackIdx !== idx) {
@@ -238,7 +248,7 @@ function TextController() {
                 for (let i = 0; i < fragmentedTracks.length; i++) {
                     let mediaInfo = fragmentedTracks[i];
                     if (currentTrackInfo.lang === mediaInfo.lang && currentTrackInfo.index === mediaInfo.index &&
-                        (currentTrackInfo.label ? currentTrackInfo.label === mediaInfo.id : true)) {
+                        (mediaInfo.id ? currentTrackInfo.label === mediaInfo.id : currentTrackInfo.label === mediaInfo.index)) {
                         let currentFragTrack = mediaController.getCurrentTrackFor(Constants.FRAGMENTED_TEXT, streamController.getActiveStreamInfo());
                         if (mediaInfo !== currentFragTrack) {
                             fragmentModel.abortRequests();
@@ -247,13 +257,42 @@ function TextController() {
                             textTracks.deleteCuesFromTrackIdx(oldTrackIdx);
                             mediaController.setTrack(mediaInfo);
                             textSourceBuffer.setCurrentFragmentedTrackIdx(i);
+                        } else if (oldTrackIdx === -1) {
+                            //in fragmented use case, if the user selects the older track (the one selected before disabled text track)
+                            //no CURRENT_TRACK_CHANGED event will be trigger, so dashHandler current time has to be updated and the scheduleController
+                            //has to be restarted.
+                            const streamProcessors = streamController.getActiveStreamProcessors();
+                            for (let i = 0; i < streamProcessors.length; i++) {
+                                if (streamProcessors[i].getType() === Constants.FRAGMENTED_TEXT) {
+                                    streamProcessor = streamProcessors[i];
+                                    break;
+                                }
+                            }
+                            streamProcessor.getIndexHandler().setCurrentTime(videoModel.getTime());
+                            streamProcessor.getScheduleController().start();
+                        }
+                    }
+                }
+            } else if (currentTrackInfo && !currentTrackInfo.isFragmented) {
+                const streamProcessors = streamController.getActiveStreamProcessors();
+                for (let i = 0; i < streamProcessors.length; i++) {
+                    if (streamProcessors[i].getType() === Constants.TEXT) {
+                        streamProcessor = streamProcessors[i];
+                        mediaInfosArr = streamProcessor.getMediaInfoArr();
+                        break;
+                    }
+                }
+
+                if (streamProcessor && mediaInfosArr) {
+                    for (let i = 0; i < mediaInfosArr.length; i++) {
+                        if (mediaInfosArr[i].index === currentTrackInfo.index && mediaInfosArr[i].lang === currentTrackInfo.lang) {
+                            streamProcessor.selectMediaInfo(mediaInfosArr[i]);
+                            break;
                         }
                     }
                 }
             }
         }
-
-        allTracksAreDisabled = idx === -1 ? true : false;
     }
 
     function getCurrentTrackIdx() {
@@ -267,6 +306,7 @@ function TextController() {
     function reset() {
         resetInitialSettings();
         textSourceBuffer.resetEmbedded();
+        textSourceBuffer.reset();
     }
 
     instance = {

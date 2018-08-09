@@ -50,9 +50,10 @@ function ProtectionModel_21Jan2015(config) {
     const context = this.context;
     const eventBus = config.eventBus;//Need to pass in here so we can use same instance since this is optional module
     const events = config.events;
-    const log = config.log;
+    const debug = config.debug;
 
     let instance,
+        logger,
         keySystem,
         videoElement,
         mediaKeys,
@@ -61,6 +62,7 @@ function ProtectionModel_21Jan2015(config) {
         protectionKeyController;
 
     function setup() {
+        logger = debug.getLogger(instance);
         keySystem = null;
         videoElement = null;
         mediaKeys = null;
@@ -105,6 +107,18 @@ function ProtectionModel_21Jan2015(config) {
             }
         } else {
             eventBus.trigger(events.TEARDOWN_COMPLETE);
+        }
+    }
+
+    function stop() {
+        // Close and remove not usable sessions
+        let session;
+        for (let i = 0; i < sessions.length; i++) {
+            session = sessions[i];
+            if (!session.getUsable()) {
+                removeSession(session);
+                closeKeySessionInternal(session);
+            }
         }
     }
 
@@ -171,7 +185,7 @@ function ProtectionModel_21Jan2015(config) {
             throw new Error('Can not set server certificate until you have selected a key system');
         }
         mediaKeys.setServerCertificate(serverCertificate).then(function () {
-            log('DRM: License server certificate successfully updated.');
+            logger.info('DRM: License server certificate successfully updated.');
             eventBus.trigger(events.SERVER_CERTIFICATE_UPDATED);
         }).catch(function (error) {
             eventBus.trigger(events.SERVER_CERTIFICATE_UPDATED, {error: 'Error updating server certificate -- ' + error.name});
@@ -191,7 +205,7 @@ function ProtectionModel_21Jan2015(config) {
         // keyids type is used for clearkey when keys are provided directly in the protection data and then request to a license server is not needed
         const dataType = ks.systemString === ProtectionConstants.CLEARKEY_KEYSTEM_STRING && protData && protData.clearkeys ? 'keyids' : 'cenc';
         session.generateRequest(dataType, initData).then(function () {
-            log('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
+            logger.debug('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
             eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
         }).catch(function (error) {
             // TODO: Better error string
@@ -220,7 +234,7 @@ function ProtectionModel_21Jan2015(config) {
         // Check if session Id is not already loaded or loading
         for (let i = 0; i < sessions.length; i++) {
             if (sessionID === sessions[i].sessionId) {
-                log('DRM: Ignoring session ID because we have already seen it!');
+                logger.warn('DRM: Ignoring session ID because we have already seen it!');
                 return;
             }
         }
@@ -231,7 +245,7 @@ function ProtectionModel_21Jan2015(config) {
         // Load persisted session data into our newly created session object
         session.load(sessionID).then(function (success) {
             if (success) {
-                log('DRM: Session loaded.  SessionID = ' + sessionToken.getSessionID());
+                logger.debug('DRM: Session loaded.  SessionID = ' + sessionToken.getSessionID());
                 eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
             } else {
                 removeSession(sessionToken);
@@ -247,7 +261,7 @@ function ProtectionModel_21Jan2015(config) {
         const session = sessionToken.session;
 
         session.remove().then(function () {
-            log('DRM: Session removed.  SessionID = ' + sessionToken.getSessionID());
+            logger.debug('DRM: Session removed.  SessionID = ' + sessionToken.getSessionID());
             eventBus.trigger(events.KEY_SESSION_REMOVED, {data: sessionToken.getSessionID()});
         }, function (error) {
             eventBus.trigger(events.KEY_SESSION_REMOVED, {data: null, error: 'Error removing session (' + sessionToken.getSessionID() + '). ' + error.name});
@@ -326,9 +340,36 @@ function ProtectionModel_21Jan2015(config) {
         for (let i = 0; i < sessions.length; i++) {
             if (sessions[i] === token) {
                 sessions.splice(i,1);
+                logger.debug('DRM: Session removed.  SessionID = ' + token.getSessionID());
                 break;
             }
         }
+    }
+
+    function parseKeyStatus(args) {
+        // Edge and Chrome implement different version of keystatues, param are not on same order
+        let status, keyId;
+        if (args && args.length > 0) {
+            if (args[0]) {
+                if (typeof args[0] === 'string') {
+                    status = args[0];
+                } else {
+                    keyId = args[0];
+                }
+            }
+
+            if (args[1]) {
+                if (typeof args[1] === 'string') {
+                    status = args[1];
+                } else {
+                    keyId = args[1];
+                }
+            }
+        }
+        return {
+            status: status,
+            keyId: keyId
+        };
     }
 
     // Function to create our session token objects which manage the EME
@@ -347,31 +388,13 @@ function ProtectionModel_21Jan2015(config) {
                     case 'keystatuseschange':
                         eventBus.trigger(events.KEY_STATUSES_CHANGED, {data: this});
                         event.target.keyStatuses.forEach(function () {
-                            // Edge and Chrome implement different version of keystatues, param are not on same order
-                            let status, keyId;
-                            if (arguments && arguments.length > 0) {
-                                if (arguments[0]) {
-                                    if (typeof arguments[0] === 'string') {
-                                        status = arguments[0];
-                                    } else {
-                                        keyId = arguments[0];
-                                    }
-                                }
-
-                                if (arguments[1]) {
-                                    if (typeof arguments[1] === 'string') {
-                                        status = arguments[1];
-                                    } else {
-                                        keyId = arguments[1];
-                                    }
-                                }
-                            }
-                            switch (status) {
+                            let keyStatus = parseKeyStatus(arguments);
+                            switch (keyStatus.status) {
                                 case 'expired':
                                     eventBus.trigger(events.INTERNAL_KEY_STATUS_CHANGED, {error: 'License has expired'});
                                     break;
                                 default:
-                                    eventBus.trigger(events.INTERNAL_KEY_STATUS_CHANGED, {status: status, keyId: keyId});
+                                    eventBus.trigger(events.INTERNAL_KEY_STATUS_CHANGED, keyStatus);
                                     break;
                             }
                         });
@@ -396,6 +419,17 @@ function ProtectionModel_21Jan2015(config) {
                 return session.keyStatuses;
             },
 
+            getUsable: function () {
+                let usable  = false;
+                session.keyStatuses.forEach(function () {
+                    let keyStatus = parseKeyStatus(arguments);
+                    if (keyStatus.status === 'usable') {
+                        usable = true;
+                    }
+                });
+                return usable;
+            },
+
             getSessionType: function () {
                 return sessionType;
             }
@@ -408,7 +442,7 @@ function ProtectionModel_21Jan2015(config) {
         // Register callback for session closed Promise
         session.closed.then(function () {
             removeSession(token);
-            log('DRM: Session closed.  SessionID = ' + token.getSessionID());
+            logger.debug('DRM: Session closed.  SessionID = ' + token.getSessionID());
             eventBus.trigger(events.KEY_SESSION_CLOSED, {data: token.getSessionID()});
         });
 
@@ -430,6 +464,7 @@ function ProtectionModel_21Jan2015(config) {
         loadKeySession: loadKeySession,
         removeKeySession: removeKeySession,
         closeKeySession: closeKeySession,
+        stop: stop,
         reset: reset
     };
 

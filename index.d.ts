@@ -2,9 +2,31 @@ export = dashjs;
 export as namespace dashjs;
 
 declare namespace dashjs {
+    interface Logger {
+        debug(...params): void;
+        info(...params): void;
+        warn(...params): void;
+        error(...params): void;
+        fatal(...params): void;
+    }
+
+    enum LogLevel {
+        LOG_LEVEL_NONE = 0,
+        LOG_LEVEL_FATAL = 1,
+        LOG_LEVEL_ERROR = 2,
+        LOG_LEVEL_WARNING = 3,
+        LOG_LEVEL_INFO = 4,
+        LOG_LEVEL_DEBUG = 5
+    }
+
     interface Debug {
+        getLogger(): Logger;
+        setLogTimestampVisible(flag: boolean): void;
+        setCalleeNameVisible(flag: boolean): void;
         getLogToBrowserConsole(): boolean;
         setLogToBrowserConsole(flag: boolean): void;
+        setLogLevel(level: LogLevel): void;
+        getLogLevel(): LogLevel;
     }
 
     interface VideoModel { }
@@ -54,6 +76,8 @@ declare namespace dashjs {
         initialize(view?: HTMLElement, source?: string, autoPlay?: boolean): void;
         on(type: AstInFutureEvent['type'], listener: (e: AstInFutureEvent) => void, scope?: object): void;
         on(type: BufferEvent['type'], listener: (e: BufferEvent) => void, scope?: object): void;
+        on(type: CaptionRenderedEvent['type'], listener: (e: CaptionRenderedEvent) => void, scope?: object): void;
+        on(type: CaptionContainerResizeEvent['type'], listener: (e: CaptionContainerResizeEvent) => void, scope?: object): void;
         on(type: ErrorEvent['type'], listener: (e: ErrorEvent) => void, scope?: object): void;
         on(type: FragmentLoadingCompletedEvent['type'], listener: (e: FragmentLoadingCompletedEvent) => void, scope?: object): void;
         on(type: FragmentLoadingAbandonedEvent['type'], listener: (e: FragmentLoadingAbandonedEvent) => void, scope?: object): void;
@@ -101,7 +125,7 @@ declare namespace dashjs {
         isMuted(): boolean;
         setVolume(value: number): void;
         getVolume(): number;
-        time(streamId: string | undefined): number;
+        time(streamId?: string): number;
         duration(): number;
         timeAsUTC(): number;
         durationAsUTC(): number;
@@ -208,6 +232,31 @@ declare namespace dashjs {
         addABRCustomRule(type: string, rulename: string, rule: object): void;
         removeABRCustomRule(rulename: string): void;
         removeAllABRCustomRule(): void;
+        getLowLatencyEnabled(): boolean;
+        setLowLatencyEnabled(value: boolean): void;
+        getCatchUpPlaybackRate(): number;
+        setCatchUpPlaybackRate(value: number): void;
+        getUseDeadTimeLatencyForAbr(): boolean;
+        setUseDeadTimeLatencyForAbr(value: boolean): void;
+        getCurrentLiveLatency(): number;
+        enableForcedTextStreaming(value: boolean): void;        
+        isTextEnabled(): boolean;
+        getBufferTimeAtTopQualityLongForm(): number;
+        setMovingAverageMethod(value: string): void;
+        getMovingAverageMethod(): string;
+        setABRStrategy(value: string): void;
+        getABRStrategy(): string;
+        useDefaultABRRules(value: boolean): void;       
+        getAverageThroughput(value: number): void;
+        setBufferAheadToKeep(value: number): void;
+        getStableBufferTime(): number;
+        getBufferTimeAtTopQuality(): number;
+        setManifestLoaderRetryAttempts(value: number): void;
+        setManifestLoaderRetryInterval(value: number): void;
+        setManifestUpdateRetryInterval(value: number): void;        
+        getManifestUpdateRetryInterval(): number;
+        setSegmentOverlapToleranceTime(value: number): void;
+        keepProtectionMediaKeys(value: boolean): void;
     }
 
     export interface MediaPlayerFactory {
@@ -226,6 +275,8 @@ declare namespace dashjs {
         BUFFER_LEVEL_STATE_CHANGED: 'bufferStateChanged';
         BUFFER_LOADED: 'bufferLoaded';
         CAN_PLAY: 'canPlay';
+        CAPTION_RENDERED: 'captionRendered';
+        CAPTION_CONTAINER_RESIZE: 'captionContainerResize';
         ERROR: 'error';
         FRAGMENT_LOADING_ABANDONED: 'fragmentLoadingAbandoned';
         FRAGMENT_LOADING_COMPLETED: 'fragmentLoadingCompleted';
@@ -247,6 +298,8 @@ declare namespace dashjs {
         METRIC_UPDATED: 'metricUpdated';
         PERIOD_SWITCH_COMPLETED: 'periodSwitchCompleted';
         PERIOD_SWITCH_STARTED: 'periodSwitchStarted';
+        PLAYBACK_CATCHUP_END: 'playbackCatchupEnd';
+        PLAYBACK_CATCHUP_START: 'playbackCatchupStart';
         PLAYBACK_ENDED: 'playbackEnded';
         PLAYBACK_ERROR: 'playbackError';
         PLAYBACK_METADATA_LOADED: 'playbackMetaDataLoaded';
@@ -257,6 +310,7 @@ declare namespace dashjs {
         PLAYBACK_RATE_CHANGED: 'playbackRateChanged';
         PLAYBACK_SEEKED: 'playbackSeeked';
         PLAYBACK_SEEKING: 'playbackSeeking';
+        PLAYBACK_STALLED: 'playbackStalled';
         PLAYBACK_STARTED: 'playbackStarted';
         PLAYBACK_TIME_UPDATED: 'playbackTimeUpdated';
         PLAYBACK_WAITING: 'playbackWaiting';
@@ -331,6 +385,15 @@ declare namespace dashjs {
     }
 
     export type ErrorEvent = GenericErrorEvent | DownloadErrorEvent | ManifestErrorEvent | TimedTextErrorEvent;
+
+    export interface CaptionRenderedEvent extends Event {
+        type: MediaPlayerEvents['CAPTION_RENDERED'];
+        captionDiv: HTMLDivElement;
+        currentTrackIdx: number;
+
+    export interface CaptionContainerResizeEvent extends Event {
+        type: MediaPlayerEvents['CAPTION_CONTAINER_RESIZE'];
+    }
 
     export interface FragmentLoadingCompletedEvent extends Event {
         type: MediaPlayerEvents['FRAGMENT_LOADING_COMPLETED'];

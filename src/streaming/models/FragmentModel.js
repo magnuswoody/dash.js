@@ -45,18 +45,19 @@ function FragmentModel(config) {
 
     config = config || {};
     const context = this.context;
-    const log = Debug(context).getInstance().log;
     const eventBus = EventBus(context).getInstance();
     const metricsModel = config.metricsModel;
     const fragmentLoader = config.fragmentLoader;
 
     let instance,
+        logger,
         streamProcessor,
         executedRequests,
         loadingRequests,
         mediaManifestOffset;
 
     function setup() {
+        logger = Debug(context).getInstance().getLogger(instance);
         resetInitialSettings();
         eventBus.on(Events.LOADING_COMPLETED, onLoadingCompleted, instance);
         eventBus.on(Events.LOADING_DATA_PROGRESS, onLoadingInProgress, instance);
@@ -178,7 +179,7 @@ function FragmentModel(config) {
 
     function removeExecutedRequestsAfterTime(time) {
         executedRequests = executedRequests.filter(req => {
-            return isNaN(req.startTime) || (time !== undefined ? req.startTime <= time : false);
+            return isNaN(req.startTime) || (time !== undefined ? req.startTime + req.duration < time : false);
         });
     }
 
@@ -221,7 +222,7 @@ function FragmentModel(config) {
             case FragmentRequest.ACTION_COMPLETE:
                 executedRequests.push(request);
                 addSchedulingInfoMetrics(request, FRAGMENT_MODEL_EXECUTED);
-                log('[FragmentModel] executeRequest trigger STREAM_COMPLETED');
+                logger.debug('executeRequest trigger STREAM_COMPLETED');
                 eventBus.trigger(Events.STREAM_COMPLETED, {
                     request: request,
                     fragmentModel: this
@@ -233,7 +234,7 @@ function FragmentModel(config) {
                 loadCurrentFragment(request);
                 break;
             default:
-                log('Unknown request action.');
+                logger.warn('Unknown request action.');
         }
     }
 
