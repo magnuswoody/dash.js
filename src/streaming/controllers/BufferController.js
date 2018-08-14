@@ -759,7 +759,7 @@ function BufferController(config) {
         } else {
             if (!bufferResetInProgress) {
                 logger.debug('onRemoved : call updateBufferLevel');
-                updateBufferLevel();
+                onPlaybackProgression();
             } else {
                 bufferResetInProgress = false;
                 if (mediaChunk) {
