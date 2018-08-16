@@ -470,7 +470,7 @@ function Stream(config) {
         filterCodecs(Constants.VIDEO);
         filterCodecs(Constants.AUDIO);
 
-        if (element === null || (element && (/^VIDEO$/i).test(element.nodeName))) {
+        if (!element || (element && (/^VIDEO$/i).test(element.nodeName))) {
             initializeMediaForType(Constants.VIDEO, mediaSource);
         }
         initializeMediaForType(Constants.AUDIO, mediaSource);
@@ -583,7 +583,10 @@ function Stream(config) {
     function createBuffers(previousBuffers) {
         const buffers = {};
         for (let i = 0, ln = streamProcessors.length; i < ln; i++) {
-            buffers[streamProcessors[i].getType()] = streamProcessors[i].createBuffer(previousBuffers).getBuffer();
+            const sink = streamProcessors[i].createBuffer(previousBuffers);
+            if (sink.getBuffer) {
+                buffers[streamProcessors[i].getType()] = sink.getBuffer();
+            }
         }
         return buffers;
     }
