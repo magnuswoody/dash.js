@@ -189,7 +189,7 @@ function ScheduleController(config) {
         const type = currentRepresentationInfo.mediaInfo.type;
         const isReplacement = replaceRequestArray.length > 0;
         const streamInfo = streamProcessor.getStreamInfo();
-        if (bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
+        if (!streamProcessor.getBufferController().getIsPruningInProgress() && bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
             hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamInfo.id) ||
             bufferLevelRule.execute(streamProcessor, streamController.isVideoTrackPresent())) {
 
@@ -213,12 +213,9 @@ function ScheduleController(config) {
                         streamProcessor.switchInitData(replacement.representationId);
                     } else {
                         let request;
-                        // Don't schedule next fragments while pruning to avoid buffer inconsistencies
-                        if (!streamProcessor.getBufferController().getIsPruningInProgress()) {
-                            request = nextFragmentRequestRule.execute(streamProcessor, replacement);
-                            if (!request && streamInfo.manifestInfo && streamInfo.manifestInfo.isDynamic) {
-                                logger.info('Playing at the bleeding live edge and frag is not available yet');
-                            }
+                        request = nextFragmentRequestRule.execute(streamProcessor, replacement);
+                        if (!request && streamInfo.manifestInfo && streamInfo.manifestInfo.isDynamic) {
+                            logger.info('Playing at the bleeding live edge and frag is not available yet');
                         }
 
                         if (request) {
