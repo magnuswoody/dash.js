@@ -572,6 +572,8 @@ function BufferController(config) {
         if (((!mediaPlayerModel.getLowLatencyEnabled() && bufferLevel < STALL_THRESHOLD) || bufferLevel === 0) && !isBufferingCompleted) {
             var videoElement = videoModel.getElement();
             if (videoElement) {
+                // Don't fire stalled events when we're so close to the end - for missing fragment error where we won't end
+                // with milliseconds of a track left to play out.
                 var t = videoElement.currentTime;
                 var d = videoElement.duration;
                 if (d - t > STALL_THRESHOLD || isNaN(d)) {
@@ -581,8 +583,9 @@ function BufferController(config) {
             } else {
                 return;
             }
-            notifyBufferStateChanged(BUFFER_LOADED);
         }
+
+        notifyBufferStateChanged(BUFFER_LOADED);
     }
 
     function notifyBufferStateChanged(state) {
