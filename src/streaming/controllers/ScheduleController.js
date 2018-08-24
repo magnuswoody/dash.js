@@ -189,7 +189,7 @@ function ScheduleController(config) {
 
         const isReplacement = replaceRequestArray.length > 0;
         const streamInfo = streamProcessor.getStreamInfo();
-        if (bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
+        if (!streamProcessor.getBufferController().getIsPruningInProgress() && bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
             hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamInfo.id) ||
             bufferLevelRule.execute(streamProcessor, streamController.isTrackTypePresent(Constants.VIDEO))) {
 
@@ -212,13 +212,9 @@ function ScheduleController(config) {
                         // To be sure the specific init segment had not already been loaded.
                         streamProcessor.switchInitData(replacement.representationId);
                     } else {
-                        let request;
-                        // Don't schedule next fragments while pruning to avoid buffer inconsistencies
-                        if (!streamProcessor.getBufferController().getIsPruningInProgress()) {
-                            request = nextFragmentRequestRule.execute(streamProcessor, replacement);
-                            if (!request && streamInfo.manifestInfo && streamInfo.manifestInfo.isDynamic) {
-                                logger.debug('Next fragment seems to be at the bleeding live edge and is not available yet. Rescheduling.');
-                            }
+                        let request = nextFragmentRequestRule.execute(streamProcessor, replacement);
+                        if (!request && streamInfo.manifestInfo && streamInfo.manifestInfo.isDynamic) {
+                            logger.debug('Next fragment seems to be at the bleeding live edge and is not available yet. Rescheduling.');
                         }
 
                         if (request) {
