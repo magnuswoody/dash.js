@@ -380,7 +380,7 @@ function PlaybackController() {
 
         if (isDynamic) {
             if (!isNaN(startTimeOffset)) {
-                presentationStartTime = startTimeOffset - (streamInfo.manifestInfo.availableFrom.getTime() / 1000);
+                presentationStartTime = startTimeOffset;
 
                 if (presentationStartTime > liveStartTime ||
                     presentationStartTime < (!isNaN(liveEdge) ? (liveEdge - streamInfo.manifestInfo.DVRWindowSize) : NaN)) {
