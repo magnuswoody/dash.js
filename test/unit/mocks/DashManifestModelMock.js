@@ -10,13 +10,16 @@ class DashManifestModelMock {
         return {
             Representation: [
                 {
-                    width: 500
+                    width: 500,
+                    bandwidth: 1000
                 },
                 {
-                    width: 750
+                    width: 750,
+                    bandwidth: 2000
                 },
                 {
-                    width: 900
+                    width: 900,
+                    bandwidth: 3000
                 }
             ]
         };
