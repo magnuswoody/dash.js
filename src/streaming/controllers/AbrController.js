@@ -699,17 +699,14 @@ function AbrController() {
                 newIdx > 0 &&
                 representation[newIdx] &&
                 scaledWidth < representation[newIdx].width &&
-                scaledWidth - representation[newIdx - 1].width < representation[newIdx].width - scaledWidth
+                scaledWidth - representation[newIdx - 1].width < representation[newIdx].width - scaledWidth &&
+                representation[newIdx - 1].bandwidth >= portalLimitMinimum * 1000
             ) {
                 newIdx = newIdx - 1;
             }
 
             if (representation.length - 2 >= newIdx && representation[newIdx].width === representation[newIdx + 1].width) {
                 newIdx = Math.min(idx, newIdx + 1);
-            }
-
-            while (newIdx + 1 < representation.length && representation[newIdx + 1].bandwidth <= portalLimitMinimum * 1000) {
-                newIdx++;
             }
         }
 
