@@ -551,7 +551,8 @@ function PlaybackController() {
         logger.info('Native video element event: ended');
         pause();
         stopUpdatingWallclockTime();
-        eventBus.trigger(Events.PLAYBACK_ENDED, {'isLast': streamController.getActiveStreamInfo().isLast});
+        const activeStream = streamController.getActiveStreamInfo();
+        eventBus.trigger(Events.PLAYBACK_ENDED, {'isLast': activeStream ? activeStream.isLast : true});
     }
 
     // Handle DASH PLAYBACK_ENDED event
