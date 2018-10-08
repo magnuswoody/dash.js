@@ -104,7 +104,6 @@ class MediaPlayerEvents extends EventsBase {
         /**
          * Triggered when {@link module:Debug} logger methods are called.
          * @event MediaPlayerEvents#LOG
-         * @deprecated
          */
         this.LOG = 'log';
 

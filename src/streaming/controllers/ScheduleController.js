@@ -40,6 +40,7 @@ import Events from '../../core/events/Events';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
 import MediaController from './MediaController';
+import {replaceTokenForTemplate} from '../../dash/utils/SegmentsUtils';
 
 function ScheduleController(config) {
 
@@ -75,7 +76,6 @@ function ScheduleController(config) {
         seekTarget,
         bufferLevelRule,
         nextFragmentRequestRule,
-        scheduleWhilePaused,
         lastFragmentRequest,
         topQualityIndex,
         lastInitQuality,
@@ -91,7 +91,6 @@ function ScheduleController(config) {
 
     function initialize() {
         fragmentModel = streamProcessor.getFragmentModel();
-        scheduleWhilePaused = mediaPlayerModel.getScheduleWhilePaused();
 
         bufferLevelRule = BufferLevelRule(context).create({
             abrController: abrController,
@@ -173,7 +172,8 @@ function ScheduleController(config) {
 
     function schedule() {
         const bufferController = streamProcessor.getBufferController();
-        if (isStopped || isFragmentProcessingInProgress || !bufferController || playbackController.isPaused() && !scheduleWhilePaused ||
+        if (isStopped || isFragmentProcessingInProgress || !bufferController ||
+            (playbackController.isPaused() && !mediaPlayerModel.getScheduleWhilePaused()) ||
             ((type === Constants.FRAGMENTED_TEXT || type === Constants.TEXT) && !textController.isTextEnabled())) {
             logger.debug('Schedule stop!');
             return;
@@ -191,7 +191,7 @@ function ScheduleController(config) {
         const streamInfo = streamProcessor.getStreamInfo();
         if (!streamProcessor.getBufferController().getIsPruningInProgress() && bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
             hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamInfo.id) ||
-            bufferLevelRule.execute(streamProcessor, streamController.isVideoTrackPresent())) {
+            bufferLevelRule.execute(streamProcessor, streamController.isTrackTypePresent(Constants.VIDEO))) {
 
             const getNextFragment = function () {
                 const fragmentController = streamProcessor.getFragmentController();
@@ -295,6 +295,7 @@ function ScheduleController(config) {
         const request = adapter.getInitRequest(streamProcessor, quality);
         if (request) {
             setFragmentProcessState(true);
+            request.url = replaceTokenForTemplate(request.url, 'Bandwidth', currentRepresentationInfo ? currentRepresentationInfo.bandwidth : null);
             fragmentModel.executeRequest(request);
         }
     }
@@ -312,7 +313,7 @@ function ScheduleController(config) {
             return;
         }
 
-        currentRepresentationInfo = streamProcessor.getRepresentationInfoForQuality(e.newQuality);
+        currentRepresentationInfo = streamProcessor.getRepresentationInfo(e.newQuality);
 
         if (currentRepresentationInfo === null || currentRepresentationInfo === undefined) {
             throw new Error('Unexpected error! - currentRepresentationInfo is null or undefined');
@@ -366,7 +367,7 @@ function ScheduleController(config) {
             return;
         }
 
-        currentRepresentationInfo = streamProcessor.getCurrentRepresentationInfo();
+        currentRepresentationInfo = streamProcessor.getRepresentationInfo();
 
         if (initialRequest) {
             if (playbackController.getIsDynamic()) {
@@ -389,7 +390,7 @@ function ScheduleController(config) {
             const liveEdge = liveEdgeFinder.getLiveEdge();
             const dvrWindowSize = currentRepresentationInfo.mediaInfo.streamInfo.manifestInfo.DVRWindowSize / 2;
             const startTime = liveEdge - playbackController.computeLiveDelay(currentRepresentationInfo.fragmentDuration, dvrWindowSize);
-            const request = adapter.getFragmentRequestForTime(streamProcessor, currentRepresentationInfo, startTime, {
+            const request = adapter.getFragmentRequest(streamProcessor, currentRepresentationInfo, startTime, {
                 ignoreIsFinished: true
             });
 
@@ -403,7 +404,7 @@ function ScheduleController(config) {
                     playbackController.setLiveStartTime(request.startTime);
                 }
             } else {
-                logger.debug('setLiveEdgeSeekTarget : getFragmentRequestForTime returned undefined request object');
+                logger.debug('setLiveEdgeSeekTarget : getFragmentRequest returned undefined request object');
             }
             seekTarget = playbackController.getStreamStartTime(false, liveEdge);
             streamProcessor.getBufferController().setSeekStartTime(seekTarget);
@@ -438,7 +439,8 @@ function ScheduleController(config) {
         if (e.sender !== fragmentModel) {
             return;
         }
-        logger.info('OnFragmentLoadingCompleted - Url:', e.request ? e.request.url : 'undefined');
+        logger.info('OnFragmentLoadingCompleted - Url:', e.request ? e.request.url : 'undefined',
+            ', Range:', e.request.range ? e.request.range : 'undefined');
         if (dashManifestModel.getIsTextTrack(type)) {
             setFragmentProcessState(false);
         }
@@ -546,7 +548,7 @@ function ScheduleController(config) {
     }
 
     function onPlaybackStarted() {
-        if (isStopped || !scheduleWhilePaused) {
+        if (isStopped || !mediaPlayerModel.getScheduleWhilePaused()) {
             start();
         }
     }
@@ -597,7 +599,7 @@ function ScheduleController(config) {
     }
 
     function getBufferTarget() {
-        return bufferLevelRule.getBufferTarget(streamProcessor, streamController.isVideoTrackPresent());
+        return bufferLevelRule.getBufferTarget(streamProcessor, streamController.isTrackTypePresent(Constants.VIDEO));
     }
 
     function getType() {
