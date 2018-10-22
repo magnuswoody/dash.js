@@ -552,7 +552,7 @@ function BufferController(config) {
         if (((!mediaPlayerModel.getLowLatencyEnabled() && bufferLevel < STALL_THRESHOLD) || bufferLevel === 0) && !isBufferingCompleted) {
             notifyBufferStateChanged(BUFFER_EMPTY);
         } else {
-            if (isBufferingCompleted || bufferLevel >= mediaPlayerModel.getStableBufferTime()) {
+            if (isBufferingCompleted || bufferLevel >= STALL_THRESHOLD) {
                 notifyBufferStateChanged(BUFFER_LOADED);
             }
         }
