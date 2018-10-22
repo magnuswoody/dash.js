@@ -189,9 +189,9 @@ function ScheduleController(config) {
         const type = currentRepresentationInfo.mediaInfo.type;
         const isReplacement = replaceRequestArray.length > 0;
         const streamInfo = streamProcessor.getStreamInfo();
-        if (!streamProcessor.getBufferController().getIsPruningInProgress() && bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
+        if (!streamProcessor.getBufferController().getIsPruningInProgress() && (bufferResetInProgress || isNaN(lastInitQuality) || switchTrack || isReplacement ||
             hasTopQualityChanged(currentRepresentationInfo.mediaInfo.type, streamInfo.id) ||
-            bufferLevelRule.execute(streamProcessor, streamController.isTrackTypePresent(Constants.VIDEO))) {
+            bufferLevelRule.execute(streamProcessor, streamController.isTrackTypePresent(Constants.VIDEO)))) {
 
             const getNextFragment = function () {
                 const fragmentController = streamProcessor.getFragmentController();
