@@ -607,7 +607,6 @@ function BufferController(config) {
         logger.debug(state === BUFFER_LOADED ? 'Got enough buffer to start for ' + type : 'Waiting for more buffer before starting playback for ' + type);
     }
 
-
     function handleInbandEvents(data, request, mediaInbandEvents, trackInbandEvents) {
         const fragmentStartTime = Math.max(!request || isNaN(request.startTime) ? 0 : request.startTime, 0);
         const eventStreams = [];
@@ -635,8 +634,10 @@ function BufferController(config) {
 
     /* prune buffer on our own in background to avoid browsers pruning buffer silently */
     function pruneBuffer() {
-        if (!buffer) return;
-        if (type === Constants.FRAGMENTED_TEXT) return;
+        if (!buffer || type === Constants.FRAGMENTED_TEXT) {
+            return;
+        }
+
         if (!isBufferingCompleted) {
             clearBuffers(getClearRanges());
         }

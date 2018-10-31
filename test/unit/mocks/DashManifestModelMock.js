@@ -41,7 +41,10 @@ function DashManifestModelMock () {
     };
 
     this.getRepresentationSortFunction = function () {
+    };
 
+    this.getIndexForAdaptation = function () {
+        return 0;
     };
 }
 
