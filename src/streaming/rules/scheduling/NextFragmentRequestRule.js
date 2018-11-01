@@ -78,7 +78,7 @@ function NextFragmentRequestRule(config) {
             const playingRange = bufferController.getRangeAt(currentTime);
             const bufferRanges = bufferController.getBuffer().getAllBufferRanges();
             const numberOfBuffers = bufferRanges ? bufferRanges.length : 0;
-            if ((range !== null && playingRange !== null) && !hasSeekTarget) {
+            if ((range !== null || playingRange !== null) && !hasSeekTarget) {
                 if ( !range || (playingRange && playingRange.start != range.start && playingRange.end != range.end) ) {
                     if (numberOfBuffers > 1 && mediaType !== Constants.FRAGMENTED_TEXT) {
                         streamProcessor.getFragmentModel().removeExecutedRequestsAfterTime(playingRange.end);
