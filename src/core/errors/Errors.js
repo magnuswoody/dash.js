@@ -113,6 +113,7 @@ class Errors extends ErrorsBase {
          * Error code returned when a media source type is not supported
          */
         this.MEDIASOURCE_TYPE_UNSUPPORTED_CODE = 35;
+        this.DOWNLOAD_CONTENT_LENGTH_MISMATCH = 36;
 
         this.MANIFEST_LOADER_PARSING_FAILURE_ERROR_MESSAGE = 'parsing failed for ';
         this.MANIFEST_LOADER_LOADING_FAILURE_ERROR_MESSAGE = 'Failed loading manifest: ';

@@ -34,6 +34,7 @@ import { HTTPRequest } from '../vo/metrics/HTTPRequest';
 import FactoryMaker from '../../core/FactoryMaker';
 import Errors from '../../core/errors/Errors';
 import DashJSError from '../vo/DashJSError';
+import Debug from '../../core/Debug';
 
 /**
  * @module HTTPLoader
@@ -52,6 +53,7 @@ function HTTPLoader(cfg) {
     const boxParser = cfg.boxParser;
     const useFetch = cfg.useFetch || false;
 
+    let logger;
     let instance;
     let requests;
     let delayedRequests;
@@ -60,6 +62,7 @@ function HTTPLoader(cfg) {
     let newDownloadErrorToRequestTypeMap;
 
     function setup() {
+        logger = Debug(context).getInstance().getLogger(instance);
         requests = [];
         delayedRequests = [];
         retryTimers = [];
@@ -135,7 +138,31 @@ function HTTPLoader(cfg) {
                 requests.splice(requests.indexOf(httpRequest), 1);
             }
 
-            if (needFailureReport) {
+            if (httpRequest.response.status >= 200 && httpRequest.response.status <= 299) {
+                if (hasContentLengthMismatch(httpRequest.response)) {
+                    handleLoaded(false);
+                    if (remainingAttempts > 0) {
+                        remainingAttempts--;
+                        retryTimers.push(
+                            setTimeout(function () {
+                                internalLoad(config, remainingAttempts);
+                            }, mediaPlayerModel.getRetryIntervalForType(request.type))
+                        );
+                    } else {
+                        errHandler.error(new DashJSError(Errors.DOWNLOAD_CONTENT_LENGTH_MISMATCH, request.url + ' has a content-length header that does not match its data length', {request: request, response: httpRequest.response}));
+                    }
+                } else {
+                    handleLoaded(true);
+
+                    if (config.success) {
+                        config.success(httpRequest.response.response, httpRequest.response.statusText, httpRequest.response.responseURL);
+                    }
+
+                    if (config.complete) {
+                        config.complete(request, httpRequest.response.statusText);
+                    }
+                }
+            } else if (needFailureReport) {
                 handleLoaded(false);
 
                 if (remainingAttempts > 0) {
@@ -198,17 +225,6 @@ function HTTPLoader(cfg) {
         };
 
         const onload = function () {
-            if (httpRequest.response.status >= 200 && httpRequest.response.status <= 299) {
-                handleLoaded(true);
-
-                if (config.success) {
-                    config.success(httpRequest.response.response, httpRequest.response.statusText, httpRequest.response.responseURL);
-                }
-
-                if (config.complete) {
-                    config.complete(request, httpRequest.response.statusText);
-                }
-            }
         };
 
         const onabort = function () {
@@ -273,6 +289,20 @@ function HTTPLoader(cfg) {
                 }
             }, (request.delayLoadingTime - now));
         }
+    }
+
+    function hasContentLengthMismatch(response) {
+        if (response && response.responseType === 'arraybuffer' && response.getResponseHeader) {
+            const headerLength = response.getResponseHeader('content-length');
+            const dataLength = response.response.byteLength;
+
+            if (headerLength && dataLength && Math.abs(dataLength - headerLength) > headerLength * 0.25) {
+                logger.warn('Content length doesn\'t match header\'s declared content-length at ' + response.responseURL + ' header: ' + headerLength + '; data: ' + dataLength);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
