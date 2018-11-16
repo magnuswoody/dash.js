@@ -329,6 +329,7 @@ function Stream(config) {
         } else if (!capabilities.supportsCodec(codec)) {
             msg = type + 'Codec (' + codec + ') is not supported.';
             logger.error(msg);
+            errHandler.error(new DashJSError(Errors.MANIFEST_ERROR_ID_CODEC_CODE, msg));
             return false;
         }
 
