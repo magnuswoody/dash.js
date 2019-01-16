@@ -374,7 +374,7 @@ function PlaybackController() {
 
         if (isDynamic) {
             if (!isNaN(startTimeOffset)) {
-                presentationStartTime = startTimeOffset;
+                presentationStartTime = startTimeOffset - (streamInfo.manifestInfo.availableFrom.getTime() / 1000);
 
                 if (!isNaN(liveStartTime) && !isNaN(liveEdge)) {
                     presentationStartTime = Math.min(Math.max(presentationStartTime,((liveEdge - streamInfo.manifestInfo.DVRWindowSize) + 60)), liveStartTime);
