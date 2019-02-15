@@ -85,7 +85,14 @@ function ThroughputHistory(config) {
         const latencyTimeInMilliseconds = (httpRequest.tresponse.getTime() - httpRequest.trequest.getTime()) || 1;
         const downloadTimeInMilliseconds = (httpRequest._tfinish.getTime() - httpRequest.tresponse.getTime()) || 1; //Make sure never 0 we divide by this value. Avoid infinity!
         const downloadBytes = httpRequest.trace.reduce((a, b) => a + b.b[0], 0);
-        const throughputMeasureTime = useDeadTimeLatency ? downloadTimeInMilliseconds : latencyTimeInMilliseconds + downloadTimeInMilliseconds;
+
+        let throughputMeasureTime;
+        if (mediaPlayerModel.getLowLatencyEnabled()) {
+            throughputMeasureTime = httpRequest.trace.reduce((a, b) => a + b.d, 0);
+        } else {
+            throughputMeasureTime = useDeadTimeLatency ? downloadTimeInMilliseconds : latencyTimeInMilliseconds + downloadTimeInMilliseconds;
+        }
+
         const throughput = Math.round((8 * downloadBytes) / throughputMeasureTime); // bits/ms = kbits/s
 
         checkSettingsForMediaType(mediaType);
@@ -134,8 +141,8 @@ function ThroughputHistory(config) {
     }
 
     function getSampleSize(isThroughput, mediaType, isLive) {
-        let arr;
-        let sampleSize;
+        let arr,
+            sampleSize;
 
         if (isThroughput) {
             arr = throughputDict[mediaType];
@@ -152,7 +159,7 @@ function ThroughputHistory(config) {
         } else if (isThroughput) {
             // if throughput samples vary a lot, average over a wider sample
             for (let i = 1; i < sampleSize; ++i) {
-                const ratio = arr[-i] / arr[-i - 1];
+                const ratio = arr[i] / arr[i - 1];
                 if (ratio >= THROUGHPUT_INCREASE_SCALE || ratio <= 1 / THROUGHPUT_DECREASE_SCALE) {
                     sampleSize += 1;
                     if (sampleSize === arr.length) { // cannot increase sampleSize beyond arr.length

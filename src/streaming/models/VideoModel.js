@@ -37,15 +37,21 @@ import Debug from '../../core/Debug';
 function VideoModel() {
 
     let instance,
+        logger,
         element,
         TTMLRenderingDiv,
         videoContainer,
         previousPlaybackRate;
 
-    let context = this.context;
-    let log = Debug(context).getInstance().log;
-    let eventBus = EventBus(context).getInstance();
+    const VIDEO_MODEL_WRONG_ELEMENT_TYPE = 'element is not video or audio DOM type!';
+
+    const context = this.context;
+    const eventBus = EventBus(context).getInstance();
     const stalledStreams = [];
+
+    function setup() {
+        logger = Debug(context).getInstance().getLogger(instance);
+    }
 
     function initialize() {
         eventBus.on(Events.PLAYBACK_PLAYING, onPlaying, this);
@@ -73,7 +79,7 @@ function VideoModel() {
     }
 
     //TODO Move the DVR window calculations from MediaPlayer to Here.
-    function setCurrentTime(currentTime) {
+    function setCurrentTime(currentTime, stickToBuffered) {
         if (element) {
             //_currentTime = currentTime;
 
@@ -87,6 +93,7 @@ function VideoModel() {
             // set currentTime even if readyState = 0.
             // setTimeout is used to workaround InvalidStateError in IE11
             try {
+                currentTime = stickToBuffered ? stickTimeToBuffered(currentTime) : currentTime;
                 element.currentTime = currentTime;
             } catch (e) {
                 if (element.readyState === 0 && e.code === e.INVALID_STATE_ERR) {
@@ -98,14 +105,50 @@ function VideoModel() {
         }
     }
 
+    function stickTimeToBuffered(time) {
+        const buffered = getBufferRange();
+        let closestTime = time;
+        let closestDistance = 9999999999;
+        if (buffered) {
+            for (let i = 0; i < buffered.length; i++) {
+                const start = buffered.start(i);
+                const end = buffered.end(i);
+                const distanceToStart = Math.abs(start - time);
+                const distanceToEnd = Math.abs(end - time);
+
+                if (time >= start && time <= end) {
+                    return time;
+                }
+
+                if (distanceToStart < closestDistance) {
+                    closestDistance = distanceToStart;
+                    closestTime = start;
+                }
+
+                if (distanceToEnd < closestDistance) {
+                    closestDistance = distanceToEnd;
+                    closestTime = end;
+                }
+            }
+        }
+        return closestTime;
+    }
+
     function getElement() {
         return element;
     }
 
     function setElement(value) {
-        element = value;
-        // Workaround to force Firefox to fire the canplay event.
-        element.preload = 'auto';
+        //add check of value type
+        if (value === null || value === undefined || (value && (/^(VIDEO|AUDIO)$/i).test(value.nodeName))) {
+            element = value;
+            // Workaround to force Firefox to fire the canplay event.
+            if (element) {
+                element.preload = 'auto';
+            }
+        } else {
+            throw VIDEO_MODEL_WRONG_ELEMENT_TYPE;
+        }
     }
 
     function setSource(source) {
@@ -155,7 +198,6 @@ function VideoModel() {
     }
 
     function addStalledStream(type) {
-
         let event;
 
         if (type === null || element.seeking || stalledStreams.indexOf(type) !== -1) {
@@ -219,8 +261,7 @@ function VideoModel() {
 
         if (hasQuality) {
             result = element.getVideoPlaybackQuality();
-        }
-        else if (hasWebKit) {
+        } else if (hasWebKit) {
             result = {
                 droppedVideoFrames: element.webkitDroppedFrameCount,
                 totalVideoFrames: element.webkitDroppedFrameCount + element.webkitDecodedFrameCount,
@@ -240,7 +281,7 @@ function VideoModel() {
                     if (e.name === 'NotAllowedError') {
                         eventBus.trigger(Events.PLAYBACK_NOT_ALLOWED);
                     }
-                    log(`Caught pending play exception - continuing (${e})`);
+                    logger.warn(`Caught pending play exception - continuing (${e})`);
                 });
             }
         }
@@ -327,7 +368,7 @@ function VideoModel() {
 
     function getTextTrack(kind, label, lang, isTTML, isEmbedded) {
         if (element) {
-            for (var i = 0; i < element.textTracks.length; i++) {
+            for (let i = 0; i < element.textTracks.length; i++) {
                 //label parameter could be a number (due to adaptationSet), but label, the attribute of textTrack, is a string => to modify...
                 //label could also be undefined (due to adaptationSet)
                 if (element.textTracks[i].kind === kind && (label ? element.textTracks[i].label == label : true) &&
@@ -373,6 +414,7 @@ function VideoModel() {
         isSeeking: isSeeking,
         getTime: getTime,
         getPlaybackRate: getPlaybackRate,
+        setPlaybackRate: setPlaybackRate,
         getPlayedRanges: getPlayedRanges,
         getEnded: getEnded,
         setStallState: setStallState,
@@ -402,6 +444,8 @@ function VideoModel() {
         getVideoRelativeOffsetLeft: getVideoRelativeOffsetLeft,
         reset: reset
     };
+
+    setup();
 
     return instance;
 }

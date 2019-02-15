@@ -37,56 +37,74 @@ function NextFragmentRequestRule(config) {
 
     config = config || {};
     const context = this.context;
-    const log = Debug(context).getInstance().log;
     const adapter = config.adapter;
     const textController = config.textController;
 
-    function execute(streamProcessor, requestToReplace) {
+    let instance,
+        logger;
 
-        const representationInfo = streamProcessor.getCurrentRepresentationInfo();
+    function setup() {
+        logger = Debug(context).getInstance().getLogger(instance);
+    }
+
+    function execute(streamProcessor, requestToReplace) {
+        if (!streamProcessor) {
+            return null;
+        }
+        const representationInfo = streamProcessor.getRepresentationInfo();
         const mediaInfo = representationInfo.mediaInfo;
         const mediaType = mediaInfo.type;
         const scheduleController = streamProcessor.getScheduleController();
         const seekTarget = scheduleController.getSeekTarget();
         const hasSeekTarget = !isNaN(seekTarget);
         const bufferController = streamProcessor.getBufferController();
-
+        const currentTime = streamProcessor.getPlaybackController().getNormalizedTime();
         let time = hasSeekTarget ? seekTarget : adapter.getIndexHandlerTime(streamProcessor);
-
-        if (isNaN(time) || (mediaType === Constants.FRAGMENTED_TEXT && textController.getAllTracksAreDisabled())) {
-            return null;
-        }
+        let bufferIsDivided = false;
+        let request;
 
         if (hasSeekTarget) {
             scheduleController.setSeekTarget(NaN);
         }
 
+        if (isNaN(time) || (mediaType === Constants.FRAGMENTED_TEXT && !textController.isTextEnabled())) {
+            return null;
+        }
         /**
          * This is critical for IE/Safari/EDGE
          * */
         if (bufferController) {
-            const range = bufferController.getRangeAt(time);
-            if (range !== null) {
-                log('Prior to making a request for time, NextFragmentRequestRule is aligning index handler\'s currentTime with bufferedRange.end for', mediaType, '.', time, 'was changed to', range.end);
+            let range = bufferController.getRangeAt(time);
+            const playingRange = bufferController.getRangeAt(currentTime);
+            const bufferRanges = bufferController.getBuffer().getAllBufferRanges();
+            const numberOfBuffers = bufferRanges ? bufferRanges.length : 0;
+            if ((range !== null || playingRange !== null) && !hasSeekTarget) {
+                if ( !range || (playingRange && playingRange.start != range.start && playingRange.end != range.end) ) {
+                    if (numberOfBuffers > 1 && mediaType !== Constants.FRAGMENTED_TEXT) {
+                        streamProcessor.getFragmentModel().removeExecutedRequestsAfterTime(playingRange.end);
+                        bufferIsDivided = true;
+                    }
+                    range = playingRange;
+                }
+                logger.debug('Prior to making a request for time, NextFragmentRequestRule is aligning index handler\'s currentTime with bufferedRange.end for', mediaType, '.', time, 'was changed to', range.end);
                 time = range.end;
             }
         }
 
-        let request;
         if (requestToReplace) {
             time = requestToReplace.startTime + (requestToReplace.duration / 2);
-            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {
+            request = adapter.getFragmentRequest(streamProcessor, representationInfo, time, {
                 timeThreshold: 0,
                 ignoreIsFinished: true
             });
         } else {
-            request = adapter.getFragmentRequestForTime(streamProcessor, representationInfo, time, {
-                keepIdx: !hasSeekTarget
+            request = adapter.getFragmentRequest(streamProcessor, representationInfo, time, {
+                keepIdx: !hasSeekTarget && !bufferIsDivided
             });
             while (request && request.action !== FragmentRequest.ACTION_COMPLETE && streamProcessor.getFragmentModel().isFragmentLoaded(request, bufferController.getBuffer().getAllBufferRanges())) {
                 // Then, check if this request was downloaded or not
                 // loop until we found not loaded fragment, or no fragment
-                request = adapter.getNextFragmentRequest(streamProcessor, representationInfo);
+                request = adapter.getFragmentRequest(streamProcessor, representationInfo);
             }
             if (request) {
                 if (!isNaN(request.startTime + request.duration)) {
@@ -100,9 +118,11 @@ function NextFragmentRequestRule(config) {
         return request;
     }
 
-    const instance = {
+    instance = {
         execute: execute
     };
+
+    setup();
 
     return instance;
 }

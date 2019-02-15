@@ -5,12 +5,17 @@ import CapabilitiesMock from './mocks/CapabilitiesMock';
 import PlaybackControllerMock from './mocks/PlaybackControllerMock';
 import AbrControllerMock from './mocks/AbrControllerMock';
 import MediaPlayer from './../../src/streaming/MediaPlayer';
+import VideoModel from './../../src/streaming/models/VideoModel';
 import MediaPlayerModelMock from './mocks//MediaPlayerModelMock';
 import MediaControllerMock from './mocks/MediaControllerMock';
 import ObjectUtils from './../../src/streaming/utils/ObjectUtils';
 import Constants from '../../src/streaming/constants/Constants';
 
 const expect = require('chai').expect;
+const ELEMENT_NOT_ATTACHED_ERROR = 'You must first call attachView() to set the video element before calling this method';
+const PLAYBACK_NOT_INITIALIZED_ERROR = 'You must first call initialize() and set a valid source and view before calling this method';
+const STREAMING_NOT_INITIALIZED_ERROR = 'You must first call initialize() and set a source before calling this method';
+const MEDIA_PLAYER_NOT_INITIALIZED_ERROR = 'MediaPlayer not initialized!';
 
 describe('MediaPlayer', function () {
 
@@ -109,67 +114,67 @@ describe('MediaPlayer', function () {
     describe('Playback Functions', function () {
         describe('When it is not initialized', function () {
             it('Method play should throw an exception', function () {
-                expect(player.play).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.play).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method pause should throw an exception', function () {
-                expect(player.pause).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.pause).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method isPaused should throw an exception', function () {
-                expect(player.isPaused).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.isPaused).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method seek should throw an exception', function () {
-                expect(player.seek).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.seek).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method isSeeking should throw an exception', function () {
-                expect(player.isSeeking).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.isSeeking).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method isDynamic should throw an exception', function () {
-                expect(player.isDynamic).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.isDynamic).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method setPlaybackRate should throw an exception', function () {
-                expect(player.setPlaybackRate).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.setPlaybackRate).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method getPlaybackRate should throw an exception', function () {
-                expect(player.getPlaybackRate).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.getPlaybackRate).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method setMute should throw an exception', function () {
-                expect(player.setMute).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.setMute.bind(player, true)).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method isMuted should throw an exception', function () {
-                expect(player.isMuted).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.isMuted).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method setVolume should throw an exception', function () {
-                expect(player.setVolume).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.setVolume.bind(player, 0.6)).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method getVolume should throw an exception', function () {
-                expect(player.getVolume).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.getVolume).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method time should throw an exception', function () {
-                expect(player.time).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.time).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method duration should throw an exception', function () {
-                expect(player.duration).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.duration).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method timeAsUTC should throw an exception', function () {
-                expect(player.timeAsUTC).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.timeAsUTC).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
 
             it('Method durationAsUTC should throw an exception', function () {
-                expect(player.durationAsUTC).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.durationAsUTC).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
         });
 
@@ -220,10 +225,34 @@ describe('MediaPlayer', function () {
                 let isSeeking = playbackControllerMock.isSeeking();
                 expect(isSeeking).to.be.false; // jshint ignore:line
 
-                expect(player.seek).to.throw(MediaPlayer.MEDIA_PLAYER_BAD_ARGUMENT_ERROR);
+                expect(player.seek).to.throw(Constants.BAD_ARGUMENT_ERROR);
 
                 isSeeking = playbackControllerMock.isSeeking();
                 expect(isSeeking).to.be.false; // jshint ignore:line
+
+                expect(player.seek.bind(player, NaN)).to.throw(Constants.BAD_ARGUMENT_ERROR);
+
+                isSeeking = playbackControllerMock.isSeeking();
+                expect(isSeeking).to.be.false; // jshint ignore:line
+            });
+
+            it('Method setMute should throw an exception', function () {
+                let isMuted = player.isMuted();
+                expect(isMuted).to.be.false; // jshint ignore:line
+
+                expect(player.setMute.bind(player, 1)).to.throw(Constants.BAD_ARGUMENT_ERROR);
+
+                isMuted = player.isMuted();
+                expect(isMuted).to.be.false; // jshint ignore:line
+            });
+
+            it('Method setVolume should throw an exception', function () {
+                expect(player.setVolume.bind(player, true)).to.throw(Constants.BAD_ARGUMENT_ERROR);
+            });
+
+            it('Method setAutoPlay should throw an exception', function () {
+                expect(player.setAutoPlay.bind(player, 'string')).to.throw(Constants.BAD_ARGUMENT_ERROR);
+                expect(player.setAutoPlay.bind(player, 12)).to.throw(Constants.BAD_ARGUMENT_ERROR);
             });
 
             it('Method isDynamic should get dynamic value', function () {
@@ -233,7 +262,6 @@ describe('MediaPlayer', function () {
                 playbackControllerMock.setIsDynamic(true);
                 isDynamic = player.isDynamic();
                 expect(isDynamic).to.be.true; // jshint ignore:line
-
             });
 
             it('Method setPlaybackRate should change playback value of video element', function () {
@@ -246,7 +274,7 @@ describe('MediaPlayer', function () {
                 expect(playbackRate).to.equal(newPlaybackRate);
             });
 
-            it('Method setPlaybackRate should return video element playback rate', function () {
+            it('Method getPlaybackRate should return video element playback rate', function () {
                 const elementPlayBackRate = videoElementMock.playbackRate;
                 const playerPlayBackRate = player.getPlaybackRate();
                 expect(playerPlayBackRate).to.equal(elementPlayBackRate);
@@ -282,26 +310,26 @@ describe('MediaPlayer', function () {
                 let volume = videoElementMock.volume;
                 expect(volume).to.equal(0);
 
-                player.setVolume(15);
+                player.setVolume(0.5);
                 volume = videoElementMock.volume;
-                expect(volume).to.equal(15);
+                expect(volume).to.equal(0.5);
 
-                player.setVolume(4);
+                player.setVolume(0.4);
                 volume = videoElementMock.volume;
-                expect(volume).to.equal(4);
+                expect(volume).to.equal(0.4);
             });
 
             it('Method getVolume should return mute state', function () {
                 let volume = player.getVolume();
                 expect(volume).to.equal(0);
 
-                player.setVolume(15);
+                player.setVolume(0.2);
                 volume = player.getVolume();
-                expect(volume).to.equal(15);
+                expect(volume).to.equal(0.2);
 
-                player.setVolume(4);
+                player.setVolume(0.6);
                 volume = player.getVolume();
-                expect(volume).to.equal(4);
+                expect(volume).to.equal(0.6);
             });
 
             it('Method time should return time of playback', function () {
@@ -328,6 +356,42 @@ describe('MediaPlayer', function () {
                 videoElementMock.duration = 4;
                 duration = player.duration();
                 expect(duration).to.equal(4);
+            });
+
+            it('Method setCatchUpPlaybackRate should change catchUpPlaybackRate', function () {
+                let rate = player.getCatchUpPlaybackRate();
+                expect(rate).to.equal(0.5);
+
+                player.setCatchUpPlaybackRate(0.2);
+                rate = player.getCatchUpPlaybackRate();
+                expect(rate).to.equal(0.2);
+
+                player.setCatchUpPlaybackRate(0.0);
+                rate = player.getCatchUpPlaybackRate();
+                expect(rate).to.equal(0.0);
+            });
+
+            it('Method setLowLatencyMinDrift should change lowLatencyMinDrift', function () {
+                let rate = player.getLowLatencyMinDrift();
+                expect(rate).to.equal(0.02);
+
+                player.setLowLatencyMinDrift(0.1);
+                rate = player.getLowLatencyMinDrift();
+                expect(rate).to.equal(0.1);
+
+                player.setLowLatencyMinDrift(0.0);
+                rate = player.getLowLatencyMinDrift();
+                expect(rate).to.equal(0.0);
+            });
+
+            it('Method setLowLatencyEnabled should enable/disable low latency mode', function () {
+                let enableLowLatency = mediaPlayerModel.getLowLatencyEnabled();
+                expect(enableLowLatency).to.equal(false);
+
+                player.setLowLatencyEnabled(true);
+
+                enableLowLatency = mediaPlayerModel.getLowLatencyEnabled();
+                expect(enableLowLatency).to.equal(true);
             });
         });
     });
@@ -480,15 +544,15 @@ describe('MediaPlayer', function () {
 
         describe('When it is not initialized', function () {
             it('Method getQualityFor should throw an exception', function () {
-                expect(player.getQualityFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getQualityFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it('Method setQualityFor should throw an exception', function () {
-                expect(player.setQualityFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.setQualityFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
 
             it('Method getInitialBitrateFor should throw an exception', function () {
-                expect(player.getInitialBitrateFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getInitialBitrateFor).to.throw(STREAMING_NOT_INITIALIZED_ERROR);
             });
         });
 
@@ -671,7 +735,7 @@ describe('MediaPlayer', function () {
             customRules = mediaPlayerModel.getABRCustomRules();
             expect(customRules.length).to.equal(2);
 
-            player.removeAllABRCustomRule();
+            player.removeABRCustomRule();
 
             customRules = mediaPlayerModel.getABRCustomRules();
             expect(customRules.length).to.equal(0);
@@ -798,6 +862,37 @@ describe('MediaPlayer', function () {
             expect(cacheLoadThresholdForAudio).to.equal(2);
         });
 
+        it('should configure jumpGap feature', function () {
+            let jumpGaps = mediaPlayerModel.getJumpGaps();
+            expect(jumpGaps).to.equal(false);
+
+            player.setJumpGaps(true);
+
+            jumpGaps = mediaPlayerModel.getJumpGaps();
+            expect(jumpGaps).to.equal(true);
+
+            let smallGapLimit = mediaPlayerModel.getSmallGapLimit();
+            expect(smallGapLimit).to.equal(0.8);
+
+            player.setSmallGapLimit(0.5);
+
+            smallGapLimit = mediaPlayerModel.getSmallGapLimit();
+            expect(smallGapLimit).to.equal(0.5);
+        });
+
+        it('should configure manifestUpdateRetryInterval', function () {
+            let manifestUpdateRetryInterval = player.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(MediaPlayerModelMock.MANIFEST_UPDATE_RETRY_INTERVAL);
+
+            player.setManifestUpdateRetryInterval(200);
+
+            manifestUpdateRetryInterval = mediaPlayerModel.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(200);
+
+            manifestUpdateRetryInterval = player.getManifestUpdateRetryInterval();
+            expect(manifestUpdateRetryInterval).to.equal(200);
+        });
+
         it('should configure BandwidthSafetyFactor', function () {
             let BandwidthSafetyFactor = mediaPlayerModel.getBandwidthSafetyFactor();
             expect(BandwidthSafetyFactor).to.equal(0.9);
@@ -825,42 +920,42 @@ describe('MediaPlayer', function () {
         });
 
         it('should configure FragmentLoaderRetryAttempts', function () {
-            let FragmentLoaderRetryAttempts = mediaPlayerModel.getFragmentRetryAttempts();
+            let FragmentLoaderRetryAttempts = mediaPlayerModel.getRetryAttemptsForType('MediaSegment');
             expect(FragmentLoaderRetryAttempts).to.equal(3);
 
             player.setFragmentLoaderRetryAttempts(50);
 
-            FragmentLoaderRetryAttempts = mediaPlayerModel.getFragmentRetryAttempts();
+            FragmentLoaderRetryAttempts = mediaPlayerModel.getRetryAttemptsForType('MediaSegment');
             expect(FragmentLoaderRetryAttempts).to.equal(50);
         });
 
         it('should configure FragmentLoaderRetryInterval', function () {
-            let FragmentLoaderRetryInterval = mediaPlayerModel.getFragmentRetryInterval();
+            let FragmentLoaderRetryInterval = mediaPlayerModel.getRetryIntervalForType('MediaSegment');
             expect(FragmentLoaderRetryInterval).to.equal(1000);
 
             player.setFragmentLoaderRetryInterval(50);
 
-            FragmentLoaderRetryInterval = mediaPlayerModel.getFragmentRetryInterval();
+            FragmentLoaderRetryInterval = mediaPlayerModel.getRetryIntervalForType('MediaSegment');
             expect(FragmentLoaderRetryInterval).to.equal(50);
         });
 
         it('should configure ManifestLoaderRetryAttempts', function () {
-            let ManifestLoaderRetryAttempts = mediaPlayerModel.getManifestRetryAttempts();
+            let ManifestLoaderRetryAttempts = mediaPlayerModel.getRetryAttemptsForType('MPD');
             expect(ManifestLoaderRetryAttempts).to.equal(3);
 
             player.setManifestLoaderRetryAttempts(50);
 
-            ManifestLoaderRetryAttempts = mediaPlayerModel.getManifestRetryAttempts();
+            ManifestLoaderRetryAttempts = mediaPlayerModel.getRetryAttemptsForType('MPD');
             expect(ManifestLoaderRetryAttempts).to.equal(50);
         });
 
         it('should configure ManifestLoaderRetryInterval', function () {
-            let ManifestLoaderRetryInterval = mediaPlayerModel.getManifestRetryInterval();
+            let ManifestLoaderRetryInterval = mediaPlayerModel.getRetryIntervalForType('MPD');
             expect(ManifestLoaderRetryInterval).to.equal(500);
 
             player.setManifestLoaderRetryInterval(50);
 
-            ManifestLoaderRetryInterval = mediaPlayerModel.getManifestRetryInterval();
+            ManifestLoaderRetryInterval = mediaPlayerModel.getRetryIntervalForType('MPD');
             expect(ManifestLoaderRetryInterval).to.equal(50);
         });
 
@@ -884,7 +979,7 @@ describe('MediaPlayer', function () {
     describe('Text Management Functions', function () {
         describe('When it is not initialized', function () {
             it('Method setTextTrack should throw an exception', function () {
-                expect(player.setTextTrack).to.throw(MediaPlayer.PLAYBACK_NOT_INITIALIZED_ERROR);
+                expect(player.setTextTrack).to.throw(PLAYBACK_NOT_INITIALIZED_ERROR);
             });
         });
     });
@@ -892,19 +987,19 @@ describe('MediaPlayer', function () {
     describe('Video Element Management Functions', function () {
         describe('When it is not initialized', function () {
             it('Method attachView should throw an exception when attaching a view', function () {
-                expect(player.attachView).to.throw(MediaPlayer.NOT_INITIALIZED_ERROR_MSG);
+                expect(player.attachView).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method getVideoElement should throw an exception', function () {
-                expect(player.getVideoElement).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.getVideoElement).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method attachVideoContainer should throw an exception', function () {
-                expect(player.getVideoElement).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.getVideoElement).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
 
             it('Method attachTTMLRenderingDiv should throw an exception', function () {
-                expect(player.getVideoElement).to.throw(MediaPlayer.ELEMENT_NOT_ATTACHED_ERROR);
+                expect(player.getVideoElement).to.throw(ELEMENT_NOT_ATTACHED_ERROR);
             });
         });
 
@@ -940,9 +1035,7 @@ describe('MediaPlayer', function () {
                 let areEquals = objectUtils.areEqual(element, videoElementMock);
                 expect(areEquals).to.be.true; // jshint ignore:line
 
-                const myNewView = {
-                    view: 'view'
-                };
+                const myNewView = new VideoElementMock();
 
                 player.attachView(myNewView);
 
@@ -966,57 +1059,70 @@ describe('MediaPlayer', function () {
                 const areEquals = objectUtils.areEqual(ttmlRenderer, myTTMLRenderer);
                 expect(areEquals).to.be.true; // jshint ignore:line
             });
+
+            it('Method attachView should throw an exception when attaching a view which is not VIDEO or AUDIO DOM element', function () {
+                player.attachView(null);
+                const myNewView = {
+                    view: 'view'
+                };
+
+                expect(player.attachView.bind(player, myNewView)).to.throw(VideoModel.VIDEO_MODEL_WRONG_ELEMENT_TYPE);
+            });
         });
     });
 
     describe('Stream and Track Management Functions', function () {
         describe('When it is not initialized', function () {
             it('Method getBitrateInfoListFor should throw an exception', function () {
-                expect(player.getBitrateInfoListFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getBitrateInfoListFor).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method getStreamsFromManifest should throw an exception', function () {
-                expect(player.getStreamsFromManifest).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getStreamsFromManifest).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method getTracksFor should throw an exception', function () {
-                expect(player.getTracksFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getTracksFor).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method getTracksForTypeFromManifest should throw an exception', function () {
-                expect(player.getTracksForTypeFromManifest).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getTracksForTypeFromManifest).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method getCurrentTrackFor should throw an exception', function () {
-                expect(player.getCurrentTrackFor).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.getCurrentTrackFor).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method setCurrentTrack should throw an exception', function () {
-                expect(player.setCurrentTrack).to.throw(MediaPlayer.STREAMING_NOT_INITIALIZED_ERROR);
+                expect(player.setCurrentTrack).to.throw('You must first call initialize() and set a source before calling this method');
             });
 
             it('Method setInitialMediaSettingsFor should throw an exception', function () {
-                expect(player.setInitialMediaSettingsFor).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.setInitialMediaSettingsFor).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method getInitialMediaSettingsFor should throw an exception', function () {
-                expect(player.getInitialMediaSettingsFor).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.getInitialMediaSettingsFor).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method getTrackSwitchModeFor should throw an exception', function () {
-                expect(player.getTrackSwitchModeFor).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.getTrackSwitchModeFor).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method setTrackSwitchModeFor should throw an exception', function () {
-                expect(player.setTrackSwitchModeFor).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.setTrackSwitchModeFor).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method setSelectionModeForInitialTrack should throw an exception', function () {
-                expect(player.setSelectionModeForInitialTrack).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.setSelectionModeForInitialTrack).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
 
             it('Method getSelectionModeForInitialTrack should throw an exception', function () {
-                expect(player.getSelectionModeForInitialTrack).to.throw(MediaPlayer.MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+                expect(player.getSelectionModeForInitialTrack).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
+            });
+
+            it('Method getCurrentLiveLatency should throw an exception', function () {
+                expect(player.getCurrentLiveLatency).to.throw(MEDIA_PLAYER_NOT_INITIALIZED_ERROR);
             });
         });
     });

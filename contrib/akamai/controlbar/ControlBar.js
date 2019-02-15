@@ -83,8 +83,8 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
             fullscreenBtn = document.getElementById(getControlId("fullscreenBtn"));
             timeDisplay = document.getElementById(getControlId("videoTime"));
             durationDisplay = document.getElementById(getControlId("videoDuration"));
-            thumbnailContainer = document.getElementById(getControlId("thumbnail-container")),
-            thumbnailElem = document.getElementById(getControlId("thumbnail-elem"))
+            thumbnailContainer = document.getElementById(getControlId("thumbnail-container"));
+            thumbnailElem = document.getElementById(getControlId("thumbnail-elem"));
             thumbnailTimeLabel = document.getElementById(getControlId("thumbnail-time-label"));
         },
 
@@ -148,6 +148,10 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
                     seekbarBuffer.style.width = ((player.time() + getBufferLevel()) / player.duration() * 100) + '%';
                 }
 
+                if (seekbar.getAttribute('type') === 'range') {
+                    seekbar.value = player.time();
+                }
+
             }
         },
 
@@ -197,7 +201,7 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
             if (typeof value === "number") {
                 volumebar.value = value;
             }
-            player.setVolume(volumebar.value);
+            player.setVolume(parseFloat(volumebar.value));
             player.setMute(player.getVolume() === 0);
             if (isNaN(lastVolumeLevel)) {
                 lastVolumeLevel = player.getVolume();
@@ -267,38 +271,40 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
             }
 
             // Get thumbnail information
-            var thumbnail = player.getThumbnail(mouseTime);
-            if (!thumbnail) return;
+            player.getThumbnail(mouseTime, (thumbnail) => {
+                if (!thumbnail) return;
 
-            // Adjust left variable for positioning thumbnail with regards to its viewport
-            left += (seekbarRect.left - videoContainerRect.left);
-            // Take into account thumbnail control
-            var ctrlWidth = parseInt(window.getComputedStyle(thumbnailElem).width);
-            if (!isNaN(ctrlWidth)) {
-                left -= ctrlWidth / 2;
-            }
-
-            var scale = (videoContainerRect.height * maxPercentageThumbnailScreen)/thumbnail.height;
-            if (scale > maximumScale) {
-                scale = maximumScale;
-            }
-
-            // Set thumbnail control position
-            thumbnailContainer.style.left = left + 'px';
-            thumbnailContainer.style.display = '';
-            thumbnailContainer.style.bottom += Math.round(videoControllerRect.height + bottomMarginThumbnail ) + 'px';
-            thumbnailContainer.style.height = Math.round(thumbnail.height) + 'px';
-
-            var backgroundStyle = 'url("' + thumbnail.url + '") ' + (thumbnail.x > 0 ? '-' + thumbnail.x : '0') +
-                 'px ' + (thumbnail.y > 0 ? '-' + thumbnail.y : '0') + 'px';
-            thumbnailElem.style.background = backgroundStyle;
-            thumbnailElem.style.width = thumbnail.width + 'px';
-            thumbnailElem.style.height = thumbnail.height + 'px';
-            thumbnailElem.style.transform = 'scale(' + scale + ',' + scale + ')';
-
-            if (thumbnailTimeLabel) {
-                thumbnailTimeLabel.textContent = displayUTCTimeCodes ? player.formatUTC(mouseTime) : player.convertToTimeCode(mouseTime);
-            }
+                // Adjust left variable for positioning thumbnail with regards to its viewport
+                left += (seekbarRect.left - videoContainerRect.left);
+                // Take into account thumbnail control
+                var ctrlWidth = parseInt(window.getComputedStyle(thumbnailElem).width);
+                if (!isNaN(ctrlWidth)) {
+                    left -= ctrlWidth / 2;
+                }
+    
+                var scale = (videoContainerRect.height * maxPercentageThumbnailScreen)/thumbnail.height;
+                if (scale > maximumScale) {
+                    scale = maximumScale;
+                }
+    
+                // Set thumbnail control position
+                thumbnailContainer.style.left = left + 'px';
+                thumbnailContainer.style.display = '';
+                thumbnailContainer.style.bottom += Math.round(videoControllerRect.height + bottomMarginThumbnail ) + 'px';
+                thumbnailContainer.style.height = Math.round(thumbnail.height) + 'px';
+                
+                var backgroundStyle = 'url("' + thumbnail.url + '") ' + (thumbnail.x > 0 ? '-' + thumbnail.x : '0') +
+                     'px ' + (thumbnail.y > 0 ? '-' + thumbnail.y : '0') + 'px';
+                thumbnailElem.style.background = backgroundStyle;
+                thumbnailElem.style.width = thumbnail.width + 'px';
+                thumbnailElem.style.height = thumbnail.height + 'px';
+                thumbnailElem.style.transform = 'scale(' + scale + ',' + scale + ')';
+    
+                if (thumbnailTimeLabel) {
+                    thumbnailTimeLabel.textContent = displayUTCTimeCodes ? player.formatUTC(mouseTime) : player.convertToTimeCode(mouseTime);
+                }
+            });
+            
 
         },
 
@@ -461,11 +467,13 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
                 var availableBitrates = {menuType: 'bitrate'};
                 availableBitrates.audio = player.getBitrateInfoListFor("audio") || [];
                 availableBitrates.video = player.getBitrateInfoListFor("video") || [];
-
                 if (availableBitrates.audio.length > 1 || availableBitrates.video.length > 1) {
                     contentFunc = function (element, index) {
-                        return isNaN(index) ? " Auto Switch" : Math.floor(element.bitrate / 1000) + " kbps";
+                        var result = isNaN(index) ? " Auto Switch" : Math.floor(element.bitrate / 1000) + ' kbps';
+                        result += element && element.width && element.height ? ' (' + element.width + 'x' + element.height + ')' : '';
+                        return result;
                     }
+
                     bitrateListMenu = createMenu(availableBitrates, contentFunc);
                     var func = function () {
                         onMenuClick(bitrateListMenu, bitrateListBtn);
@@ -711,9 +719,14 @@ var ControlBar = function (dashjsMediaPlayer, displayUTCTimeCodes) {
         },
 
         positionMenu = function (menu, btn) {
+            if (btn.offsetLeft + menu.clientWidth >= videoController.clientWidth) {
+                menu.style.right = '0px';
+                menu.style.left = '';
+            } else {
+                menu.style.left = btn.offsetLeft + "px";
+            }
             var menu_y = videoController.offsetTop - menu.offsetHeight;
             menu.style.top = menu_y + "px";
-            menu.style.left = btn.offsetLeft + "px";
         },
 
         destroyBitrateMenu = function () {

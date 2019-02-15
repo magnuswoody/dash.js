@@ -28,6 +28,7 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
+import Constants from '../../constants/Constants';
 import BufferController from '../../controllers/BufferController';
 import EventBus from '../../../core/EventBus';
 import Events from '../../../core/events/Events';
@@ -41,23 +42,25 @@ function InsufficientBufferRule(config) {
     const INSUFFICIENT_BUFFER_SAFETY_FACTOR = 0.5;
 
     const context = this.context;
-    const log = Debug(context).getInstance().log;
 
     const eventBus = EventBus(context).getInstance();
     const metricsModel = config.metricsModel;
     const dashMetrics = config.dashMetrics;
 
     let instance,
+        logger,
         bufferStateDict;
 
     function setup() {
+        logger = Debug(context).getInstance().getLogger(instance);
         resetInitialSettings();
         eventBus.on(Events.PLAYBACK_SEEKING, onPlaybackSeeking, instance);
+        eventBus.on(Events.BYTES_APPENDED_END_FRAGMENT, onEndFragment, instance);
     }
 
     function checkConfig() {
         if (!metricsModel || !metricsModel.hasOwnProperty('getReadOnlyMetricsFor') || !dashMetrics || !dashMetrics.hasOwnProperty('getCurrentBufferLevel')) {
-            throw new Error('Missing config parameter(s)');
+            throw new Error(Constants.MISSING_CONFIG_ERROR);
         }
     }
     /*
@@ -86,12 +89,12 @@ function InsufficientBufferRule(config) {
         const fragmentDuration = representationInfo.fragmentDuration;
 
         // Don't ask for a bitrate change if there is not info about buffer state or if fragmentDuration is not defined
-        if (!lastBufferStateVO || !wasFirstBufferLoadedEventTriggered(mediaType, lastBufferStateVO) || !fragmentDuration) {
+        if (!lastBufferStateVO || shouldIgnore(mediaType) || !fragmentDuration) {
             return switchRequest;
         }
 
         if (lastBufferStateVO.state === BufferController.BUFFER_EMPTY) {
-            log('Switch to index 0; buffer is empty.');
+            logger.debug('Switch to index 0; buffer is empty.');
             switchRequest.quality = 0;
             switchRequest.reason = 'InsufficientBufferRule: Buffer is empty';
         } else {
@@ -111,30 +114,32 @@ function InsufficientBufferRule(config) {
         return switchRequest;
     }
 
-    function wasFirstBufferLoadedEventTriggered(mediaType, currentBufferState) {
-        bufferStateDict[mediaType] = bufferStateDict[mediaType] || {};
-
-        let wasTriggered = false;
-        if (bufferStateDict[mediaType].firstBufferLoadedEvent) {
-            wasTriggered = true;
-        } else if (currentBufferState && currentBufferState.state === BufferController.BUFFER_LOADED) {
-            bufferStateDict[mediaType].firstBufferLoadedEvent = true;
-            wasTriggered = true;
-        }
-        return wasTriggered;
+    function shouldIgnore(mediaType) {
+        return bufferStateDict[mediaType].ignoreCount > 0;
     }
 
     function resetInitialSettings() {
         bufferStateDict = {};
+        bufferStateDict[Constants.VIDEO] = {ignoreCount: 2};
+        bufferStateDict[Constants.AUDIO] = {ignoreCount: 2};
     }
 
     function onPlaybackSeeking() {
         resetInitialSettings();
     }
 
+    function onEndFragment(e) {
+        if (!isNaN(e.startTime) && (e.mediaType === Constants.AUDIO || e.mediaType === Constants.VIDEO)) {
+            if (bufferStateDict[e.mediaType].ignoreCount > 0) {
+                bufferStateDict[e.mediaType].ignoreCount --;
+            }
+        }
+    }
+
     function reset() {
         resetInitialSettings();
         eventBus.off(Events.PLAYBACK_SEEKING, onPlaybackSeeking, instance);
+        eventBus.off(Events.BYTES_APPENDED_END_FRAGMENT, onEndFragment, instance);
     }
 
     instance = {

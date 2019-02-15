@@ -37,6 +37,7 @@ import ManifestInfo from '../streaming/vo/ManifestInfo';
 import Event from './vo/Event';
 import FactoryMaker from '../core/FactoryMaker';
 import cea608parser from '../../externals/cea608-parser';
+import { checkInteger } from '../streaming/utils/SupervisorTools';
 
 function DashAdapter() {
     let instance,
@@ -55,7 +56,6 @@ function DashAdapter() {
             dashManifestModel = config.dashManifestModel;
         }
     }
-
 
     function getRepresentationForRepresentationInfo(representationInfo, representationController) {
         return representationController && representationInfo ? representationController.getRepresentationForQuality(representationInfo.quality) : null;
@@ -152,7 +152,7 @@ function DashAdapter() {
         mediaInfo.codec = 'cea-608-in-SEI';
         mediaInfo.isText = true;
         mediaInfo.isEmbedded = true;
-        mediaInfo.lang = channel + ' ' + lang;
+        mediaInfo.lang = lang;
         mediaInfo.roles = ['caption'];
     }
 
@@ -223,8 +223,7 @@ function DashAdapter() {
             const mpd = dashManifestModel.getMpd(manifest);
 
             voLocalPeriods = dashManifestModel.getRegularPeriods(mpd);
-
-        }else {
+        } else {
             if (voPeriods.length > 0) {
                 manifest = voPeriods[0].mpd.manifest;
             } else {
@@ -309,7 +308,7 @@ function DashAdapter() {
         voAdaptations = {};
     }
 
-    function getStreamsInfo(externalManifest) {
+    function getStreamsInfo(externalManifest, maxStreamsInfo) {
         const streams = [];
         let voLocalPeriods = voPeriods;
 
@@ -321,7 +320,10 @@ function DashAdapter() {
             voLocalPeriods = dashManifestModel.getRegularPeriods(mpd);
         }
 
-        for (let i = 0; i < voLocalPeriods.length; i++) {
+        if (!maxStreamsInfo) {
+            maxStreamsInfo = voLocalPeriods.length;
+        }
+        for (let i = 0; i < maxStreamsInfo; i++) {
             streams.push(convertPeriodToStreamInfo(voLocalPeriods[i]));
         }
 
@@ -341,21 +343,13 @@ function DashAdapter() {
         }
     }
 
-    function checkQuality(quality) {
-        const isInt = quality !== null && !isNaN(quality) && (quality % 1 === 0);
-
-        if (!isInt) {
-            throw new Error('quality argument is not an integer');
-        }
-    }
-
     function getInitRequest(streamProcessor, quality) {
         let representationController,
             representation,
             indexHandler;
 
         checkStreamProcessor(streamProcessor);
-        checkQuality(quality);
+        checkInteger(quality);
 
         representationController = streamProcessor.getRepresentationController();
         indexHandler = streamProcessor.getIndexHandler();
@@ -365,10 +359,12 @@ function DashAdapter() {
         return indexHandler ? indexHandler.getInitRequest(representation) : null;
     }
 
-    function getNextFragmentRequest(streamProcessor, representationInfo) {
+    function getFragmentRequest(streamProcessor, representationInfo, time, options) {
         let representationController,
             representation,
             indexHandler;
+
+        let fragRequest = null;
 
         checkStreamProcessor(streamProcessor);
 
@@ -376,35 +372,17 @@ function DashAdapter() {
         representation = getRepresentationForRepresentationInfo(representationInfo, representationController);
         indexHandler = streamProcessor.getIndexHandler();
 
-        return indexHandler ? indexHandler.getNextSegmentRequest(representation) : null;
-    }
+        if (indexHandler) {
+            //if time and options are undefined, it means the next segment is requested
+            //otherwise, the segment at this specific time is requested.
+            if (time !== undefined && options !== undefined) {
+                fragRequest = indexHandler.getSegmentRequestForTime(representation, time, options);
+            } else {
+                fragRequest = indexHandler.getNextSegmentRequest(representation);
+            }
+        }
 
-    function getFragmentRequestForTime(streamProcessor, representationInfo, time, options) {
-        let representationController,
-            representation,
-            indexHandler;
-
-        checkStreamProcessor(streamProcessor);
-
-        representationController = streamProcessor.getRepresentationController();
-        representation = getRepresentationForRepresentationInfo(representationInfo, representationController);
-        indexHandler = streamProcessor.getIndexHandler();
-
-        return indexHandler ? indexHandler.getSegmentRequestForTime(representation, time, options) : null;
-    }
-
-    function generateFragmentRequestForTime(streamProcessor, representationInfo, time) {
-        let representationController,
-            representation,
-            indexHandler;
-
-        checkStreamProcessor(streamProcessor);
-
-        representationController = streamProcessor.getRepresentationController();
-        representation = getRepresentationForRepresentationInfo(representationInfo, representationController);
-        indexHandler = streamProcessor.getIndexHandler();
-
-        return indexHandler ? indexHandler.generateSegmentRequestForTime(representation, time) : null;
+        return fragRequest;
     }
 
     function getIndexHandlerTime(streamProcessor) {
@@ -412,10 +390,7 @@ function DashAdapter() {
 
         const indexHandler = streamProcessor.getIndexHandler();
 
-        if (indexHandler) {
-            return indexHandler.getCurrentTime();
-        }
-        return NaN;
+        return indexHandler ? indexHandler.getCurrentTime() : NaN;
     }
 
     function setIndexHandlerTime(streamProcessor, value) {
@@ -424,6 +399,15 @@ function DashAdapter() {
         const indexHandler = streamProcessor.getIndexHandler();
         if (indexHandler) {
             indexHandler.setCurrentTime(value);
+        }
+    }
+
+    function resetIndexHandler(streamProcessor) {
+        checkStreamProcessor(streamProcessor);
+
+        const indexHandler = streamProcessor.getIndexHandler();
+        if (indexHandler) {
+            indexHandler.resetIndex();
         }
     }
 
@@ -445,17 +429,23 @@ function DashAdapter() {
         }
     }
 
-    function getRepresentationInfoForQuality(representationController, quality) {
+    /**
+     * Get a specific voRepresentation. If quality parameter is defined, this function will return the voRepresentation for this quality.
+     * Otherwise, this function will return the current voRepresentation used by the representationController.
+     * @param {RepresentationController} representationController - RepresentationController reference
+     * @param {number} quality - quality index of the voRepresentaion expected.
+     */
+    function getRepresentationInfo(representationController, quality) {
         checkRepresentationController(representationController);
-        checkQuality(quality);
+        let voRepresentation;
 
-        const voRepresentation = representationController.getRepresentationForQuality(quality);
-        return voRepresentation ? convertRepresentationToRepresentationInfo(voRepresentation) : null;
-    }
+        if (quality !== undefined) {
+            checkInteger(quality);
+            voRepresentation = representationController.getRepresentationForQuality(quality);
+        } else {
+            voRepresentation = representationController.getCurrentRepresentation();
+        }
 
-    function getCurrentRepresentationInfo(representationController) {
-        checkRepresentationController(representationController);
-        let voRepresentation = representationController.getCurrentRepresentation();
         return voRepresentation ? convertRepresentationToRepresentationInfo(voRepresentation) : null;
     }
 
@@ -518,20 +508,18 @@ function DashAdapter() {
         getStreamsInfo: getStreamsInfo,
         getMediaInfoForType: getMediaInfoForType,
         getAllMediaInfoForType: getAllMediaInfoForType,
-        getCurrentRepresentationInfo: getCurrentRepresentationInfo,
-        getRepresentationInfoForQuality: getRepresentationInfoForQuality,
+        getRepresentationInfo: getRepresentationInfo,
         updateData: updateData,
         getInitRequest: getInitRequest,
-        getNextFragmentRequest: getNextFragmentRequest,
-        getFragmentRequestForTime: getFragmentRequestForTime,
-        generateFragmentRequestForTime: generateFragmentRequestForTime,
+        getFragmentRequest: getFragmentRequest,
         getIndexHandlerTime: getIndexHandlerTime,
         setIndexHandlerTime: setIndexHandlerTime,
         getEventsFor: getEventsFor,
         getEvent: getEvent,
         setConfig: setConfig,
         updatePeriods: updatePeriods,
-        reset: reset
+        reset: reset,
+        resetIndexHandler: resetIndexHandler
     };
 
     setup();
