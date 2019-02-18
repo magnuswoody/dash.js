@@ -201,8 +201,7 @@ function ProtectionModel_21Jan2015(config) {
 
         if (sessionId !== undefined) {
             loadPersistedLicence(sessionId);
-        }
-        else {
+        } else {
             const session = mediaKeys.createSession(sessionType);
             const sessionToken = createSessionToken(session, initData, sessionType);
             const ks = this.getKeySystem();
@@ -230,11 +229,11 @@ function ProtectionModel_21Jan2015(config) {
             function (success) {
                 var sessionToken = createSessionToken(session);
                 if (success) {
-                    log('Successfully loaded stored session with sessionID ', sessionId);
+                    logger.debug('Successfully loaded stored session with sessionID ', sessionId);
 
                     if (sessionToken.getExpirationTime() < new Date()) {
                         // The token/license has expired!  We should probably remove the stored license.
-                        log('The token has expired on ' + new Date(sessionToken.getExpirationTime()));
+                        logger.debug('The token has expired on ' + new Date(sessionToken.getExpirationTime()));
                         removeKeySession(sessionToken);
                     }
                 }

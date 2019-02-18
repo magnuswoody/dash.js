@@ -175,6 +175,7 @@ function ProtectionController(config) {
             }
             try {
                 if (protData.sessionId) {
+                    setSessionType('persistent-license');
                     protectionModel.createKeySession(initDataForKS, protData, getSessionType(keySystem), protData.sessionId);
                 }
                 else {
@@ -376,8 +377,8 @@ function ProtectionController(config) {
         const protData = getProtData(keySystem);
         const audioCapabilities = [];
         const videoCapabilities = [];
-        const audioRobustness = (protData && protData.audioRobustness && protData.audioRobustness.length > 0) ? protData.audioRobustness : robustnessLevel;
-        const videoRobustness = (protData && protData.videoRobustness && protData.videoRobustness.length > 0) ? protData.videoRobustness : robustnessLevel;
+        const audioRobustness = (protData && protData.audioRobustness && protData.audioRobustness.length > 0) ? protData.audioRobustness : audioRobustness;
+        const videoRobustness = (protData && protData.videoRobustness && protData.videoRobustness.length > 0) ? protData.videoRobustness : videoRobustness;
         const ksSessionType = getSessionType(keySystem);
         const distinctiveIdentifier = (protData && protData.distinctiveIdentifier) ? protData.distinctiveIdentifier : 'optional';
         const persistentState = (protData && protData.persistentState) ? protData.persistentState : (ksSessionType === 'temporary') ? 'optional' : 'required';
@@ -425,12 +426,13 @@ function ProtectionController(config) {
                         } else {
                             logger.info('DRM: KeySystem Access Granted');
                             eventBus.trigger(events.KEY_SYSTEM_SELECTED, {data: event.data});
-                            if (supportedKS[ksIdx].sessionId) {
+                            if (supportedKS[ksIdx].bbcSessionStarted && supportedKS[ksIdx].sessionId) {
                                 // Load MediaKeySession with sessionId
                                 loadKeySession(supportedKS[ksIdx].sessionId, supportedKS[ksIdx].initData);
                             } else if (supportedKS[ksIdx].initData) {
                                 // Create new MediaKeySession with initData
                                 createKeySession(supportedKS[ksIdx].initData, supportedKS[ksIdx].cdmData);
+                                supportedKS[ksIdx].bbcSessionStarted = true;
                             }
                         }
                     };
@@ -488,12 +490,13 @@ function ProtectionController(config) {
                                     const initData = { kids: Object.keys(protData.clearkeys) };
                                     pendingNeedKeyData[i][ksIdx].initData = new TextEncoder().encode(JSON.stringify(initData));
                                 }
-                                if (pendingNeedKeyData[i][ksIdx].sessionId) {
+                                if (pendingNeedKeyData[i][ksIdx].bbcSessionStarted && pendingNeedKeyData[i][ksIdx].sessionId) {
                                     // Load MediaKeySession with sessionId
                                     loadKeySession(pendingNeedKeyData[i][ksIdx].sessionId, pendingNeedKeyData[i][ksIdx].initData);
                                 } else if (pendingNeedKeyData[i][ksIdx].initData !== null) {
                                     // Create new MediaKeySession with initData
                                     createKeySession(pendingNeedKeyData[i][ksIdx].initData, pendingNeedKeyData[i][ksIdx].cdmData);
+                                    pendingNeedKeyData[i][ksIdx].bbcSessionStarted = true;
                                 }
                                 break;
                             }
