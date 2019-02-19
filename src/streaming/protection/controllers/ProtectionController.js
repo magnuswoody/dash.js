@@ -162,7 +162,7 @@ function ProtectionController(config) {
      */
     function createKeySession(initData, cdmData) {
         const initDataForKS = CommonEncryption.getPSSHForKeySystem(keySystem, initData);
-        var protData = getProtData(keySystem);
+        const protData = getProtData(keySystem);
         if (initDataForKS) {
 
             // Check for duplicate initData
@@ -176,7 +176,7 @@ function ProtectionController(config) {
             try {
                 if (protData.sessionId) {
                     setSessionType('persistent-license');
-                    protectionModel.createKeySession(initDataForKS, protData, getSessionType(keySystem), protData.sessionId);
+                    protectionModel.createKeySession(initDataForKS, protData, getSessionType(keySystem), cdmData, protData.sessionId);
                 }
                 else {
                     protectionModel.createKeySession(initDataForKS, protData, getSessionType(keySystem), cdmData);
@@ -426,13 +426,13 @@ function ProtectionController(config) {
                         } else {
                             logger.info('DRM: KeySystem Access Granted');
                             eventBus.trigger(events.KEY_SYSTEM_SELECTED, {data: event.data});
-                            if (supportedKS[ksIdx].bbcSessionStarted && supportedKS[ksIdx].sessionId) {
+                            if (supportedKS[ksIdx].sessionStarted && supportedKS[ksIdx].sessionId) {
                                 // Load MediaKeySession with sessionId
                                 loadKeySession(supportedKS[ksIdx].sessionId, supportedKS[ksIdx].initData);
                             } else if (supportedKS[ksIdx].initData) {
                                 // Create new MediaKeySession with initData
                                 createKeySession(supportedKS[ksIdx].initData, supportedKS[ksIdx].cdmData);
-                                supportedKS[ksIdx].bbcSessionStarted = true;
+                                supportedKS[ksIdx].sessionStarted = true;
                             }
                         }
                     };
@@ -490,13 +490,13 @@ function ProtectionController(config) {
                                     const initData = { kids: Object.keys(protData.clearkeys) };
                                     pendingNeedKeyData[i][ksIdx].initData = new TextEncoder().encode(JSON.stringify(initData));
                                 }
-                                if (pendingNeedKeyData[i][ksIdx].bbcSessionStarted && pendingNeedKeyData[i][ksIdx].sessionId) {
+                                if (pendingNeedKeyData[i][ksIdx].sessionStarted && pendingNeedKeyData[i][ksIdx].sessionId) {
                                     // Load MediaKeySession with sessionId
                                     loadKeySession(pendingNeedKeyData[i][ksIdx].sessionId, pendingNeedKeyData[i][ksIdx].initData);
                                 } else if (pendingNeedKeyData[i][ksIdx].initData !== null) {
                                     // Create new MediaKeySession with initData
                                     createKeySession(pendingNeedKeyData[i][ksIdx].initData, pendingNeedKeyData[i][ksIdx].cdmData);
-                                    pendingNeedKeyData[i][ksIdx].bbcSessionStarted = true;
+                                    pendingNeedKeyData[i][ksIdx].sessionStarted = true;
                                 }
                                 break;
                             }
