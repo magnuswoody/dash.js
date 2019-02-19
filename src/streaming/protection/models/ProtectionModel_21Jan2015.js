@@ -194,26 +194,60 @@ function ProtectionModel_21Jan2015(config) {
         });
     }
 
-    function createKeySession(initData, protData, sessionType) {
+    function createKeySession(initData, protData, sessionType, cdmData, sessionId) {
         if (!keySystem || !mediaKeys) {
             throw new Error('Can not create sessions until you have selected a key system');
         }
 
-        const session = mediaKeys.createSession(sessionType);
-        const sessionToken = createSessionToken(session, initData, sessionType);
-        const ks = this.getKeySystem();
+        if (sessionId !== undefined) {
+            loadPersistedLicence(sessionId);
+        } else {
+            const session = mediaKeys.createSession(sessionType);
+            const sessionToken = createSessionToken(session, initData, sessionType);
+            const ks = this.getKeySystem();
 
-        // Generate initial key request.
-        // keyids type is used for clearkey when keys are provided directly in the protection data and then request to a license server is not needed
-        const dataType = ks.systemString === ProtectionConstants.CLEARKEY_KEYSTEM_STRING && protData && protData.clearkeys ? 'keyids' : 'cenc';
-        session.generateRequest(dataType, initData).then(function () {
-            logger.debug('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
-            eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
-        }).catch(function (error) {
-            // TODO: Better error string
-            removeSession(sessionToken);
-            eventBus.trigger(events.KEY_SESSION_CREATED, {data: null, error: new DashJSError(ProtectionErrors.KEY_SESSION_CREATED_ERROR_CODE, ProtectionErrors.KEY_SESSION_CREATED_ERROR_MESSAGE + 'Error generating key request -- ' + error.name)});
-        });
+            // Generate initial key request.
+            // keyids type is used for clearkey when keys are provided directly in the protection data and then request to a license server is not needed
+            const dataType = ks.systemString === ProtectionConstants.CLEARKEY_KEYSTEM_STRING && protData && protData.clearkeys ? 'keyids' : 'cenc';
+            session.generateRequest(dataType, initData).then(function () {
+                logger.debug('DRM: Session created.  SessionID = ' + sessionToken.getSessionID());
+                eventBus.trigger(events.KEY_SESSION_CREATED, {data: sessionToken});
+            }).catch(function (error) {
+                // TODO: Better error string
+                removeSession(sessionToken);
+                eventBus.trigger(events.KEY_SESSION_CREATED, {data: null, error: new DashJSError(ProtectionErrors.KEY_SESSION_CREATED_ERROR_CODE, ProtectionErrors.KEY_SESSION_CREATED_ERROR_MESSAGE + 'Error generating key request -- ' + error.name)});
+            });
+        }
+    }
+
+    function loadPersistedLicence(sessionId) {
+
+        // seesionType needs to be peristent rather for new and stored licenses
+        var session = mediaKeys.createSession('persistent-license');
+
+        session.load(sessionId).then(
+            function (success) {
+                var sessionToken = createSessionToken(session);
+                if (success) {
+                    logger.debug('Successfully loaded stored session with sessionID ', sessionId);
+
+                    if (sessionToken.getExpirationTime() < new Date()) {
+                        // The token/license has expired!  We should probably remove the stored license.
+                        logger.debug('The token has expired on ' + new Date(sessionToken.getExpirationTime()));
+                        removeKeySession(sessionToken);
+                    }
+                }
+                else {
+                    // The application should remove its record of sessionId.
+                    console.error('No stored session with the ID ' + sessionId + ' was found.');
+                    eventBus.trigger(events.KEY_ERROR, {data: null, error: 'Could not load session! Invalid Session ID (' + sessionId + ')'});
+                    removeKeySession(sessionToken);
+                    return;
+                }
+            }
+        ).catch(function (e) {
+                console.error.bind(console, 'Unable to load or initialize the stored session with the ID ' + sessionId + '. Error ' + e.name + ': ' + e.message );
+            });
     }
 
     function updateKeySession(sessionToken, message) {
