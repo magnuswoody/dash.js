@@ -749,9 +749,10 @@ function PlaybackController() {
                     stopPlaybackCatchUp();
                 }
             }
+        } else {
+            playbackStalled = e.state === BufferController.BUFFER_EMPTY;
+            videoModel.setStallState(e.mediaType, e.state === BufferController.BUFFER_EMPTY);
         }
-        playbackStalled = e.state === BufferController.BUFFER_EMPTY;
-        videoModel.setStallState(e.mediaType, e.state === BufferController.BUFFER_EMPTY);
     }
 
     function onPlaybackStalled(e) {
