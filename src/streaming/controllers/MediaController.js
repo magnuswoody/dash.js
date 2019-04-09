@@ -190,7 +190,7 @@ function MediaController() {
      * @memberof MediaController#
      */
     function setTrack(track) {
-        if (!track) return;
+        if (!track || !track.streamInfo) return;
 
         const type = track.type;
         const streamInfo = track.streamInfo;

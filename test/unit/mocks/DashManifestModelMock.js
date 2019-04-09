@@ -4,23 +4,16 @@ function DashManifestModelMock () {
         return false;
     };
 
-    this.getAdaptationForType = function () {
-        return {
-            Representation: [
-                {
-                    width: 500,
-                    bandwidth: 1000
-                },
-                {
-                    width: 750,
-                    bandwidth: 2000
-                },
-                {
-                    width: 900,
-                    bandwidth: 3000
-                }
-            ]
-        };
+    this.getAdaptationsForType = function (manifest, periodIndex, type) {
+        let adaptationsArray;
+
+        if (type === 'video') {
+            adaptationsArray = [{ id: 0, mimeType: 'video' }, { id: 1, mimeType: 'video' }];
+        } else {
+            adaptationsArray = [{ id: undefined, mimeType: 'audio', lang: 'eng', Role_asArray: [{ value: 'main' }] }, { id: undefined, mimeType: 'audio', lang: 'deu', Role_asArray: [{ value: 'main' }]}];
+        }
+
+        return adaptationsArray;
     };
 
     this.setRepresentation = function (res) {
@@ -45,6 +38,10 @@ function DashManifestModelMock () {
 
     this.getIndexForAdaptation = function () {
         return 0;
+    };
+
+    this.getRolesForAdaptation = function () {
+        return [];
     };
 }
 

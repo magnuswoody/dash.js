@@ -118,8 +118,8 @@ function PlaybackController() {
 
     function getStreamEndTime() {
         const startTime = getStreamStartTime(true);
-        const offset = isDynamic ? startTime - streamInfo.start : 0;
-        return startTime + (streamInfo.duration - offset);
+        const offset = isDynamic && streamInfo ? startTime - streamInfo.start : 0;
+        return startTime + (streamInfo ? streamInfo.duration - offset : offset);
     }
 
     function play() {
@@ -369,11 +369,11 @@ function PlaybackController() {
                 startTimeOffset = 0;
             }
         } else {
-            startTimeOffset = streamInfo.start;
+            startTimeOffset = streamInfo ? streamInfo.start : startTimeOffset;
         }
 
         if (isDynamic) {
-            if (!isNaN(startTimeOffset)) {
+            if (!isNaN(startTimeOffset) && streamInfo) {
                 presentationStartTime = startTimeOffset - (streamInfo.manifestInfo.availableFrom.getTime() / 1000);
 
                 if (!isNaN(liveStartTime) && !isNaN(liveEdge)) {
@@ -383,11 +383,13 @@ function PlaybackController() {
             presentationStartTime = presentationStartTime || liveStartTime;
 
         } else {
-            if (!isNaN(startTimeOffset) && startTimeOffset < Math.max(streamInfo.manifestInfo.duration, streamInfo.duration) && startTimeOffset >= 0) {
-                presentationStartTime = startTimeOffset;
-            } else {
-                let earliestTime = commonEarliestTime[streamInfo.id]; //set by ready bufferStart after first onBytesAppended
-                presentationStartTime = earliestTime !== undefined ? Math.max(earliestTime.audio !== undefined ? earliestTime.audio : 0, earliestTime.video !== undefined ? earliestTime.video : 0, streamInfo.start) : streamInfo.start;
+            if (streamInfo) {
+                if (!isNaN(startTimeOffset) && startTimeOffset < Math.max(streamInfo.manifestInfo.duration, streamInfo.duration) && startTimeOffset >= 0) {
+                    presentationStartTime = startTimeOffset;
+                } else {
+                    let earliestTime = commonEarliestTime[streamInfo.id]; //set by ready bufferStart after first onBytesAppended
+                    presentationStartTime = earliestTime !== undefined ? Math.max(earliestTime.audio !== undefined ? earliestTime.audio : 0, earliestTime.video !== undefined ? earliestTime.video : 0, streamInfo.start) : streamInfo.start;
+                }
             }
         }
 
@@ -507,10 +509,12 @@ function PlaybackController() {
     }
 
     function onPlaybackTimeUpdated() {
-        eventBus.trigger(Events.PLAYBACK_TIME_UPDATED, {
-            timeToEnd: getTimeToStreamEnd(),
-            time: getTime()
-        });
+        if (streamInfo) {
+            eventBus.trigger(Events.PLAYBACK_TIME_UPDATED, {
+                timeToEnd: getTimeToStreamEnd(),
+                time: getTime()
+            });
+        }
     }
 
     function updateLivePlaybackTime() {
@@ -591,7 +595,13 @@ function PlaybackController() {
     }
 
     function onPlaybackProgression() {
-        if (isDynamic && mediaPlayerModel.getLowLatencyEnabled() && !isPaused() && !isSeeking()) {
+        if (
+            isDynamic &&
+            mediaPlayerModel.getLowLatencyEnabled() &&
+            mediaPlayerModel.getCatchUpPlaybackRate() > 0 &&
+            !isPaused() &&
+            !isSeeking()
+        ) {
             if (needToCatchUp()) {
                 startPlaybackCatchUp();
             } else {
@@ -746,14 +756,15 @@ function PlaybackController() {
         if (mediaPlayerModel.getLowLatencyEnabled()) {
             if (e.state === BufferController.BUFFER_EMPTY && !isSeeking()) {
                 if (!playbackStalled) {
+                    playbackStalled = true;
                     stopPlaybackCatchUp();
                 }
             }
         } else {
-            playbackStalled = e.state === BufferController.BUFFER_EMPTY;
             videoModel.setStallState(e.mediaType, e.state === BufferController.BUFFER_EMPTY);
         }
     }
+
 
     function onPlaybackStalled(e) {
         eventBus.trigger(Events.PLAYBACK_STALLED, {

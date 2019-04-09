@@ -697,7 +697,7 @@ function ProtectionController(config) {
             }
         };
 
-        xhr.onerror = function () {
+        xhr.ontimeout = xhr.onerror = function () {
             if (retriesCount <= 0) {
                 onError(this);
             } else {
