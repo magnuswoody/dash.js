@@ -52,6 +52,7 @@ function HTTPLoader(cfg) {
     const requestModifier = cfg.requestModifier;
     const boxParser = cfg.boxParser;
     const useFetch = cfg.useFetch || false;
+    const requestTimeout = cfg.requestTimeout || 0;
 
     let logger,
         instance,
@@ -242,6 +243,9 @@ function HTTPLoader(cfg) {
             }
         };
 
+        const ontimeout = function () {
+        };
+
         let loader;
         if (useFetch && window.fetch && request.responseType === 'arraybuffer' && request.type === HTTPRequest.MEDIA_SEGMENT_TYPE) {
             loader = FetchLoader(context).create({
@@ -269,7 +273,9 @@ function HTTPLoader(cfg) {
             onerror: onloadend,
             progress: progress,
             onabort: onabort,
-            loader: loader
+            ontimeout: ontimeout,
+            loader: loader,
+            timeout: requestTimeout
         };
 
         // Adds the ability to delay single fragment loading time to control buffer.
